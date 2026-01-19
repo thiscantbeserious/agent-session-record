@@ -167,7 +167,6 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
 
     #[test]
     fn default_config_has_expected_values() {

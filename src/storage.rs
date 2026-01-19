@@ -244,6 +244,7 @@ impl StorageManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
     use tempfile::TempDir;
 
     fn create_test_config(temp_dir: &TempDir) -> Config {
