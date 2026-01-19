@@ -2,7 +2,7 @@
 
 mod helpers;
 
-use asr::{AsciicastFile, Event, EventType};
+use asr::{AsciicastFile, Event};
 use helpers::{load_fixture, temp_fixture};
 
 #[test]

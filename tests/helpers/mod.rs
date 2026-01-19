@@ -1,7 +1,9 @@
 //! Test helper utilities
 
+#![allow(dead_code)]
+
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tempfile::TempDir;
 
 /// Get the path to the fixtures directory

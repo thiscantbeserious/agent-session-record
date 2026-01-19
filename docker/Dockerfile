@@ -1,4 +1,4 @@
-FROM rust:1.83-slim AS base
+FROM rust:latest AS base
 WORKDIR /app
 
 FROM base AS test
