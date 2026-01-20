@@ -4,7 +4,10 @@
 
 This session is a **coordinator** that manages sub-agents. It does NOT implement code directly.
 
-See `.state/coordinator.md` for active agent tracking.
+**Key State Files:**
+- `.state/plan.md` - Full project plan (version controlled)
+- `.state/coordinator.md` - Active agent tracking
+- `.state/decisions.md` - Technical decisions log
 
 ## Quick Start for New Session
 ```bash
