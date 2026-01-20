@@ -4,7 +4,7 @@
 
 ### Decision: Use Rust with specified dependencies
 **Context:** Need a fast, single-binary CLI tool
-**Choice:** Rust with clap, serde_json, toml, ctrlc, dirs, humansize
+**Choice:** Rust with clap, serde_json, toml, ctrlc, dirs, humansize, chrono, anyhow, thiserror
 **Rationale:**
 - Single static binary, zero runtime dependencies
 - Fast execution
@@ -26,9 +26,65 @@
 - asciinema CLI handles PTY management, terminal capture
 - We handle file management, marker injection natively
 
-### Decision: TDD with 90% coverage target
+### Decision: TDD with behavior-focused tests
 **Context:** Ensure code quality and correctness
-**Choice:** Behavior-focused tests, cargo-tarpaulin for coverage
+**Choice:** Behavior-focused tests with e2e verification
 **Rationale:**
 - Tests describe what system does, not how
-- Coverage enforcement in Docker build
+- E2E tests verify real asciinema integration
+
+## 2026-01-20: Implementation Decisions
+
+### Decision: Config path ~/.config/asr on ALL platforms
+**Context:** dirs::config_dir() returns ~/Library/Application Support on macOS
+**Choice:** Explicitly use ~/.config/asr on all platforms
+**Rationale:**
+- Consistent cross-platform behavior
+- User expectation for CLI tools
+- Easier to document and find
+
+### Decision: Support Exit event type ("x")
+**Context:** asciinema produces "x" events for exit codes
+**Choice:** Add EventType::Exit to asciicast parser
+**Rationale:**
+- Real asciinema recordings include exit events
+- E2E tests would fail without it
+
+### Decision: Mandatory E2E tests before merge
+**Context:** Unit tests alone don't verify real asciinema integration
+**Choice:** tests/e2e_test.sh must pass before any PR merge
+**Rationale:**
+- Verifies actual recording/playback works
+- Catches integration issues unit tests miss
+
+### Decision: Keep all feature branches after merge
+**Context:** Git history and rollback capability
+**Choice:** Never delete branches with --delete-branch
+**Rationale:**
+- Preserves full history
+- Easy to reference or cherry-pick
+
+### Decision: Rust 1.92+ / rust:latest for Docker
+**Context:** Need recent Rust for dependencies
+**Choice:** Use rust:latest in Dockerfile, user has 1.92 locally
+**Rationale:**
+- Latest stable features
+- Better dependency compatibility
+
+## Important Paths
+- **Project:** ~/git/simon/agent-session-recorder/
+- **Repo:** github.com/thiscantbeserious/agent-session-record
+- **Config:** ~/.config/asr/config.toml
+- **Storage:** ~/recorded_agent_sessions/<agent>/
+- **Binary:** target/release/asr
+
+## Build/Test Commands
+```bash
+# Source cargo (if new shell)
+. "$HOME/.cargo/env"
+
+# Full verification (REQUIRED before PR)
+cargo test                    # 79 tests
+cargo build --release         # Native binary
+./tests/e2e_test.sh          # E2E with real asciinema
+```
