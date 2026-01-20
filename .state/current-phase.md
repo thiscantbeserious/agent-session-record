@@ -51,10 +51,9 @@ asr skills install             # Install skills to agent dirs
 asr skills uninstall           # Remove skills from agent dirs
 ```
 
-### Tests: 87 Total
-- Unit tests (in src/*.rs)
-- Integration tests (tests/*.rs)
-- E2E tests (tests/e2e_test.sh)
+### Tests: 102 Total
+- 87 unit/integration tests (cargo test)
+- 15 e2e tests (tests/e2e_test.sh)
 
 ### Key Files
 - `AGENTS.md` - Workflow instructions (symlinked as CLAUDE.md, GEMINI.md)
