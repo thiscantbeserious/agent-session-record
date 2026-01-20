@@ -10,13 +10,10 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    name: Test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-
+  # Quick checks that fail fast
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +21,25 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+
+  # Unit and integration tests
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -36,22 +52,59 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install asciinema (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y asciinema
-
-      - name: Install asciinema (macOS)
-        if: matrix.os == 'macos-latest'
-        run: brew install asciinema
-
-      - name: Run cargo fmt check
-        run: cargo fmt --all -- --check
-
-      - name: Run cargo clippy
-        run: cargo clippy -- -D warnings
-
       - name: Run unit tests
         run: cargo test --verbose
+
+  # Build release binary
+  build:
+    name: Build (${{ matrix.os }})
+    needs: [lint, test]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: asr-${{ matrix.os }}
+          path: target/release/asr
+
+  # E2E tests require asciinema with v3 support
+  e2e:
+    name: E2E Tests
+    needs: build
+    runs-on: macos-latest  # macOS brew has newer asciinema with v3 support
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install asciinema
+        run: brew install asciinema
+
+      - name: Check asciinema version
+        run: asciinema --version
 
       - name: Build release
         run: cargo build --release
@@ -59,11 +112,12 @@ jobs:
       - name: Run e2e tests
         run: ./tests/e2e_test.sh
 
-  build-artifacts:
-    name: Build Release Artifacts
-    needs: test
-    runs-on: ${{ matrix.os }}
+  # Build release artifacts for multiple platforms (only on main)
+  release-artifacts:
+    name: Release Artifacts
+    needs: [lint, test, build, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
@@ -76,7 +130,6 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact: asr-macos-arm64
-
     steps:
       - uses: actions/checkout@v4
 
