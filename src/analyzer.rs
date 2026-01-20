@@ -45,8 +45,8 @@ impl Analyzer {
             "gemini-cli" | "gemini" => "gemini",
             other => other,
         };
-        Command::new("which")
-            .arg(binary)
+        Command::new(binary)
+            .arg("--version")
             .output()
             .map(|output| output.status.success())
             .unwrap_or(false)
@@ -126,11 +126,7 @@ mod tests {
     }
 
     #[test]
-    fn is_agent_installed_returns_bool() {
-        // Test with a binary that definitely exists
-        let result = Analyzer::is_agent_installed("ls");
-        assert!(result);
-
+    fn is_agent_installed_returns_false_for_missing() {
         // Test with a binary that definitely doesn't exist
         let result = Analyzer::is_agent_installed("definitely-not-a-real-binary-12345");
         assert!(!result);

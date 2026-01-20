@@ -202,8 +202,7 @@ impl Recorder {
                 agent
             );
             println!(
-                "💡 Tip: You can still analyze manually with: /agr-analyze {}",
-                filepath.display()
+                "Tip: Run 'agr list' to see recordings, then use your agent's CLI to analyze."
             );
             return;
         }
@@ -215,8 +214,7 @@ impl Recorder {
         if let Err(e) = analyzer.analyze(filepath) {
             eprintln!("Auto-analyze failed: {}", e);
             println!(
-                "💡 Tip: You can retry manually with: /agr-analyze {}",
-                filepath.display()
+                "Tip: Run 'agr list' to see recordings, then use your agent's CLI to analyze."
             );
         }
     }
