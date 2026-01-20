@@ -36,6 +36,14 @@
 - **New strict rule:** Wait for CodeRabbit to post actual findings, not just "processing"
 - If CodeRabbit is slow, WAIT - do not bypass
 
+### PR #5 - CodeRabbit Value Demonstrated:
+- **CodeRabbit caught a real bug:** UTF-8 string truncation using byte slicing
+- The `truncate_string` function used `s.len()` (bytes) and `&s[..n]` (byte slice) which panics on multi-byte characters
+- Impl Agent's tests passed because they only used ASCII strings
+- **Fix applied:** Changed to `chars().count()` and `chars().take(n).collect()`
+- **Added multi-byte test:** Japanese, accented chars, emoji
+- **Lesson:** CodeRabbit provides different perspective than our agents - catches edge cases impl agents miss
+
 ---
 
 ## 2025-01-19: Project Initialization

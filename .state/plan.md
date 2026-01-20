@@ -1146,7 +1146,7 @@ Log results to `.state/phase-N/test-results.md`
 - [x] `asr cleanup` - basic implementation exists
 - [x] `asr list` - basic implementation exists
 - [x] Improve `asr status` output (breakdown by agent, disk %) - PR #4
-- [ ] Enhance `asr cleanup` UX (better prompts)
+- [x] Enhance `asr cleanup` UX (filtering, formatting, UTF-8 safe) - PR #5
 - [ ] Add storage threshold warnings after recording
 
 **Definition of Done:** Polished storage commands with better UX
