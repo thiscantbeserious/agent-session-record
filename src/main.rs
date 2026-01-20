@@ -316,12 +316,14 @@ fn cmd_cleanup(agent_filter: Option<&str>, older_than: Option<u32>) -> Result<()
 
 /// Truncate a string to a maximum length, adding ellipsis if needed
 fn truncate_string(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
+    let char_count = s.chars().count();
+    if char_count <= max_len {
         s.to_string()
     } else if max_len > 3 {
-        format!("{}...", &s[..max_len - 3])
+        let truncated: String = s.chars().take(max_len - 3).collect();
+        format!("{}...", truncated)
     } else {
-        s[..max_len].to_string()
+        s.chars().take(max_len).collect()
     }
 }
 
@@ -474,6 +476,14 @@ mod tests {
     #[test]
     fn truncate_string_empty_string() {
         assert_eq!(truncate_string("", 10), "");
+    }
+
+    #[test]
+    fn truncate_string_handles_multibyte_characters() {
+        // Should not panic and should truncate by characters, not bytes
+        assert_eq!(truncate_string("日本語テスト", 5), "日本...");
+        assert_eq!(truncate_string("café", 10), "café");
+        assert_eq!(truncate_string("emoji🎉test", 8), "emoji...");
     }
 
     #[test]
