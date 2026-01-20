@@ -86,11 +86,6 @@ echo
 echo "Setting up shell integration..."
 "$INSTALL_DIR/agr" shell install
 
-# Install skills
-echo
-echo "Installing skills..."
-"$INSTALL_DIR/agr" skills install
-
 # Verify installation
 echo
 echo "=== Installation Complete ==="
