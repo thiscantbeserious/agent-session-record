@@ -6,6 +6,7 @@ pub mod asciicast;
 pub mod config;
 pub mod markers;
 pub mod recording;
+pub mod skills;
 pub mod storage;
 
 pub use asciicast::{AsciicastFile, Event, EventType, Header};
