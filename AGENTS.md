@@ -84,6 +84,10 @@ cargo test         # Run all tests
 4. **CodeRabbit Review** (must complete):
    - Wait for CodeRabbit to post actual review (not just "processing")
    - Review any issues CodeRabbit identifies
+   - **VERIFY SUGGESTIONS LOCALLY** before implementing:
+     - For CLI tool syntax: run `<tool> --help` to check actual interface
+     - For API changes: check actual code/docs, not just CodeRabbit's claim
+     - CodeRabbit may have outdated info about third-party tools
    - **When fixing issues:** Look for the **🤖 Prompt for AI Agents** section in CodeRabbit's comments - it contains ready-to-use code snippets and instructions for implementing the suggested fix
    - Fix blocking issues before merge
 5. **NEVER merge until:**

@@ -258,3 +258,8 @@ Document in `.state/decisions.md`:
 - **CodeRabbit Integration**: Never merge while CodeRabbit shows "processing" - must wait for actual review findings
 - **Fresh Sessions Work**: Different perspective catches edge cases that impl agent misses
 - **State Files Scale**: Async communication via files works for multi-agent coordination
+- **Verify CodeRabbit Suggestions Locally**: NEVER blindly follow CodeRabbit suggestions. Always verify locally before implementing:
+  - For CLI tool syntax issues, run `<tool> --help` to check actual command-line interface
+  - For API suggestions, check the actual code or documentation
+  - CodeRabbit may have outdated or incorrect information about third-party tools
+  - Example: CodeRabbit suggested changing `codex exec prompt` to `codex --full-auto prompt`, but `codex --help` confirmed `exec` is the correct subcommand for non-interactive execution
