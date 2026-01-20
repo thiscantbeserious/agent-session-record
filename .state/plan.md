@@ -106,11 +106,15 @@ The coordinator session (this session) NEVER writes code directly. Instead it:
 
 CodeRabbit is an external AI code review tool that auto-reviews PRs on GitHub.
 
+**⚠️ STRICT RULE: NEVER merge a PR until CodeRabbit review is complete!**
+
 **How it fits in the workflow:**
 1. Impl Agent creates PR → CodeRabbit automatically triggered
-2. CodeRabbit posts review comments on the PR (async, ~1-2 min)
+2. CodeRabbit posts review comments on the PR (async, may take several minutes)
 3. Verify Agent checks CodeRabbit feedback via `gh pr view --comments`
-4. Coordinator considers both Verify Agent + CodeRabbit results
+4. **WAIT** until CodeRabbit posts actual review (not just "processing")
+5. Coordinator considers both Verify Agent + CodeRabbit results
+6. **ONLY THEN** can Coordinator merge
 
 **CodeRabbit provides:**
 - AI-powered code review (different perspective than our agents)
@@ -120,8 +124,14 @@ CodeRabbit is an external AI code review tool that auto-reviews PRs on GitHub.
 
 **Verify Agent must:**
 - Wait for CodeRabbit review before completing verification
+- If CodeRabbit shows "processing", report PENDING and DO NOT approve
 - Include CodeRabbit findings in report to coordinator
 - Flag any blocking issues CodeRabbit identified
+
+**Coordinator MUST:**
+- NEVER merge if CodeRabbit review is still "processing"
+- Wait and re-check CodeRabbit status before merging
+- Only merge after CodeRabbit has posted actual review findings
 
 ### Task Agent Prompts
 
