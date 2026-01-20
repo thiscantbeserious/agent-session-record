@@ -29,6 +29,13 @@
 - **Fresh sessions work:** No context pollution between impl and verify
 - **Agent IDs tracked:** Can resume if needed (a1dc796, ae1c323)
 
+### PR #3 Mistake - CRITICAL LEARNING:
+- **NEVER merge while CodeRabbit shows "processing"**
+- Coordinator merged PR #3 before CodeRabbit completed review
+- This violates the workflow - CodeRabbit review is MANDATORY
+- **New strict rule:** Wait for CodeRabbit to post actual findings, not just "processing"
+- If CodeRabbit is slow, WAIT - do not bypass
+
 ---
 
 ## 2025-01-19: Project Initialization
