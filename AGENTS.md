@@ -52,22 +52,29 @@ cargo test         # Run all tests
 - Log results to `.state/phase-N/test-results.md`
 
 #### 5. Pull Request & CI
-**MANDATORY: Wait for CI to pass before merging!**
+**MANDATORY: Wait for CI AND CodeRabbit to pass before merging!**
 
 1. Create PR: `gh pr create --title "feat(scope): description"`
-2. Wait for all CI checks to pass:
+2. Wait for all checks to complete:
    ```bash
-   gh pr checks <PR_NUMBER>   # Check status
+   gh pr checks <PR_NUMBER>   # Check CI status
+   gh pr view <PR_NUMBER> --comments   # Check CodeRabbit review
    ```
-3. CI Pipeline stages:
+3. **CI Pipeline stages** (must ALL pass):
    - **Build** - compilation on ubuntu + macos
    - **Unit Tests** - cargo test on both OS
    - **E2E Tests** - integration tests (macOS only)
    - **Lint** - cargo fmt + clippy
-   - **CodeRabbit** - AI code review
-4. **NEVER merge until ALL checks show `pass`**
-5. If checks fail, fix issues and push again
-6. Merge only after: `gh pr checks` shows all green
+4. **CodeRabbit Review** (must complete):
+   - Wait for CodeRabbit to post actual review (not just "processing")
+   - Review any issues CodeRabbit identifies
+   - Fix blocking issues before merge
+5. **NEVER merge until:**
+   - ALL CI checks show `pass`
+   - CodeRabbit review is complete (not "processing")
+   - No blocking issues from CodeRabbit
+6. If checks fail, fix issues and push again
+7. Merge command: `gh pr merge <NUMBER> --squash --delete-branch`
 
 #### 6. Deployment
 - Build release: `cargo build --release`
