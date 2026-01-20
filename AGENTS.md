@@ -68,6 +68,7 @@ cargo test         # Run all tests
 4. **CodeRabbit Review** (must complete):
    - Wait for CodeRabbit to post actual review (not just "processing")
    - Review any issues CodeRabbit identifies
+   - **When fixing issues:** Look for the **🤖 Prompt for AI Agents** section in CodeRabbit's comments - it contains ready-to-use code snippets and instructions for implementing the suggested fix
    - Fix blocking issues before merge
 5. **NEVER merge until:**
    - ALL CI checks show `pass`
