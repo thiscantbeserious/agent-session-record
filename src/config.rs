@@ -43,19 +43,11 @@ impl Default for ShellConfig {
 }
 
 /// Recording configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RecordingConfig {
     /// Whether to show auto-analyze hint after recording
     #[serde(default)]
     pub auto_analyze: bool,
-}
-
-impl Default for RecordingConfig {
-    fn default() -> Self {
-        Self {
-            auto_analyze: false,
-        }
-    }
 }
 
 /// Storage configuration

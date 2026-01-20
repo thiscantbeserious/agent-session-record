@@ -3,7 +3,7 @@
 use anyhow::{bail, Context, Result};
 use chrono::Local;
 use std::io::{self, BufRead, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -186,7 +186,7 @@ impl Recorder {
     }
 
     /// Show auto-analyze hint if enabled in config
-    fn show_auto_analyze_hint(&self, filepath: &PathBuf) {
+    fn show_auto_analyze_hint(&self, filepath: &Path) {
         if self.config.recording.auto_analyze {
             println!();
             println!("💡 Tip: Analyze this session with your AI agent:");
