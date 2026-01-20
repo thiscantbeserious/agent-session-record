@@ -205,6 +205,123 @@ else
     fail "No cast file to check structure"
 fi
 
+# Test 15: Skills list (before install)
+echo "--- Test 15: Skills list (before install) ---"
+SKILLS_OUTPUT=$($ASR skills list 2>&1)
+if echo "$SKILLS_OUTPUT" | /usr/bin/grep -q "asr-analyze"; then
+    pass "Skills list shows embedded asr-analyze skill"
+else
+    fail "Skills list missing asr-analyze: $SKILLS_OUTPUT"
+fi
+
+# Test 16: Skills install
+echo "--- Test 16: Skills install ---"
+$ASR skills install
+if [ -f "$HOME/.claude/commands/asr-analyze.md" ]; then
+    pass "Skills install created asr-analyze.md in .claude/commands"
+else
+    fail "Skills install did not create asr-analyze.md"
+fi
+if [ -f "$HOME/.claude/commands/asr-review.md" ]; then
+    pass "Skills install created asr-review.md in .claude/commands"
+else
+    fail "Skills install did not create asr-review.md"
+fi
+
+# Test 17: Skills list shows installed location
+echo "--- Test 17: Skills list shows installed status ---"
+SKILLS_OUTPUT=$($ASR skills list 2>&1)
+if echo "$SKILLS_OUTPUT" | /usr/bin/grep -qi "installed"; then
+    pass "Skills list shows installed status"
+else
+    fail "Skills list not showing installed status: $SKILLS_OUTPUT"
+fi
+
+# Test 18: Skills uninstall
+echo "--- Test 18: Skills uninstall ---"
+$ASR skills uninstall
+if [ ! -f "$HOME/.claude/commands/asr-analyze.md" ]; then
+    pass "Skills uninstall removed asr-analyze.md"
+else
+    fail "Skills uninstall did not remove asr-analyze.md"
+fi
+
+# Test 19: Shell status (before install)
+echo "--- Test 19: Shell status (before install) ---"
+SHELL_OUTPUT=$($ASR shell status 2>&1)
+if echo "$SHELL_OUTPUT" | /usr/bin/grep -q "not installed"; then
+    pass "Shell status shows not installed"
+else
+    fail "Shell status unexpected output: $SHELL_OUTPUT"
+fi
+
+# Test 20: Shell install
+echo "--- Test 20: Shell install ---"
+# Create a .zshrc for testing
+touch "$HOME/.zshrc"
+$ASR shell install
+if /usr/bin/grep -q "ASR (Agent Session Recorder)" "$HOME/.zshrc"; then
+    pass "Shell install added marked section to .zshrc"
+else
+    fail "Shell install did not modify .zshrc"
+    cat "$HOME/.zshrc"
+fi
+if [ -f "$HOME/.config/asr/asr.sh" ]; then
+    pass "Shell install created asr.sh script"
+else
+    fail "Shell install did not create asr.sh"
+fi
+
+# Test 21: Shell status (after install)
+echo "--- Test 21: Shell status (after install) ---"
+SHELL_OUTPUT=$($ASR shell status 2>&1)
+if echo "$SHELL_OUTPUT" | /usr/bin/grep -q "installed"; then
+    pass "Shell status shows installed"
+else
+    fail "Shell status not showing installed: $SHELL_OUTPUT"
+fi
+
+# Test 22: Shell uninstall
+echo "--- Test 22: Shell uninstall ---"
+$ASR shell uninstall
+if ! /usr/bin/grep -q "ASR (Agent Session Recorder)" "$HOME/.zshrc"; then
+    pass "Shell uninstall removed marked section from .zshrc"
+else
+    fail "Shell uninstall did not clean .zshrc"
+    cat "$HOME/.zshrc"
+fi
+
+# Test 23: Auto-wrap config toggle
+echo "--- Test 23: Auto-wrap config toggle ---"
+CONFIG=$($ASR config show)
+if echo "$CONFIG" | /usr/bin/grep -q "auto_wrap"; then
+    pass "Config shows auto_wrap setting"
+else
+    fail "Config missing auto_wrap: $CONFIG"
+fi
+
+# Test 24: Shell install with existing content preserves it
+echo "--- Test 24: Shell install preserves existing .zshrc content ---"
+echo "# My existing config" > "$HOME/.zshrc"
+echo "export MY_VAR=test" >> "$HOME/.zshrc"
+$ASR shell install
+if /usr/bin/grep -q "MY_VAR=test" "$HOME/.zshrc" && /usr/bin/grep -q "ASR (Agent Session Recorder)" "$HOME/.zshrc"; then
+    pass "Shell install preserved existing content"
+else
+    fail "Shell install did not preserve existing content"
+    cat "$HOME/.zshrc"
+fi
+
+# Test 25: Shell uninstall preserves other content
+echo "--- Test 25: Shell uninstall preserves other content ---"
+$ASR shell uninstall
+if /usr/bin/grep -q "MY_VAR=test" "$HOME/.zshrc" && ! /usr/bin/grep -q "ASR (Agent Session Recorder)" "$HOME/.zshrc"; then
+    pass "Shell uninstall preserved other content"
+else
+    fail "Shell uninstall did not preserve other content"
+    cat "$HOME/.zshrc"
+fi
+
 echo
 echo "=== Test Summary ==="
 echo "Passed: $PASS"
