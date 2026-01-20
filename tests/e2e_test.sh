@@ -231,7 +231,8 @@ fi
 # Test 17: Skills list shows installed location
 echo "--- Test 17: Skills list shows installed status ---"
 SKILLS_OUTPUT=$($ASR skills list 2>&1)
-if echo "$SKILLS_OUTPUT" | /usr/bin/grep -qi "installed"; then
+if echo "$SKILLS_OUTPUT" | /usr/bin/grep -qiE '\binstalled\b' \
+   && ! echo "$SKILLS_OUTPUT" | /usr/bin/grep -qiE '\bnot installed\b'; then
     pass "Skills list shows installed status"
 else
     fail "Skills list not showing installed status: $SKILLS_OUTPUT"
@@ -275,7 +276,8 @@ fi
 # Test 21: Shell status (after install)
 echo "--- Test 21: Shell status (after install) ---"
 SHELL_OUTPUT=$($ASR shell status 2>&1)
-if echo "$SHELL_OUTPUT" | /usr/bin/grep -q "installed"; then
+if echo "$SHELL_OUTPUT" | /usr/bin/grep -qiE '\binstalled\b' \
+   && ! echo "$SHELL_OUTPUT" | /usr/bin/grep -qiE '\bnot installed\b'; then
     pass "Shell status shows installed"
 else
     fail "Shell status not showing installed: $SHELL_OUTPUT"
