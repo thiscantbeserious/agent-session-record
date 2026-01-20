@@ -6,23 +6,6 @@ echo
 
 INSTALL_DIR="$HOME/.local/bin"
 
-# Remove skills (before binary removal so agr CLI can run)
-echo "Removing skills..."
-if command -v agr &>/dev/null; then
-    agr skills uninstall
-else
-    # Fallback: manually remove skill files if agr is not available
-    echo "agr not found in PATH, removing skills manually..."
-    for dir in "$HOME/.claude/commands" "$HOME/.codex/commands" "$HOME/.gemini/commands"; do
-        for skill in "agr-analyze.md" "agr-review.md"; do
-            if [ -f "$dir/$skill" ] || [ -L "$dir/$skill" ]; then
-                rm "$dir/$skill"
-                echo "  Removed: $dir/$skill"
-            fi
-        done
-    done
-fi
-
 # Remove shell integration (before binary removal so agr CLI can run)
 echo
 echo "Removing shell integration..."
