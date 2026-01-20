@@ -19,10 +19,21 @@ reviews:
     - "!*.md"
     - "!.github/**"
 
-  # Minimal guidance - let CodeRabbit do its thing
   path_instructions:
     - path: "src/**/*.rs"
-      instructions: "Rust CLI tool. Focus on error handling and safety."
+      instructions: |
+        This is a Rust CLI tool for recording terminal sessions.
+        Focus on:
+        - Error handling with anyhow/thiserror
+        - Safe file operations
+        - Proper use of clap for CLI args
+        - asciicast v3 format compliance
+
+    - path: "tests/**/*.rs"
+      instructions: |
+        Integration and unit tests.
+        Ensure tests are behavior-focused, not implementation-focused.
+        Check for proper use of tempfile for test isolation.
 
   tools:
     clippy:
