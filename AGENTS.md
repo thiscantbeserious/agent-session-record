@@ -95,7 +95,7 @@ cargo test         # Run all tests
    - CodeRabbit review is complete (not "processing")
    - No blocking issues from CodeRabbit
 6. If checks fail, fix issues and push again
-7. Merge command: `gh pr merge <NUMBER> --squash --delete-branch`
+7. Merge command: `gh pr merge <NUMBER> --squash` (do NOT delete branches)
 
 #### 6. Deployment
 - Build release: `cargo build --release`
