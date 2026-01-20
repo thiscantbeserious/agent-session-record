@@ -1,13 +1,13 @@
-//! Agent Session Recorder (ASR) - CLI entry point
+//! Agent Session Recorder (AGR) - CLI entry point
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::io::{self, BufRead, Write};
 
-use asr::{Config, MarkerManager, Recorder, StorageManager};
+use agr::{Config, MarkerManager, Recorder, StorageManager};
 
 #[derive(Parser)]
-#[command(name = "asr")]
+#[command(name = "agr")]
 #[command(about = "Agent Session Recorder - Record AI agent terminal sessions")]
 #[command(version)]
 struct Cli {
@@ -198,7 +198,7 @@ fn cmd_record(agent: &str, args: &[String]) -> Result<()> {
 
     if !config.is_agent_enabled(agent) {
         eprintln!("Warning: Agent '{}' is not in the configured list.", agent);
-        eprintln!("Add it with: asr agents add {}", agent);
+        eprintln!("Add it with: agr agents add {}", agent);
         eprintln!();
     }
 
@@ -633,17 +633,17 @@ fn cmd_config_edit() -> Result<()> {
 }
 
 fn cmd_skills_list() -> Result<()> {
-    let installed = asr::skills::list_installed_skills();
+    let installed = agr::skills::list_installed_skills();
 
     if installed.is_empty() {
         println!("No skills installed.");
         println!();
         println!("Available skills:");
-        for (name, _) in asr::skills::SKILLS {
+        for (name, _) in agr::skills::SKILLS {
             println!("  {}", name);
         }
         println!();
-        println!("Run 'asr skills install' to install skills.");
+        println!("Run 'agr skills install' to install skills.");
         return Ok(());
     }
 
@@ -658,7 +658,7 @@ fn cmd_skills_list() -> Result<()> {
     }
 
     // Check for any directories without skills
-    let dirs = asr::skills::skill_directories();
+    let dirs = agr::skills::skill_directories();
     let missing: Vec<_> = dirs
         .iter()
         .filter(|dir| !installed.iter().any(|s| s.path.starts_with(dir)))
@@ -671,7 +671,7 @@ fn cmd_skills_list() -> Result<()> {
             println!("  {}", dir.display());
         }
         println!();
-        println!("Run 'asr skills install' to install to all directories.");
+        println!("Run 'agr skills install' to install to all directories.");
     }
 
     Ok(())
@@ -680,7 +680,7 @@ fn cmd_skills_list() -> Result<()> {
 fn cmd_skills_install() -> Result<()> {
     println!("Installing skills...");
 
-    match asr::skills::install_skills() {
+    match agr::skills::install_skills() {
         Ok(installed) => {
             for path in &installed {
                 println!("  Installed: {}", path.display());
@@ -696,7 +696,7 @@ fn cmd_skills_install() -> Result<()> {
 fn cmd_skills_uninstall() -> Result<()> {
     println!("Removing skills...");
 
-    match asr::skills::uninstall_skills() {
+    match agr::skills::uninstall_skills() {
         Ok(removed) => {
             if removed.is_empty() {
                 println!("No skills were installed.");
@@ -715,27 +715,27 @@ fn cmd_skills_uninstall() -> Result<()> {
 
 fn cmd_shell_status() -> Result<()> {
     let config = Config::load()?;
-    let status = asr::shell::get_status(config.shell.auto_wrap);
+    let status = agr::shell::get_status(config.shell.auto_wrap);
     println!("{}", status.summary());
     Ok(())
 }
 
 fn cmd_shell_install() -> Result<()> {
     // Detect shell RC file
-    let rc_file = asr::shell::detect_shell_rc()
+    let rc_file = agr::shell::detect_shell_rc()
         .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
 
     // Determine script path (use config dir)
-    let script_path = asr::shell::default_script_path()
+    let script_path = agr::shell::default_script_path()
         .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?;
 
     // Install the shell script to config directory
-    asr::shell::install_script(&script_path)
+    agr::shell::install_script(&script_path)
         .map_err(|e| anyhow::anyhow!("Failed to install shell script: {}", e))?;
     println!("Installed shell script: {}", script_path.display());
 
     // Install shell integration to RC file
-    asr::shell::install(&rc_file, &script_path)
+    agr::shell::install(&rc_file, &script_path)
         .map_err(|e| anyhow::anyhow!("Failed to install shell integration: {}", e))?;
     println!("Installed shell integration: {}", rc_file.display());
 
@@ -748,7 +748,7 @@ fn cmd_shell_install() -> Result<()> {
 
 fn cmd_shell_uninstall() -> Result<()> {
     // Find where shell integration is installed
-    let rc_file = match asr::shell::find_installed_rc() {
+    let rc_file = match agr::shell::find_installed_rc() {
         Some(rc) => rc,
         None => {
             println!("Shell integration is not installed.");
@@ -757,17 +757,17 @@ fn cmd_shell_uninstall() -> Result<()> {
     };
 
     // Remove from RC file
-    let removed = asr::shell::uninstall(&rc_file)
+    let removed = agr::shell::uninstall(&rc_file)
         .map_err(|e| anyhow::anyhow!("Failed to remove shell integration: {}", e))?;
 
     if removed {
         println!("Removed shell integration from: {}", rc_file.display());
 
         // Extract the actual script path from RC file, fallback to default
-        let script_path = asr::shell::extract_script_path(&rc_file)
+        let script_path = agr::shell::extract_script_path(&rc_file)
             .ok()
             .flatten()
-            .or_else(asr::shell::default_script_path);
+            .or_else(agr::shell::default_script_path);
 
         if let Some(script_path) = script_path {
             if script_path.exists() {
@@ -827,7 +827,7 @@ mod tests {
 
     #[test]
     fn cli_cleanup_parses_with_no_args() {
-        let cli = Cli::try_parse_from(["asr", "cleanup"]).unwrap();
+        let cli = Cli::try_parse_from(["agr", "cleanup"]).unwrap();
         match cli.command {
             Commands::Cleanup { agent, older_than } => {
                 assert!(agent.is_none());
@@ -839,7 +839,7 @@ mod tests {
 
     #[test]
     fn cli_cleanup_parses_with_agent_flag() {
-        let cli = Cli::try_parse_from(["asr", "cleanup", "--agent", "claude"]).unwrap();
+        let cli = Cli::try_parse_from(["agr", "cleanup", "--agent", "claude"]).unwrap();
         match cli.command {
             Commands::Cleanup { agent, older_than } => {
                 assert_eq!(agent, Some("claude".to_string()));
@@ -851,7 +851,7 @@ mod tests {
 
     #[test]
     fn cli_cleanup_parses_with_older_than_flag() {
-        let cli = Cli::try_parse_from(["asr", "cleanup", "--older-than", "30"]).unwrap();
+        let cli = Cli::try_parse_from(["agr", "cleanup", "--older-than", "30"]).unwrap();
         match cli.command {
             Commands::Cleanup { agent, older_than } => {
                 assert!(agent.is_none());
@@ -863,7 +863,7 @@ mod tests {
 
     #[test]
     fn cli_cleanup_parses_with_both_flags() {
-        let cli = Cli::try_parse_from(["asr", "cleanup", "--agent", "codex", "--older-than", "60"])
+        let cli = Cli::try_parse_from(["agr", "cleanup", "--agent", "codex", "--older-than", "60"])
             .unwrap();
         match cli.command {
             Commands::Cleanup { agent, older_than } => {
@@ -876,7 +876,7 @@ mod tests {
 
     #[test]
     fn cli_skills_list_parses() {
-        let cli = Cli::try_parse_from(["asr", "skills", "list"]).unwrap();
+        let cli = Cli::try_parse_from(["agr", "skills", "list"]).unwrap();
         match cli.command {
             Commands::Skills(SkillsCommands::List) => {}
             _ => panic!("Expected Skills List command"),
@@ -885,7 +885,7 @@ mod tests {
 
     #[test]
     fn cli_skills_install_parses() {
-        let cli = Cli::try_parse_from(["asr", "skills", "install"]).unwrap();
+        let cli = Cli::try_parse_from(["agr", "skills", "install"]).unwrap();
         match cli.command {
             Commands::Skills(SkillsCommands::Install) => {}
             _ => panic!("Expected Skills Install command"),
@@ -894,7 +894,7 @@ mod tests {
 
     #[test]
     fn cli_skills_uninstall_parses() {
-        let cli = Cli::try_parse_from(["asr", "skills", "uninstall"]).unwrap();
+        let cli = Cli::try_parse_from(["agr", "skills", "uninstall"]).unwrap();
         match cli.command {
             Commands::Skills(SkillsCommands::Uninstall) => {}
             _ => panic!("Expected Skills Uninstall command"),
@@ -903,7 +903,7 @@ mod tests {
 
     #[test]
     fn cli_shell_status_parses() {
-        let cli = Cli::try_parse_from(["asr", "shell", "status"]).unwrap();
+        let cli = Cli::try_parse_from(["agr", "shell", "status"]).unwrap();
         match cli.command {
             Commands::Shell(ShellCommands::Status) => {}
             _ => panic!("Expected Shell Status command"),
@@ -912,7 +912,7 @@ mod tests {
 
     #[test]
     fn cli_shell_install_parses() {
-        let cli = Cli::try_parse_from(["asr", "shell", "install"]).unwrap();
+        let cli = Cli::try_parse_from(["agr", "shell", "install"]).unwrap();
         match cli.command {
             Commands::Shell(ShellCommands::Install) => {}
             _ => panic!("Expected Shell Install command"),
@@ -921,7 +921,7 @@ mod tests {
 
     #[test]
     fn cli_shell_uninstall_parses() {
-        let cli = Cli::try_parse_from(["asr", "shell", "uninstall"]).unwrap();
+        let cli = Cli::try_parse_from(["agr", "shell", "uninstall"]).unwrap();
         match cli.command {
             Commands::Shell(ShellCommands::Uninstall) => {}
             _ => panic!("Expected Shell Uninstall command"),

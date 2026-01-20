@@ -1,4 +1,4 @@
-# Agent Session Recorder (ASR)
+# Agent Session Recorder (AGR)
 
 [![CI](https://github.com/thiscantbeserious/agent-session-record/actions/workflows/ci.yml/badge.svg)](https://github.com/thiscantbeserious/agent-session-record/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/Rust-1.75+-orange?logo=rust)](https://www.rust-lang.org/)
@@ -7,9 +7,9 @@
 
 **Record, review, and understand your AI agent sessions.**
 
-ASR is a lightweight CLI tool that automatically records your terminal sessions with AI coding assistants like Claude Code, Codex, and Gemini CLI. It uses [asciinema](https://asciinema.org/) under the hood to capture everything - commands, output, timing - so you can replay sessions, analyze what happened, and learn from your AI-assisted coding workflows.
+AGR is a lightweight CLI tool that automatically records your terminal sessions with AI coding assistants like Claude Code, Codex, and Gemini CLI. It uses [asciinema](https://asciinema.org/) under the hood to capture everything - commands, output, timing - so you can replay sessions, analyze what happened, and learn from your AI-assisted coding workflows.
 
-## Why ASR?
+## Why AGR?
 
 When working with AI coding assistants, sessions can be long and complex. You might want to:
 
@@ -18,7 +18,7 @@ When working with AI coding assistants, sessions can be long and complex. You mi
 - **Mark key moments** - Add markers at important points (errors, breakthroughs, decisions)
 - **Learn and improve** - Study successful sessions to refine your prompting techniques
 
-ASR handles the recording automatically and transparently - just use your AI tools as normal.
+AGR handles the recording automatically and transparently - just use your AI tools as normal.
 
 ## Features
 
@@ -43,19 +43,19 @@ cd agent-session-recorder
 ```
 
 The installer will:
-1. Build the `asr` binary and install it to `~/.local/bin/`
-2. Create the config directory at `~/.config/asr/`
+1. Build the `agr` binary and install it to `~/.local/bin/`
+2. Create the config directory at `~/.config/agr/`
 3. Create the recordings directory at `~/recorded_agent_sessions/`
-4. Install AI agent skills (for `/asr-analyze` command)
+4. Install AI agent skills (for `/agr-analyze` command)
 5. Set up shell integration in your `.zshrc` or `.bashrc`
 
 ### Manual Installation
 
 ```bash
 cargo build --release
-cp target/release/asr ~/.local/bin/
-asr skills install
-asr shell install
+cp target/release/agr ~/.local/bin/
+agr skills install
+agr shell install
 ```
 
 ## Quick Start
@@ -67,19 +67,19 @@ After installation, restart your shell or run `source ~/.zshrc`.
 claude "help me refactor this function"
 
 # Or record manually:
-asr record claude
+agr record claude
 
 # List your recorded sessions:
-asr list
+agr list
 
 # Check storage usage:
-asr status
+agr status
 
 # Play back a recording:
 asciinema play ~/recorded_agent_sessions/claude/20250120-143052.cast
 
 # Add a marker to highlight an important moment:
-asr marker add session.cast 45.2 "Build failed - missing dependency"
+agr marker add session.cast 45.2 "Build failed - missing dependency"
 ```
 
 ### AI-Powered Analysis
@@ -87,14 +87,14 @@ asr marker add session.cast 45.2 "Build failed - missing dependency"
 In a Claude/Codex/Gemini session, use the built-in skill to analyze recordings:
 
 ```
-/asr-analyze ~/recorded_agent_sessions/claude/session.cast
+/agr-analyze ~/recorded_agent_sessions/claude/session.cast
 ```
 
 The AI will read through the session and add markers at interesting points (errors, decisions, milestones).
 
 ## Configuration
 
-ASR uses a TOML configuration file at `~/.config/asr/config.toml`. All settings have sensible defaults - you only need to configure what you want to change.
+AGR uses a TOML configuration file at `~/.config/agr/config.toml`. All settings have sensible defaults - you only need to configure what you want to change.
 
 ### Full Configuration Reference
 
@@ -113,7 +113,7 @@ age_threshold_days = 30
 # Which agents to track and offer for auto-wrapping
 enabled = ["claude", "codex", "gemini-cli"]
 
-# Agents that should NOT be auto-wrapped (record manually with `asr record`)
+# Agents that should NOT be auto-wrapped (record manually with `agr record`)
 no_wrap = []
 
 [shell]
@@ -121,7 +121,7 @@ no_wrap = []
 auto_wrap = true
 
 [recording]
-# Show a hint after recording suggesting to run /asr-analyze
+# Show a hint after recording suggesting to run /agr-analyze
 auto_analyze = false
 ```
 
@@ -132,8 +132,8 @@ auto_analyze = false
 | Option | Default | Description |
 |--------|---------|-------------|
 | `directory` | `~/recorded_agent_sessions` | Base directory for all recordings. Each agent gets a subdirectory (e.g., `~/recorded_agent_sessions/claude/`). |
-| `size_threshold_gb` | `5.0` | When total storage exceeds this, ASR shows a warning after each recording suggesting cleanup. |
-| `age_threshold_days` | `30` | Sessions older than this are shown first in `asr cleanup` for easy removal. |
+| `size_threshold_gb` | `5.0` | When total storage exceeds this, AGR shows a warning after each recording suggesting cleanup. |
+| `age_threshold_days` | `30` | Sessions older than this are shown first in `agr cleanup` for easy removal. |
 
 #### `[agents]` Section
 
@@ -146,13 +146,13 @@ auto_analyze = false
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `auto_wrap` | `true` | Master switch for shell auto-wrapping. Set to `false` to disable all automatic recording - you can still record manually with `asr record <agent>`. |
+| `auto_wrap` | `true` | Master switch for shell auto-wrapping. Set to `false` to disable all automatic recording - you can still record manually with `agr record <agent>`. |
 
 #### `[recording]` Section
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `auto_analyze` | `false` | When `true`, shows a hint after each recording suggesting the `/asr-analyze` command. Useful as a reminder to analyze your sessions. |
+| `auto_analyze` | `false` | When `true`, shows a hint after each recording suggesting the `/agr-analyze` command. Useful as a reminder to analyze your sessions. |
 
 ### Example Configurations
 
@@ -172,7 +172,7 @@ enabled = ["claude", "codex", "gemini-cli", "aider", "cursor"]
 ```toml
 [agents]
 enabled = ["claude", "codex", "gemini-cli"]
-no_wrap = ["codex"]  # codex won't auto-record, but you can still use `asr record codex`
+no_wrap = ["codex"]  # codex won't auto-record, but you can still use `agr record codex`
 ```
 
 **Disable all auto-wrapping (manual recording only):**
@@ -192,20 +192,20 @@ age_threshold_days = 14
 
 ```bash
 # View current configuration
-asr config show
+agr config show
 
 # Edit configuration in your default editor
-asr config edit
+agr config edit
 
 # Manage agents via CLI
-asr agents list              # Show enabled agents
-asr agents add aider         # Add an agent
-asr agents remove codex      # Remove an agent
+agr agents list              # Show enabled agents
+agr agents add aider         # Add an agent
+agr agents remove codex      # Remove an agent
 
 # Manage no-wrap list
-asr agents no-wrap list      # Show agents excluded from auto-wrap
-asr agents no-wrap add codex # Exclude an agent from auto-wrap
-asr agents no-wrap remove codex  # Re-enable auto-wrap for an agent
+agr agents no-wrap list      # Show agents excluded from auto-wrap
+agr agents no-wrap add codex # Exclude an agent from auto-wrap
+agr agents no-wrap remove codex  # Re-enable auto-wrap for an agent
 ```
 
 ## Commands Reference
@@ -214,84 +214,84 @@ asr agents no-wrap remove codex  # Re-enable auto-wrap for an agent
 
 | Command | Description |
 |---------|-------------|
-| `asr record <agent> [-- args]` | Record a session. Args after `--` are passed to the agent. |
+| `agr record <agent> [-- args]` | Record a session. Args after `--` are passed to the agent. |
 
 **Example:**
 ```bash
-asr record claude -- --model opus
+agr record claude -- --model opus
 ```
 
 ### Session Management
 
 | Command | Description |
 |---------|-------------|
-| `asr list [agent]` | List all recordings, optionally filtered by agent |
-| `asr status` | Show storage statistics with breakdown by agent |
-| `asr cleanup` | Interactive cleanup - select how many old sessions to delete |
+| `agr list [agent]` | List all recordings, optionally filtered by agent |
+| `agr status` | Show storage statistics with breakdown by agent |
+| `agr cleanup` | Interactive cleanup - select how many old sessions to delete |
 
 ### Markers
 
 | Command | Description |
 |---------|-------------|
-| `asr marker add <file> <time> <label>` | Add a marker at the given timestamp (seconds) |
-| `asr marker list <file>` | List all markers in a recording |
+| `agr marker add <file> <time> <label>` | Add a marker at the given timestamp (seconds) |
+| `agr marker list <file>` | List all markers in a recording |
 
 **Example:**
 ```bash
-asr marker add session.cast 120.5 "Found the bug!"
-asr marker list session.cast
+agr marker add session.cast 120.5 "Found the bug!"
+agr marker list session.cast
 ```
 
 ### Agent Configuration
 
 | Command | Description |
 |---------|-------------|
-| `asr agents list` | Show configured agents |
-| `asr agents add <name>` | Add an agent to the enabled list |
-| `asr agents remove <name>` | Remove an agent from the enabled list |
-| `asr agents is-wrapped <name>` | Check if an agent will be auto-wrapped (exit 0=yes, 1=no) |
-| `asr agents no-wrap list` | Show agents excluded from auto-wrapping |
-| `asr agents no-wrap add <name>` | Exclude an agent from auto-wrapping |
-| `asr agents no-wrap remove <name>` | Re-enable auto-wrapping for an agent |
+| `agr agents list` | Show configured agents |
+| `agr agents add <name>` | Add an agent to the enabled list |
+| `agr agents remove <name>` | Remove an agent from the enabled list |
+| `agr agents is-wrapped <name>` | Check if an agent will be auto-wrapped (exit 0=yes, 1=no) |
+| `agr agents no-wrap list` | Show agents excluded from auto-wrapping |
+| `agr agents no-wrap add <name>` | Exclude an agent from auto-wrapping |
+| `agr agents no-wrap remove <name>` | Re-enable auto-wrapping for an agent |
 
 ### Skills (AI Agent Integration)
 
 | Command | Description |
 |---------|-------------|
-| `asr skills list` | Show available skills and their installation status |
-| `asr skills install` | Install skills to `~/.claude/commands/`, etc. |
-| `asr skills uninstall` | Remove installed skills |
+| `agr skills list` | Show available skills and their installation status |
+| `agr skills install` | Install skills to `~/.claude/commands/`, etc. |
+| `agr skills uninstall` | Remove installed skills |
 
 ### Shell Integration
 
 | Command | Description |
 |---------|-------------|
-| `asr shell status` | Show if shell integration is installed and where |
-| `asr shell install` | Add shell integration to your RC file |
-| `asr shell uninstall` | Remove shell integration from your RC file |
+| `agr shell status` | Show if shell integration is installed and where |
+| `agr shell install` | Add shell integration to your RC file |
+| `agr shell uninstall` | Remove shell integration from your RC file |
 
 ### Configuration
 
 | Command | Description |
 |---------|-------------|
-| `asr config show` | Display current configuration |
-| `asr config edit` | Open config file in your default editor |
+| `agr config show` | Display current configuration |
+| `agr config edit` | Open config file in your default editor |
 
 ## Shell Integration
 
-ASR's shell integration creates wrapper functions for your configured agents. When you run `claude`, the wrapper:
+AGR's shell integration creates wrapper functions for your configured agents. When you run `claude`, the wrapper:
 
 1. Checks if auto-wrap is enabled (globally and for this agent)
 2. Checks if already inside a recording (to avoid nesting)
-3. If both pass, runs `asr record claude` instead of `claude` directly
+3. If both pass, runs `agr record claude` instead of `claude` directly
 
 ### Manual Setup
 
-If you prefer manual setup instead of `asr shell install`:
+If you prefer manual setup instead of `agr shell install`:
 
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
-source ~/.config/asr/asr.sh
+source ~/.config/agr/agr.sh
 ```
 
 ### How It Works
@@ -299,18 +299,18 @@ source ~/.config/asr/asr.sh
 The shell integration adds a marked section to your RC file:
 
 ```bash
-# >>> ASR (Agent Session Recorder) >>>
-# DO NOT EDIT - managed by 'asr shell install/uninstall'
-export _ASR_LOADED=1
-[ -f "$HOME/.config/asr/asr.sh" ] && source "$HOME/.config/asr/asr.sh"
-# <<< ASR (Agent Session Recorder) <<<
+# >>> AGR (Agent Session Recorder) >>>
+# DO NOT EDIT - managed by 'agr shell install/uninstall'
+export _AGR_LOADED=1
+[ -f "$HOME/.config/agr/agr.sh" ] && source "$HOME/.config/agr/agr.sh"
+# <<< AGR (Agent Session Recorder) <<<
 ```
 
-This makes it easy to update or remove with `asr shell uninstall`.
+This makes it easy to update or remove with `agr shell uninstall`.
 
 ## asciicast v3 Format
 
-ASR uses the native [asciicast v3](https://docs.asciinema.org/manual/asciicast/v3/) format with marker support:
+AGR uses the native [asciicast v3](https://docs.asciinema.org/manual/asciicast/v3/) format with marker support:
 
 ```json
 {"version":3,"term":{"cols":80,"rows":24}}
@@ -376,10 +376,10 @@ cargo build --release --target x86_64-unknown-linux-musl
 
 Or manually:
 ```bash
-asr shell uninstall
-asr skills uninstall
-rm ~/.local/bin/asr
-rm -rf ~/.config/asr
+agr shell uninstall
+agr skills uninstall
+rm ~/.local/bin/agr
+rm -rf ~/.config/agr
 rm -rf ~/recorded_agent_sessions  # if you want to delete recordings
 ```
 
