@@ -103,27 +103,10 @@ if [ -n "$SHELL_RC" ]; then
     fi
 fi
 
-# Setup agent skills (symlinks)
-setup_skill() {
-    local skill_dir="$1"
-    local skill_name="$2"
-    local skill_source="$(pwd)/agents/$skill_name"
-
-    if [ -f "$skill_source" ]; then
-        mkdir -p "$skill_dir"
-        ln -sf "$skill_source" "$skill_dir/$skill_name"
-        echo "  Linked: $skill_dir/$skill_name"
-    fi
-}
-
+# Install skills
 echo
-echo "Setting up agent skills..."
-setup_skill "$HOME/.claude/commands" "asr-analyze.md"
-setup_skill "$HOME/.claude/commands" "asr-review.md"
-setup_skill "$HOME/.codex/commands" "asr-analyze.md"
-setup_skill "$HOME/.codex/commands" "asr-review.md"
-setup_skill "$HOME/.gemini/commands" "asr-analyze.md"
-setup_skill "$HOME/.gemini/commands" "asr-review.md"
+echo "Installing skills..."
+"$INSTALL_DIR/asr" skills install
 
 # Verify installation
 echo

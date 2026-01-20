@@ -39,23 +39,23 @@ if [ -d "$SESSION_DIR" ]; then
     fi
 fi
 
-# Remove skill symlinks
-remove_skill() {
-    local skill_path="$1"
-    if [ -L "$skill_path" ]; then
-        rm "$skill_path"
-        echo "Removed skill: $skill_path"
-    fi
-}
-
+# Remove skills
 echo
-echo "Removing agent skills..."
-remove_skill "$HOME/.claude/commands/asr-analyze.md"
-remove_skill "$HOME/.claude/commands/asr-review.md"
-remove_skill "$HOME/.codex/commands/asr-analyze.md"
-remove_skill "$HOME/.codex/commands/asr-review.md"
-remove_skill "$HOME/.gemini/commands/asr-analyze.md"
-remove_skill "$HOME/.gemini/commands/asr-review.md"
+echo "Removing skills..."
+if command -v asr &>/dev/null; then
+    asr skills uninstall
+else
+    # Fallback: manually remove skill files if asr is not available
+    echo "asr not found in PATH, removing skills manually..."
+    for dir in "$HOME/.claude/commands" "$HOME/.codex/commands" "$HOME/.gemini/commands"; do
+        for skill in "asr-analyze.md" "asr-review.md"; do
+            if [ -f "$dir/$skill" ] || [ -L "$dir/$skill" ]; then
+                rm "$dir/$skill"
+                echo "  Removed: $dir/$skill"
+            fi
+        done
+    done
+fi
 
 # Note about shell integration
 echo

@@ -56,6 +56,10 @@ enum Commands {
     /// Configuration management
     #[command(subcommand)]
     Config(ConfigCommands),
+
+    /// Manage AI agent skills
+    #[command(subcommand)]
+    Skills(SkillsCommands),
 }
 
 #[derive(Subcommand)]
@@ -100,6 +104,16 @@ enum ConfigCommands {
     Edit,
 }
 
+#[derive(Subcommand)]
+enum SkillsCommands {
+    /// List installed skills
+    List,
+    /// Install skills to agent command directories
+    Install,
+    /// Remove skills from agent command directories
+    Uninstall,
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -120,6 +134,11 @@ fn main() -> Result<()> {
         Commands::Config(cmd) => match cmd {
             ConfigCommands::Show => cmd_config_show(),
             ConfigCommands::Edit => cmd_config_edit(),
+        },
+        Commands::Skills(cmd) => match cmd {
+            SkillsCommands::List => cmd_skills_list(),
+            SkillsCommands::Install => cmd_skills_install(),
+            SkillsCommands::Uninstall => cmd_skills_uninstall(),
         },
     }
 }
@@ -477,6 +496,93 @@ fn cmd_config_edit() -> Result<()> {
     Ok(())
 }
 
+fn cmd_skills_list() -> Result<()> {
+    let installed = asr::skills::list_installed_skills();
+
+    if installed.is_empty() {
+        println!("No skills installed.");
+        println!();
+        println!("Available skills:");
+        for (name, _) in asr::skills::SKILLS {
+            println!("  {}", name);
+        }
+        println!();
+        println!("Run 'asr skills install' to install skills.");
+        return Ok(());
+    }
+
+    println!("Installed skills:");
+    for skill in &installed {
+        let status = if skill.matches_embedded {
+            "current"
+        } else {
+            "modified"
+        };
+        println!("  {} [{}]", skill.path.display(), status);
+    }
+
+    // Check for any directories without skills
+    let dirs = asr::skills::skill_directories();
+    let missing: Vec<_> = dirs
+        .iter()
+        .filter(|dir| {
+            !installed.iter().any(|s| s.path.starts_with(dir))
+        })
+        .collect();
+
+    if !missing.is_empty() {
+        println!();
+        println!("Skills not installed in:");
+        for dir in missing {
+            println!("  {}", dir.display());
+        }
+        println!();
+        println!("Run 'asr skills install' to install to all directories.");
+    }
+
+    Ok(())
+}
+
+fn cmd_skills_install() -> Result<()> {
+    println!("Installing skills...");
+
+    match asr::skills::install_skills() {
+        Ok(installed) => {
+            for path in &installed {
+                println!("  Installed: {}", path.display());
+            }
+            println!();
+            println!("Installed {} skill files.", installed.len());
+            Ok(())
+        }
+        Err(e) => {
+            Err(anyhow::anyhow!("Failed to install skills: {}", e))
+        }
+    }
+}
+
+fn cmd_skills_uninstall() -> Result<()> {
+    println!("Removing skills...");
+
+    match asr::skills::uninstall_skills() {
+        Ok(removed) => {
+            if removed.is_empty() {
+                println!("No skills were installed.");
+            } else {
+                for path in &removed {
+                    println!("  Removed: {}", path.display());
+                }
+                println!();
+                println!("Removed {} skill files.", removed.len());
+            }
+            Ok(())
+        }
+        Err(e) => {
+            Err(anyhow::anyhow!("Failed to remove skills: {}", e))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -562,6 +668,33 @@ mod tests {
                 assert_eq!(older_than, Some(60));
             }
             _ => panic!("Expected Cleanup command"),
+        }
+    }
+
+    #[test]
+    fn cli_skills_list_parses() {
+        let cli = Cli::try_parse_from(["asr", "skills", "list"]).unwrap();
+        match cli.command {
+            Commands::Skills(SkillsCommands::List) => {}
+            _ => panic!("Expected Skills List command"),
+        }
+    }
+
+    #[test]
+    fn cli_skills_install_parses() {
+        let cli = Cli::try_parse_from(["asr", "skills", "install"]).unwrap();
+        match cli.command {
+            Commands::Skills(SkillsCommands::Install) => {}
+            _ => panic!("Expected Skills Install command"),
+        }
+    }
+
+    #[test]
+    fn cli_skills_uninstall_parses() {
+        let cli = Cli::try_parse_from(["asr", "skills", "uninstall"]).unwrap();
+        match cli.command {
+            Commands::Skills(SkillsCommands::Uninstall) => {}
+            _ => panic!("Expected Skills Uninstall command"),
         }
     }
 }
