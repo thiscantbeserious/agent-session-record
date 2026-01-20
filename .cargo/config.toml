@@ -1,0 +1,28 @@
+# Cross-compilation configuration for Agent Session Recorder
+#
+# To cross-compile, you need:
+# 1. Install the target: rustup target add <target-triple>
+# 2. Install the appropriate linker (see below)
+# 3. Build: cargo build --release --target <target-triple>
+#
+# Linux targets require cross-compilation toolchains:
+#   macOS: brew install FiloSottile/musl-cross/musl-cross
+#   Ubuntu: apt install gcc-x86-64-linux-gnu gcc-aarch64-linux-gnu
+
+# Linux x86_64 (most servers and desktops)
+[target.x86_64-unknown-linux-gnu]
+linker = "x86_64-linux-gnu-gcc"
+
+# Linux ARM64 (AWS Graviton, Raspberry Pi 4, etc.)
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+# Linux x86_64 with musl (fully static binary)
+[target.x86_64-unknown-linux-musl]
+linker = "x86_64-linux-musl-gcc"
+
+# macOS x86_64 (Intel Macs)
+[target.x86_64-apple-darwin]
+
+# macOS ARM64 (Apple Silicon)
+[target.aarch64-apple-darwin]
