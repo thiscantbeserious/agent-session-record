@@ -103,16 +103,54 @@ Marker events use type `"m"` with the label as data.
 ### Building
 
 ```bash
-# Build with Docker (runs tests)
+# Build with Docker (produces Linux binary, runs tests)
 ./build.sh
+# Output: dist/asr (Linux x86_64 binary)
 
-# Output binary: dist/asr
+# Build locally (native binary)
+cargo build --release
+# Output: target/release/asr
+```
+
+### Cross-Compilation
+
+The project includes `.cargo/config.toml` with cross-compilation targets.
+
+**Install targets:**
+```bash
+# macOS targets
+rustup target add x86_64-apple-darwin
+rustup target add aarch64-apple-darwin
+
+# Linux targets (requires cross-compiler toolchain)
+rustup target add x86_64-unknown-linux-gnu
+rustup target add aarch64-unknown-linux-gnu
+rustup target add x86_64-unknown-linux-musl
+```
+
+**Build for target:**
+```bash
+cargo build --release --target aarch64-apple-darwin
+cargo build --release --target x86_64-unknown-linux-gnu
+```
+
+**Linux cross-compilation from macOS:**
+```bash
+# Install musl cross-compiler
+brew install FiloSottile/musl-cross/musl-cross
+
+# Build static Linux binary
+cargo build --release --target x86_64-unknown-linux-musl
 ```
 
 ### Testing
 
 ```bash
+# Unit tests
 cargo test
+
+# E2E tests (requires asciinema installed)
+./tests/e2e_test.sh
 ```
 
 ### Project Structure

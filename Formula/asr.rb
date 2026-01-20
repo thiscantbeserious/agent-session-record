@@ -37,6 +37,12 @@ class Asr < Formula
 
   def install
     bin.install "asr"
+
+    # Install shell integration script
+    (share/"asr").install "shell/asr.sh" if File.exist?("shell/asr.sh")
+
+    # Install agent skills (for AI assistants)
+    (share/"asr/skills").install Dir["agents/*.md"] if Dir.exist?("agents")
   end
 
   def post_install
@@ -54,6 +60,8 @@ class Asr < Formula
 
       Default session directory: ~/recorded_agent_sessions/
       Config file: ~/.config/asr/config.toml
+
+      AI Agent Skills installed to: #{opt_share}/asr/skills/
     EOS
   end
 
