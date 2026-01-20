@@ -80,20 +80,17 @@ impl Default for Config {
 }
 
 impl Config {
-    /// Get the config file path
+    /// Get the config file path (~/.config/asr/config.toml)
     pub fn config_path() -> Result<PathBuf> {
-        let config_dir = dirs::config_dir()
-            .context("Could not determine config directory")?
-            .join("asr");
+        let config_dir = Self::config_dir()?;
         Ok(config_dir.join("config.toml"))
     }
 
-    /// Get the config directory path
+    /// Get the config directory path (~/.config/asr)
     pub fn config_dir() -> Result<PathBuf> {
-        let config_dir = dirs::config_dir()
-            .context("Could not determine config directory")?
-            .join("asr");
-        Ok(config_dir)
+        let home = dirs::home_dir()
+            .context("Could not determine home directory")?;
+        Ok(home.join(".config").join("asr"))
     }
 
     /// Load configuration from file, or return defaults if not found

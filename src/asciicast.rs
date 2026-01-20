@@ -63,6 +63,8 @@ pub enum EventType {
     Marker,      // "m"
     /// Resize (terminal resize)
     Resize,      // "r"
+    /// Exit (process exit code)
+    Exit,        // "x"
 }
 
 impl EventType {
@@ -72,6 +74,7 @@ impl EventType {
             "i" => Some(EventType::Input),
             "m" => Some(EventType::Marker),
             "r" => Some(EventType::Resize),
+            "x" => Some(EventType::Exit),
             _ => None,
         }
     }
@@ -82,6 +85,7 @@ impl EventType {
             EventType::Input => "i",
             EventType::Marker => "m",
             EventType::Resize => "r",
+            EventType::Exit => "x",
         }
     }
 }
@@ -396,10 +400,12 @@ mod tests {
         assert_eq!(EventType::from_code("i"), Some(EventType::Input));
         assert_eq!(EventType::from_code("m"), Some(EventType::Marker));
         assert_eq!(EventType::from_code("r"), Some(EventType::Resize));
-        assert_eq!(EventType::from_code("x"), None);
+        assert_eq!(EventType::from_code("x"), Some(EventType::Exit));
+        assert_eq!(EventType::from_code("z"), None);
 
         assert_eq!(EventType::Output.to_code(), "o");
         assert_eq!(EventType::Marker.to_code(), "m");
+        assert_eq!(EventType::Exit.to_code(), "x");
     }
 
     #[test]

@@ -30,14 +30,16 @@ cat .state/decisions.md          # Prior decisions
 6. Commit
 
 #### 4. Testing / QA
-- All tests must pass: `cargo test`
+- All unit tests must pass: `cargo test`
 - Coverage should be ≥80%
+- **E2E tests must pass: `./tests/e2e_test.sh`** (requires asciinema)
 - Run verification command (see table below)
 - Log results to `.state/phase-N/test-results.md`
 
 #### 5. Deployment
-- Build with `./build.sh`
-- If tests pass: mark `[x]` in `progress.md`
+- Build release: `cargo build --release`
+- Run e2e tests: `./tests/e2e_test.sh`
+- If all tests pass: mark `[x]` in `progress.md`
 - Update `.state/current-phase.md` with next task
 
 #### 6. Feedback
@@ -98,13 +100,25 @@ asr config edit                   # Open config in editor
 
 ## Verification Commands
 
+**MANDATORY: Run these before every PR/commit:**
+
+```bash
+# 1. Unit tests
+cargo test
+
+# 2. Build release binary
+cargo build --release
+
+# 3. E2E tests with real asciinema
+./tests/e2e_test.sh
+```
+
 | Task | Test Command |
 |------|--------------|
+| Unit tests | `cargo test` |
+| E2E tests | `./tests/e2e_test.sh` |
 | Docker build | `./build.sh && ls dist/` |
-| `asr record` | `./dist/asr record echo "test"` |
-| `asr agents` | `./dist/asr agents list` |
-| `asr status` | `./dist/asr status` |
-| `asr marker` | `./dist/asr marker add <file> 1.0 "test"` |
+| All commands | Run e2e_test.sh (tests all CLI commands with real asciinema) |
 
 ## Reference
 
