@@ -10,7 +10,7 @@
 | Task | Status | Impl Agent | Verify Agent | PR |
 |------|--------|------------|--------------|-----|
 | Improve `asr status` output | DONE | (PR #3 reverted) | via PR #4 | #4 ✅ |
-| Enhance `asr cleanup` UX | pending | - | - | - |
+| Enhance `asr cleanup` UX | DONE | a4ea0f1 | a7cf5b3, ada7df6 | #5 ✅ |
 | Add storage threshold warnings | pending | - | - | - |
 | Improve `asr list` output | pending | - | - | - |
 
@@ -35,6 +35,7 @@
 |----|------|------|--------|--------|
 | #2 | Mark Phase 1 complete | PASS | PASS | YES |
 | #4 | Improve asr status output | PASS | PASS (CodeRabbit + tests) | YES |
+| #5 | Enhance asr cleanup UX | PASS (with fix) | PASS (CodeRabbit found UTF-8 bug, fixed) | YES |
 
 ## Notes
 
