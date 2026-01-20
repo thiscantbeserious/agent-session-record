@@ -205,50 +205,8 @@ else
     fail "No cast file to check structure"
 fi
 
-# Test 15: Skills list (before install)
-echo "--- Test 15: Skills list (before install) ---"
-SKILLS_OUTPUT=$($AGR skills list 2>&1)
-if echo "$SKILLS_OUTPUT" | /usr/bin/grep -q "agr-analyze"; then
-    pass "Skills list shows embedded agr-analyze skill"
-else
-    fail "Skills list missing agr-analyze: $SKILLS_OUTPUT"
-fi
-
-# Test 16: Skills install
-echo "--- Test 16: Skills install ---"
-$AGR skills install
-if [ -f "$HOME/.claude/commands/agr-analyze.md" ]; then
-    pass "Skills install created agr-analyze.md in .claude/commands"
-else
-    fail "Skills install did not create agr-analyze.md"
-fi
-if [ -f "$HOME/.claude/commands/agr-review.md" ]; then
-    pass "Skills install created agr-review.md in .claude/commands"
-else
-    fail "Skills install did not create agr-review.md"
-fi
-
-# Test 17: Skills list shows installed location
-echo "--- Test 17: Skills list shows installed status ---"
-SKILLS_OUTPUT=$($AGR skills list 2>&1)
-if echo "$SKILLS_OUTPUT" | /usr/bin/grep -qiE '\binstalled\b' \
-   && ! echo "$SKILLS_OUTPUT" | /usr/bin/grep -qiE '\bnot installed\b'; then
-    pass "Skills list shows installed status"
-else
-    fail "Skills list not showing installed status: $SKILLS_OUTPUT"
-fi
-
-# Test 18: Skills uninstall
-echo "--- Test 18: Skills uninstall ---"
-$AGR skills uninstall
-if [ ! -f "$HOME/.claude/commands/agr-analyze.md" ]; then
-    pass "Skills uninstall removed agr-analyze.md"
-else
-    fail "Skills uninstall did not remove agr-analyze.md"
-fi
-
-# Test 19: Shell status (before install)
-echo "--- Test 19: Shell status (before install) ---"
+# Test 15: Shell status (before install)
+echo "--- Test 15: Shell status (before install) ---"
 SHELL_OUTPUT=$($AGR shell status 2>&1)
 if echo "$SHELL_OUTPUT" | /usr/bin/grep -q "not installed"; then
     pass "Shell status shows not installed"
@@ -256,8 +214,8 @@ else
     fail "Shell status unexpected output: $SHELL_OUTPUT"
 fi
 
-# Test 20: Shell install
-echo "--- Test 20: Shell install ---"
+# Test 16: Shell install
+echo "--- Test 16: Shell install ---"
 # Create a .zshrc for testing
 touch "$HOME/.zshrc"
 $AGR shell install
@@ -273,8 +231,8 @@ else
     fail "Shell install did not create agr.sh"
 fi
 
-# Test 21: Shell status (after install)
-echo "--- Test 21: Shell status (after install) ---"
+# Test 17: Shell status (after install)
+echo "--- Test 17: Shell status (after install) ---"
 SHELL_OUTPUT=$($AGR shell status 2>&1)
 if echo "$SHELL_OUTPUT" | /usr/bin/grep -qiE '\binstalled\b' \
    && ! echo "$SHELL_OUTPUT" | /usr/bin/grep -qiE '\bnot installed\b'; then
@@ -283,8 +241,8 @@ else
     fail "Shell status not showing installed: $SHELL_OUTPUT"
 fi
 
-# Test 22: Shell uninstall
-echo "--- Test 22: Shell uninstall ---"
+# Test 18: Shell uninstall
+echo "--- Test 18: Shell uninstall ---"
 $AGR shell uninstall
 if ! /usr/bin/grep -q "AGR (Agent Session Recorder)" "$HOME/.zshrc"; then
     pass "Shell uninstall removed marked section from .zshrc"
@@ -293,8 +251,8 @@ else
     cat "$HOME/.zshrc"
 fi
 
-# Test 23: Auto-wrap config toggle
-echo "--- Test 23: Auto-wrap config toggle ---"
+# Test 19: Auto-wrap config toggle
+echo "--- Test 19: Auto-wrap config toggle ---"
 CONFIG=$($AGR config show)
 if echo "$CONFIG" | /usr/bin/grep -q "auto_wrap"; then
     pass "Config shows auto_wrap setting"
@@ -302,8 +260,8 @@ else
     fail "Config missing auto_wrap: $CONFIG"
 fi
 
-# Test 24: Shell install with existing content preserves it
-echo "--- Test 24: Shell install preserves existing .zshrc content ---"
+# Test 20: Shell install with existing content preserves it
+echo "--- Test 20: Shell install preserves existing .zshrc content ---"
 echo "# My existing config" > "$HOME/.zshrc"
 echo "export MY_VAR=test" >> "$HOME/.zshrc"
 $AGR shell install
@@ -314,8 +272,8 @@ else
     cat "$HOME/.zshrc"
 fi
 
-# Test 25: Shell uninstall preserves other content
-echo "--- Test 25: Shell uninstall preserves other content ---"
+# Test 21: Shell uninstall preserves other content
+echo "--- Test 21: Shell uninstall preserves other content ---"
 $AGR shell uninstall
 if /usr/bin/grep -q "MY_VAR=test" "$HOME/.zshrc" && ! /usr/bin/grep -q "AGR (Agent Session Recorder)" "$HOME/.zshrc"; then
     pass "Shell uninstall preserved other content"
@@ -324,8 +282,8 @@ else
     cat "$HOME/.zshrc"
 fi
 
-# Test 26: Agents no-wrap list (empty by default)
-echo "--- Test 26: Agents no-wrap list (empty) ---"
+# Test 22: Agents no-wrap list (empty by default)
+echo "--- Test 22: Agents no-wrap list (empty) ---"
 NOWRAP_OUTPUT=$($AGR agents no-wrap list 2>&1)
 if echo "$NOWRAP_OUTPUT" | /usr/bin/grep -q "No agents in no-wrap list"; then
     pass "No-wrap list empty by default"
@@ -333,8 +291,8 @@ else
     fail "No-wrap list not empty: $NOWRAP_OUTPUT"
 fi
 
-# Test 27: Agents no-wrap add
-echo "--- Test 27: Agents no-wrap add ---"
+# Test 23: Agents no-wrap add
+echo "--- Test 23: Agents no-wrap add ---"
 $AGR agents no-wrap add test-nowrap-agent
 NOWRAP_OUTPUT=$($AGR agents no-wrap list 2>&1)
 if echo "$NOWRAP_OUTPUT" | /usr/bin/grep -q "test-nowrap-agent"; then
@@ -343,16 +301,16 @@ else
     fail "Agent not in no-wrap list: $NOWRAP_OUTPUT"
 fi
 
-# Test 28: Agents is-wrapped (agent in no-wrap should return exit 1)
-echo "--- Test 28: Agents is-wrapped respects no-wrap list ---"
+# Test 24: Agents is-wrapped (agent in no-wrap should return exit 1)
+echo "--- Test 24: Agents is-wrapped respects no-wrap list ---"
 if $AGR agents is-wrapped test-nowrap-agent 2>/dev/null; then
     fail "is-wrapped returned 0 for agent in no-wrap list"
 else
     pass "is-wrapped correctly returns 1 for agent in no-wrap list"
 fi
 
-# Test 29: Agents is-wrapped (enabled agent should return exit 0)
-echo "--- Test 29: Agents is-wrapped for enabled agent ---"
+# Test 25: Agents is-wrapped (enabled agent should return exit 0)
+echo "--- Test 25: Agents is-wrapped for enabled agent ---"
 $AGR agents add wrap-test-agent
 if $AGR agents is-wrapped wrap-test-agent 2>/dev/null; then
     pass "is-wrapped returns 0 for enabled agent"
@@ -360,8 +318,8 @@ else
     fail "is-wrapped returned 1 for enabled agent"
 fi
 
-# Test 30: Agents no-wrap remove
-echo "--- Test 30: Agents no-wrap remove ---"
+# Test 26: Agents no-wrap remove
+echo "--- Test 26: Agents no-wrap remove ---"
 $AGR agents no-wrap remove test-nowrap-agent
 NOWRAP_OUTPUT=$($AGR agents no-wrap list 2>&1)
 if echo "$NOWRAP_OUTPUT" | /usr/bin/grep -q "No agents in no-wrap list"; then
@@ -370,8 +328,8 @@ else
     fail "Agent still in no-wrap list: $NOWRAP_OUTPUT"
 fi
 
-# Test 31: Config shows recording.auto_analyze
-echo "--- Test 31: Config shows recording options ---"
+# Test 27: Config shows recording.auto_analyze
+echo "--- Test 27: Config shows recording options ---"
 CONFIG=$($AGR config show)
 if echo "$CONFIG" | /usr/bin/grep -q "auto_analyze"; then
     pass "Config shows auto_analyze option"
@@ -379,8 +337,8 @@ else
     fail "Config missing auto_analyze: $CONFIG"
 fi
 
-# Test 32: Config shows agents.no_wrap
-echo "--- Test 32: Config shows no_wrap option ---"
+# Test 28: Config shows agents.no_wrap
+echo "--- Test 28: Config shows no_wrap option ---"
 CONFIG=$($AGR config show)
 if echo "$CONFIG" | /usr/bin/grep -q "no_wrap"; then
     pass "Config shows no_wrap option"
