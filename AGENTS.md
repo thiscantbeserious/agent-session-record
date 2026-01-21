@@ -61,6 +61,7 @@ Use the `knowledge` skill to load these files.
 ### Verification Commands
 ```bash
 cargo fmt && cargo clippy && cargo test && ./tests/e2e_test.sh
+cargo tarpaulin            # Coverage check (see tarpaulin.toml)
 ```
 
 ## Project Context

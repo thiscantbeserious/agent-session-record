@@ -24,19 +24,26 @@ Fresh session that validates implementation without context pollution.
    ./tests/e2e_test.sh     # E2E tests (MUST pass)
    ```
 
-2. **Check CodeRabbit Review:**
+2. **Check Coverage:**
+   ```bash
+   cargo tarpaulin         # Uses tarpaulin.toml, fails if below threshold
+   ```
+   - Coverage rules defined in `tarpaulin.toml`
+   - Review `coverage/tarpaulin-report.html` if failing
+
+3. **Check CodeRabbit Review:**
    ```bash
    gh pr view <PR_NUMBER> --comments | grep -i coderabbit
    ```
    - Wait for actual review (not "processing")
    - Review any issues CodeRabbit identifies
 
-3. **Review PR Diff:**
+4. **Review PR Diff:**
    ```bash
    gh pr diff <PR_NUMBER>
    ```
 
-4. **Check CI Status:**
+5. **Check CI Status:**
    ```bash
    gh pr checks <PR_NUMBER>
    ```
