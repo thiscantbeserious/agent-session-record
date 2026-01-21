@@ -15,7 +15,7 @@
 ║   R E C O R D E R                    ║
 ╚══════════════════════════════════════╝
 
-[ Agent Session Recorder ] - Record AI agent terminal sessions and identify intersting key points automatically
+[ Agent Session Recorder ] - auto-record agent session and handle the recordings with AI!
 
 Usage: agr <COMMAND>
 
