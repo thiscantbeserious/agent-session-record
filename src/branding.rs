@@ -2,6 +2,8 @@
 //!
 //! Logos are embedded at compile time from the assets directory.
 
+use unicode_width::UnicodeWidthStr;
+
 /// Full ASCII logo for interactive CLI mode
 pub const LOGO_FULL: &str = include_str!("../assets/logo.txt");
 
@@ -53,14 +55,30 @@ pub fn print_box_line_end() {
     println!("║");
 }
 
-/// Truncate a string to fit within max_width, adding "…" if needed
+/// Truncate a string to fit within max_width display columns, adding "…" if needed
 fn truncate_str(s: &str, max_width: usize) -> String {
-    let char_count: usize = s.chars().count();
-    if char_count <= max_width {
+    let display_width = s.width();
+    if display_width <= max_width {
         s.to_string()
     } else {
-        let truncated: String = s.chars().take(max_width - 1).collect();
-        format!("{}…", truncated)
+        // Ellipsis "…" has display width of 1
+        const ELLIPSIS: &str = "…";
+        const ELLIPSIS_WIDTH: usize = 1;
+
+        let target_width = max_width.saturating_sub(ELLIPSIS_WIDTH);
+        let mut truncated = String::new();
+        let mut current_width = 0;
+
+        for c in s.chars() {
+            let char_width = unicode_width::UnicodeWidthChar::width(c).unwrap_or(0);
+            if current_width + char_width > target_width {
+                break;
+            }
+            truncated.push(c);
+            current_width += char_width;
+        }
+
+        format!("{}{}", truncated, ELLIPSIS)
     }
 }
 
@@ -117,9 +135,20 @@ mod tests {
     }
 
     #[test]
-    fn truncate_str_handles_unicode() {
-        // Should truncate by character count, not bytes
-        assert_eq!(truncate_str("日本語テスト", 4), "日本語…");
+    fn truncate_str_handles_unicode_display_width() {
+        // CJK characters have display width of 2 each
+        // "日本語テスト" = 6 chars, 12 display width
+        // With max_width=5, target_width=4, can fit "日本" (width 4) + "…" (width 1) = 5
+        assert_eq!(truncate_str("日本語テスト", 5), "日本…");
+        // With max_width=7, target_width=6, can fit "日本語" (width 6) + "…" = 7
+        assert_eq!(truncate_str("日本語テスト", 7), "日本語…");
+    }
+
+    #[test]
+    fn truncate_str_handles_wide_emoji() {
+        // Emoji typically have display width of 2
+        // "hello🎉world" - "hello" (5) + "🎉" (2) + "world" (5) = 12 display width
+        assert_eq!(truncate_str("hello🎉world", 8), "hello🎉…");
     }
 
     #[test]
