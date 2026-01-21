@@ -3,9 +3,10 @@ WORKDIR /app
 
 FROM base AS test
 COPY Cargo.toml Cargo.lock* ./
+COPY build.rs ./
 COPY src ./src
 COPY tests ./tests
-RUN cargo test
+RUN cargo test --features release
 
 FROM base AS builder
 COPY Cargo.toml Cargo.lock* ./
