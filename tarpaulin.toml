@@ -1,0 +1,25 @@
+# Coverage configuration for cargo-tarpaulin
+# Run: cargo tarpaulin
+
+[default]
+# Fail if coverage drops below threshold
+fail-under = 70.0
+
+# Exclude files from coverage calculation
+# - tests/*: Test files themselves
+# - */tests.rs: Inline test modules
+# - src/recording.rs: Requires asciinema, tested via e2e
+exclude-files = ["tests/*", "*/tests.rs", "src/recording.rs"]
+
+# Skip functions that are hard to test
+ignore = [
+    # Main entry points (tested via e2e)
+    "main",
+    # CLI parsing (tested via integration tests)
+    "build_cli",
+]
+
+[report]
+# Output formats
+out = ["Xml", "Html"]
+output-dir = "coverage"

@@ -5,25 +5,37 @@ use std::path::Path;
 use std::process::Command;
 
 /// Prompt template for session analysis
-const ANALYSIS_PROMPT: &str = r#"Analyze the recording at {filepath} and add markers for key moments.
+const ANALYSIS_PROMPT: &str = r#"Analyze the terminal recording at {filepath} and mark ONLY the most important moments.
 
-Instructions:
-1. Read the .cast file at the path above
-2. Parse JSON lines - look for output events (type "o")
-3. Calculate absolute timestamps by summing up the times from the start
-4. Identify key moments:
-   - Errors, exceptions, stack traces
-   - Important commands executed
-   - Decisions or turning points
-   - Significant results
-5. For each moment, run:
-   agr marker add {filepath} <timestamp_seconds> "description"
+CONSTRAINTS:
+- Maximum 5-7 markers total (fewer for short sessions)
+- Skip routine/expected output
+- Never mark similar events twice
 
-The timestamp is cumulative seconds from recording start.
+MARK THESE (in priority order):
+1. ERRORS: Exceptions, stack traces, failed commands, unexpected exit codes
+2. MILESTONES: Build success, tests passed, deploy complete
+3. KEY DECISIONS: Configuration changes, important user choices
 
-Example:
-  agr marker add {filepath} 45.2 "Build failed: missing dependency"
-  agr marker add {filepath} 120.5 "All tests passed"
+DO NOT MARK:
+- Directory listings (ls output)
+- Help text (--help, --version)
+- Normal command prompts ($ )
+- Repeated similar messages
+- Status updates without errors
+- Expected/routine output
+
+PROCESS:
+1. First, read the entire .cast file to understand the session
+2. Identify candidate moments from the categories above
+3. Select only the TOP 5-7 most significant
+4. Skip any that duplicate previous markers
+5. For each selected moment:
+   agr marker add {filepath} <timestamp> "brief description"
+
+Example markers:
+  agr marker add {filepath} 45.2 "ERROR: Build failed - missing dependency"
+  agr marker add {filepath} 120.5 "MILESTONE: All 47 tests passed"
 "#;
 
 /// Analyzer spawns AI agents to analyze session recordings
@@ -141,5 +153,92 @@ mod tests {
         let analyzer2 = Analyzer::new("gemini");
         assert_eq!(analyzer1.agent, "gemini-cli");
         assert_eq!(analyzer2.agent, "gemini");
+    }
+
+    #[test]
+    fn build_prompt_contains_constraints() {
+        let analyzer = Analyzer::new("claude");
+        let filepath = PathBuf::from("/tmp/session.cast");
+        let prompt = analyzer.build_prompt(&filepath);
+
+        // Verify prompt includes marker limit constraint
+        assert!(
+            prompt.contains("Maximum 5-7 markers"),
+            "Prompt should contain marker limit"
+        );
+        assert!(
+            prompt.contains("CONSTRAINTS"),
+            "Prompt should have CONSTRAINTS section"
+        );
+    }
+
+    #[test]
+    fn build_prompt_contains_negative_examples() {
+        let analyzer = Analyzer::new("claude");
+        let filepath = PathBuf::from("/tmp/session.cast");
+        let prompt = analyzer.build_prompt(&filepath);
+
+        // Verify prompt includes "DO NOT MARK" section
+        assert!(
+            prompt.contains("DO NOT MARK"),
+            "Prompt should contain DO NOT MARK section"
+        );
+        assert!(
+            prompt.contains("Directory listings"),
+            "Prompt should mention directory listings"
+        );
+        assert!(
+            prompt.contains("Help text"),
+            "Prompt should mention help text"
+        );
+    }
+
+    #[test]
+    fn build_prompt_contains_priority_categories() {
+        let analyzer = Analyzer::new("claude");
+        let filepath = PathBuf::from("/tmp/session.cast");
+        let prompt = analyzer.build_prompt(&filepath);
+
+        // Verify priority categories are present
+        assert!(prompt.contains("ERRORS"), "Prompt should mention ERRORS");
+        assert!(
+            prompt.contains("MILESTONES"),
+            "Prompt should mention MILESTONES"
+        );
+        assert!(
+            prompt.contains("KEY DECISIONS"),
+            "Prompt should mention KEY DECISIONS"
+        );
+    }
+
+    #[test]
+    fn build_prompt_contains_example_markers() {
+        let analyzer = Analyzer::new("claude");
+        let filepath = PathBuf::from("/tmp/session.cast");
+        let prompt = analyzer.build_prompt(&filepath);
+
+        // Verify example markers include error and milestone prefixes
+        assert!(
+            prompt.contains("ERROR:"),
+            "Prompt should have ERROR: example"
+        );
+        assert!(
+            prompt.contains("MILESTONE:"),
+            "Prompt should have MILESTONE: example"
+        );
+    }
+
+    #[test]
+    fn analyze_returns_error_for_missing_agent() {
+        let analyzer = Analyzer::new("definitely-not-installed-agent-xyz");
+        let filepath = PathBuf::from("/tmp/session.cast");
+
+        let result = analyzer.analyze(&filepath);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("not installed"),
+            "Error should mention agent not installed"
+        );
     }
 }
