@@ -312,6 +312,28 @@ impl StorageManager {
         None
     }
 
+    /// Find a cast file by filename only, searching across all agents
+    ///
+    /// Returns the first match found. If multiple agents have the same filename,
+    /// returns the most recently modified one.
+    ///
+    /// # Arguments
+    /// * `filename` - The filename to search for (e.g., "session.cast")
+    ///
+    /// # Returns
+    /// * `Some(PathBuf)` - Full path to the found file
+    /// * `None` - If no matching file is found
+    pub fn find_cast_file_by_name(&self, filename: &str) -> Option<PathBuf> {
+        let sessions = self.list_sessions(None).ok()?;
+
+        // Find all sessions with matching filename
+        let mut matches: Vec<_> = sessions.iter().filter(|s| s.filename == filename).collect();
+
+        // Sort by modification time (newest first) and return the first match
+        matches.sort_by(|a, b| b.modified.cmp(&a.modified));
+        matches.first().map(|s| s.path.clone())
+    }
+
     /// List all cast files in short format (agent/filename.cast)
     ///
     /// Optionally filter by a prefix (e.g., "claude/" to list only claude sessions)
@@ -697,5 +719,82 @@ mod tests {
             .unwrap();
         assert_eq!(files.len(), 1);
         assert_eq!(files[0], "claude/session1.cast");
+    }
+
+    #[test]
+    fn find_cast_file_by_name_returns_match() {
+        let temp = TempDir::new().unwrap();
+        let config = create_test_config(&temp);
+        let manager = StorageManager::new(config);
+
+        // Create a test session
+        let created_path = create_test_session(temp.path(), "claude", "unique.cast", "content");
+
+        // Should find the file by name only
+        let found = manager.find_cast_file_by_name("unique.cast");
+        assert!(found.is_some(), "Should find file by name");
+        assert_eq!(found.unwrap(), created_path);
+    }
+
+    #[test]
+    fn find_cast_file_by_name_returns_none_for_missing() {
+        let temp = TempDir::new().unwrap();
+        let config = create_test_config(&temp);
+        let manager = StorageManager::new(config);
+
+        // Create a session with different name
+        create_test_session(temp.path(), "claude", "existing.cast", "content");
+
+        // Should not find non-existent file
+        let found = manager.find_cast_file_by_name("nonexistent.cast");
+        assert!(found.is_none(), "Should return None for missing file");
+    }
+
+    #[test]
+    fn find_cast_file_by_name_handles_duplicates_returns_newest() {
+        let temp = TempDir::new().unwrap();
+        let config = create_test_config(&temp);
+        let manager = StorageManager::new(config);
+
+        // Create same filename in multiple agents
+        let _older = create_test_session(temp.path(), "claude", "shared.cast", "claude content");
+
+        // Sleep briefly to ensure different modification times (100ms for CI reliability)
+        std::thread::sleep(std::time::Duration::from_millis(100));
+
+        let newer = create_test_session(temp.path(), "codex", "shared.cast", "codex content");
+
+        // Should return the newest (most recently modified) one
+        let found = manager.find_cast_file_by_name("shared.cast");
+        assert!(found.is_some(), "Should find file");
+        assert_eq!(found.unwrap(), newer, "Should return the newest file");
+    }
+
+    #[test]
+    fn find_cast_file_by_name_empty_storage() {
+        let temp = TempDir::new().unwrap();
+        let config = create_test_config(&temp);
+        let manager = StorageManager::new(config);
+
+        // No sessions created
+        let found = manager.find_cast_file_by_name("any.cast");
+        assert!(found.is_none(), "Should return None for empty storage");
+    }
+
+    #[test]
+    fn find_cast_file_by_name_partial_match_not_supported() {
+        let temp = TempDir::new().unwrap();
+        let config = create_test_config(&temp);
+        let manager = StorageManager::new(config);
+
+        // Create a session
+        create_test_session(temp.path(), "claude", "my-session.cast", "content");
+
+        // Partial name should not match (exact match required)
+        let found = manager.find_cast_file_by_name("session");
+        assert!(found.is_none(), "Partial name should not match");
+
+        let found = manager.find_cast_file_by_name("my-session");
+        assert!(found.is_none(), "Missing extension should not match");
     }
 }

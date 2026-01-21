@@ -152,15 +152,19 @@ INTERACTIVE OPTIONS:
     },
 
     /// List recorded sessions
-    #[command(long_about = "List all recorded sessions with details.
+    #[command(
+        visible_alias = "ls",
+        long_about = "List all recorded sessions with details.
 
 Shows sessions sorted by date (newest first) with agent name,
 age, file size, and filename.
 
 EXAMPLES:
     agr list                List all sessions
+    agr ls                  Same as 'agr list' (alias)
     agr list claude         List only Claude sessions
-    agr list codex          List only Codex sessions")]
+    agr list codex          List only Codex sessions"
+    )]
     List {
         /// Filter by agent name
         #[arg(help = "Filter sessions by agent name")]
@@ -469,6 +473,7 @@ EXAMPLE:
     Uninstall,
 }
 
+#[cfg(not(tarpaulin_include))]
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -510,6 +515,15 @@ fn main() -> Result<()> {
     }
 }
 
+// Command handlers are excluded from unit test coverage because they:
+// 1. Require filesystem interaction (config files, storage directories)
+// 2. Require external binaries (asciinema, analysis agents)
+// 3. Are thoroughly tested via e2e tests in tests/e2e_test.sh
+//
+// Use #[cfg(not(tarpaulin_include))] per tarpaulin docs:
+// https://github.com/xd009642/tarpaulin#ignoring-code-in-files
+
+#[cfg(not(tarpaulin_include))]
 fn cmd_record(agent: &str, name: Option<&str>, args: &[String]) -> Result<()> {
     let config = Config::load()?;
 
@@ -523,14 +537,18 @@ fn cmd_record(agent: &str, name: Option<&str>, args: &[String]) -> Result<()> {
     recorder.record(agent, name, args)
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_analyze(file: &str, agent_override: Option<&str>) -> Result<()> {
     let config = Config::load()?;
     let agent = agent_override.unwrap_or(&config.recording.analysis_agent);
 
     // Resolve file path (supports short format like "claude/session.cast")
-    let filepath = resolve_file_path(file)?;
+    let filepath = resolve_file_path(file, &config)?;
     if !filepath.exists() {
-        anyhow::bail!("File not found: {}", file);
+        anyhow::bail!(
+            "File not found: {}\nHint: Use format 'agent/file.cast'. Run 'agr list' to see available sessions.",
+            file
+        );
     }
 
     // Check file has .cast extension
@@ -553,6 +571,7 @@ fn cmd_analyze(file: &str, agent_override: Option<&str>) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_status() -> Result<()> {
     let config = Config::load()?;
     let storage = StorageManager::new(config);
@@ -561,6 +580,7 @@ fn cmd_status() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_cleanup(agent_filter: Option<&str>, older_than: Option<u32>) -> Result<()> {
     let config = Config::load()?;
     let age_threshold = config.storage.age_threshold_days;
@@ -762,6 +782,7 @@ fn truncate_string(s: &str, max_len: usize) -> String {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_list(agent: Option<&str>) -> Result<()> {
     let config = Config::load()?;
     let storage = StorageManager::new(config);
@@ -827,17 +848,21 @@ fn cmd_list(agent: Option<&str>) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_marker_add(file: &str, time: f64, label: &str) -> Result<()> {
+    let config = Config::load()?;
     // Resolve file path (supports short format like "claude/session.cast")
-    let filepath = resolve_file_path(file)?;
+    let filepath = resolve_file_path(file, &config)?;
     MarkerManager::add_marker(&filepath, time, label)?;
     println!("Marker added at {:.1}s: \"{}\"", time, label);
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_marker_list(file: &str) -> Result<()> {
+    let config = Config::load()?;
     // Resolve file path (supports short format like "claude/session.cast")
-    let filepath = resolve_file_path(file)?;
+    let filepath = resolve_file_path(file, &config)?;
     let markers = MarkerManager::list_markers(&filepath)?;
 
     if markers.is_empty() {
@@ -853,6 +878,7 @@ fn cmd_marker_list(file: &str) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_agents_list() -> Result<()> {
     let config = Config::load()?;
 
@@ -869,6 +895,7 @@ fn cmd_agents_list() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_agents_add(name: &str) -> Result<()> {
     let mut config = Config::load()?;
 
@@ -882,6 +909,7 @@ fn cmd_agents_add(name: &str) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_agents_remove(name: &str) -> Result<()> {
     let mut config = Config::load()?;
 
@@ -895,6 +923,7 @@ fn cmd_agents_remove(name: &str) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_agents_is_wrapped(name: &str) -> Result<()> {
     let config = Config::load()?;
 
@@ -907,6 +936,7 @@ fn cmd_agents_is_wrapped(name: &str) -> Result<()> {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_agents_nowrap_list() -> Result<()> {
     let config = Config::load()?;
 
@@ -922,6 +952,7 @@ fn cmd_agents_nowrap_list() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_agents_nowrap_add(name: &str) -> Result<()> {
     let mut config = Config::load()?;
 
@@ -938,6 +969,7 @@ fn cmd_agents_nowrap_add(name: &str) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_agents_nowrap_remove(name: &str) -> Result<()> {
     let mut config = Config::load()?;
 
@@ -954,6 +986,7 @@ fn cmd_agents_nowrap_remove(name: &str) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_config_show() -> Result<()> {
     let config = Config::load()?;
     let toml_str = toml::to_string_pretty(&config)?;
@@ -961,6 +994,7 @@ fn cmd_config_show() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_config_edit() -> Result<()> {
     let config_path = Config::config_path()?;
 
@@ -983,6 +1017,7 @@ fn cmd_config_edit() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_shell_status() -> Result<()> {
     let config = Config::load()?;
     let status = agr::shell::get_status(config.shell.auto_wrap);
@@ -990,6 +1025,7 @@ fn cmd_shell_status() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_shell_install() -> Result<()> {
     // Detect shell RC file
     let rc_file = agr::shell::detect_shell_rc()
@@ -1028,6 +1064,7 @@ fn cmd_shell_install() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_shell_uninstall() -> Result<()> {
     // Find where shell integration is installed
     let rc_file = match agr::shell::find_installed_rc() {
@@ -1085,6 +1122,7 @@ fn cmd_shell_uninstall() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn cmd_completions(shell: Option<CompletionShell>, files: bool, prefix: &str) -> Result<()> {
     if files {
         // List cast files for dynamic completion
@@ -1118,7 +1156,12 @@ fn cmd_completions(shell: Option<CompletionShell>, files: bool, prefix: &str) ->
 }
 
 /// Resolve a file path, trying short format (agent/file.cast) first
-fn resolve_file_path(file: &str) -> Result<std::path::PathBuf> {
+///
+/// Supports three formats:
+/// 1. Absolute path: /path/to/file.cast
+/// 2. Short format: agent/file.cast
+/// 3. Filename only: file.cast (fuzzy matches across all agents)
+fn resolve_file_path(file: &str, config: &Config) -> Result<std::path::PathBuf> {
     use std::path::PathBuf;
 
     let path = PathBuf::from(file);
@@ -1129,11 +1172,17 @@ fn resolve_file_path(file: &str) -> Result<std::path::PathBuf> {
     }
 
     // Try to resolve as short format via StorageManager
-    let config = Config::load()?;
-    let storage = StorageManager::new(config);
+    let storage = StorageManager::new(config.clone());
 
     if let Some(resolved) = storage.resolve_cast_path(file) {
         return Ok(resolved);
+    }
+
+    // If no "/" in path, try fuzzy matching across all agents
+    if !file.contains('/') {
+        if let Some(resolved) = storage.find_cast_file_by_name(file) {
+            return Ok(resolved);
+        }
     }
 
     // Return the original path (will fail later with appropriate error)
@@ -1368,5 +1417,269 @@ mod tests {
             completions_cmd.unwrap().is_hide_set(),
             "Completions command should be hidden"
         );
+    }
+
+    #[test]
+    fn cli_list_has_ls_alias() {
+        // Test that 'ls' is accepted as an alias for 'list'
+        let cli = Cli::try_parse_from(["agr", "ls"]).unwrap();
+        match cli.command {
+            Commands::List { agent } => {
+                assert!(agent.is_none());
+            }
+            _ => panic!("Expected List command from 'ls' alias"),
+        }
+    }
+
+    #[test]
+    fn cli_ls_alias_accepts_agent_argument() {
+        let cli = Cli::try_parse_from(["agr", "ls", "claude"]).unwrap();
+        match cli.command {
+            Commands::List { agent } => {
+                assert_eq!(agent, Some("claude".to_string()));
+            }
+            _ => panic!("Expected List command from 'ls' alias with agent"),
+        }
+    }
+
+    #[test]
+    fn cli_list_alias_is_visible() {
+        // The 'ls' alias should be visible in help
+        let cmd = Cli::command();
+        let subcommands: Vec<_> = cmd.get_subcommands().collect();
+        let list_cmd = subcommands.iter().find(|c| c.get_name() == "list");
+        assert!(list_cmd.is_some(), "List command should exist");
+
+        // Check that visible_alias is set
+        let aliases: Vec<_> = list_cmd.unwrap().get_visible_aliases().collect();
+        assert!(
+            aliases.contains(&"ls"),
+            "List command should have 'ls' as visible alias"
+        );
+    }
+
+    #[test]
+    fn cli_marker_add_parses() {
+        let cli =
+            Cli::try_parse_from(["agr", "marker", "add", "test.cast", "45.2", "marker label"])
+                .unwrap();
+        match cli.command {
+            Commands::Marker(MarkerCommands::Add { file, time, label }) => {
+                assert_eq!(file, "test.cast");
+                assert!((time - 45.2).abs() < f64::EPSILON);
+                assert_eq!(label, "marker label");
+            }
+            _ => panic!("Expected Marker Add command"),
+        }
+    }
+
+    #[test]
+    fn cli_marker_list_parses() {
+        let cli = Cli::try_parse_from(["agr", "marker", "list", "test.cast"]).unwrap();
+        match cli.command {
+            Commands::Marker(MarkerCommands::List { file }) => {
+                assert_eq!(file, "test.cast");
+            }
+            _ => panic!("Expected Marker List command"),
+        }
+    }
+
+    #[test]
+    fn cli_record_parses_with_agent_only() {
+        let cli = Cli::try_parse_from(["agr", "record", "claude"]).unwrap();
+        match cli.command {
+            Commands::Record { agent, name, args } => {
+                assert_eq!(agent, "claude");
+                assert!(name.is_none());
+                assert!(args.is_empty());
+            }
+            _ => panic!("Expected Record command"),
+        }
+    }
+
+    #[test]
+    fn cli_record_parses_with_name() {
+        let cli = Cli::try_parse_from(["agr", "record", "claude", "--name", "my-session"]).unwrap();
+        match cli.command {
+            Commands::Record { agent, name, args } => {
+                assert_eq!(agent, "claude");
+                assert_eq!(name, Some("my-session".to_string()));
+                assert!(args.is_empty());
+            }
+            _ => panic!("Expected Record command"),
+        }
+    }
+
+    #[test]
+    fn cli_record_parses_with_passthrough_args() {
+        let cli =
+            Cli::try_parse_from(["agr", "record", "claude", "--", "--help", "some-arg"]).unwrap();
+        match cli.command {
+            Commands::Record { agent, name, args } => {
+                assert_eq!(agent, "claude");
+                assert!(name.is_none());
+                assert_eq!(args, vec!["--help", "some-arg"]);
+            }
+            _ => panic!("Expected Record command"),
+        }
+    }
+
+    #[test]
+    fn cli_agents_list_parses() {
+        let cli = Cli::try_parse_from(["agr", "agents", "list"]).unwrap();
+        match cli.command {
+            Commands::Agents(AgentCommands::List) => {}
+            _ => panic!("Expected Agents List command"),
+        }
+    }
+
+    #[test]
+    fn cli_agents_add_parses() {
+        let cli = Cli::try_parse_from(["agr", "agents", "add", "my-agent"]).unwrap();
+        match cli.command {
+            Commands::Agents(AgentCommands::Add { name }) => {
+                assert_eq!(name, "my-agent");
+            }
+            _ => panic!("Expected Agents Add command"),
+        }
+    }
+
+    #[test]
+    fn cli_agents_remove_parses() {
+        let cli = Cli::try_parse_from(["agr", "agents", "remove", "old-agent"]).unwrap();
+        match cli.command {
+            Commands::Agents(AgentCommands::Remove { name }) => {
+                assert_eq!(name, "old-agent");
+            }
+            _ => panic!("Expected Agents Remove command"),
+        }
+    }
+
+    #[test]
+    fn cli_config_show_parses() {
+        let cli = Cli::try_parse_from(["agr", "config", "show"]).unwrap();
+        match cli.command {
+            Commands::Config(ConfigCommands::Show) => {}
+            _ => panic!("Expected Config Show command"),
+        }
+    }
+
+    #[test]
+    fn cli_config_edit_parses() {
+        let cli = Cli::try_parse_from(["agr", "config", "edit"]).unwrap();
+        match cli.command {
+            Commands::Config(ConfigCommands::Edit) => {}
+            _ => panic!("Expected Config Edit command"),
+        }
+    }
+
+    #[test]
+    fn cli_status_parses() {
+        let cli = Cli::try_parse_from(["agr", "status"]).unwrap();
+        match cli.command {
+            Commands::Status => {}
+            _ => panic!("Expected Status command"),
+        }
+    }
+
+    // Tests for resolve_file_path function
+    mod resolve_file_path_tests {
+        use super::*;
+        use std::fs;
+        use tempfile::TempDir;
+
+        fn create_test_config(temp_dir: &TempDir) -> Config {
+            let mut config = Config::default();
+            config.storage.directory = temp_dir.path().to_string_lossy().to_string();
+            config
+        }
+
+        fn create_test_session(dir: &std::path::Path, agent: &str, filename: &str) {
+            let agent_dir = dir.join(agent);
+            fs::create_dir_all(&agent_dir).unwrap();
+            let path = agent_dir.join(filename);
+            fs::write(&path, "test content").unwrap();
+        }
+
+        #[test]
+        fn resolve_absolute_path_that_exists() {
+            let temp = TempDir::new().unwrap();
+            let config = create_test_config(&temp);
+
+            // Create a file
+            create_test_session(temp.path(), "claude", "session.cast");
+            let abs_path = temp.path().join("claude").join("session.cast");
+
+            // Resolve should return the same path
+            let result = resolve_file_path(&abs_path.to_string_lossy(), &config).unwrap();
+            assert_eq!(result, abs_path);
+        }
+
+        #[test]
+        fn resolve_short_format_agent_slash_file() {
+            let temp = TempDir::new().unwrap();
+            let config = create_test_config(&temp);
+
+            // Create a file in the storage directory
+            create_test_session(temp.path(), "claude", "test-session.cast");
+
+            // Resolve using short format
+            let result = resolve_file_path("claude/test-session.cast", &config).unwrap();
+            let expected = temp.path().join("claude").join("test-session.cast");
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn resolve_filename_only_fuzzy_match() {
+            let temp = TempDir::new().unwrap();
+            let config = create_test_config(&temp);
+
+            // Create a file
+            create_test_session(temp.path(), "codex", "unique-session.cast");
+
+            // Resolve using just the filename (no slash)
+            let result = resolve_file_path("unique-session.cast", &config).unwrap();
+            let expected = temp.path().join("codex").join("unique-session.cast");
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn resolve_returns_original_when_not_found() {
+            let temp = TempDir::new().unwrap();
+            let config = create_test_config(&temp);
+
+            // Don't create any files
+            // resolve_file_path should return the original path when nothing is found
+            let result = resolve_file_path("nonexistent.cast", &config).unwrap();
+            assert_eq!(result, std::path::PathBuf::from("nonexistent.cast"));
+        }
+
+        #[test]
+        fn resolve_short_format_not_found_returns_original() {
+            let temp = TempDir::new().unwrap();
+            let config = create_test_config(&temp);
+
+            // Create storage directory but not the file
+            fs::create_dir_all(temp.path().join("claude")).unwrap();
+
+            let result = resolve_file_path("claude/missing.cast", &config).unwrap();
+            // Since it's not found, returns the original path
+            assert_eq!(result, std::path::PathBuf::from("claude/missing.cast"));
+        }
+
+        #[test]
+        fn resolve_with_slash_does_not_fuzzy_match() {
+            let temp = TempDir::new().unwrap();
+            let config = create_test_config(&temp);
+
+            // Create a file in codex directory
+            create_test_session(temp.path(), "codex", "session.cast");
+
+            // Try to resolve with wrong agent path - should NOT find via fuzzy match
+            // because the path contains a slash
+            let result = resolve_file_path("claude/session.cast", &config).unwrap();
+            // Since claude/session.cast doesn't exist, it returns original path
+            assert_eq!(result, std::path::PathBuf::from("claude/session.cast"));
+        }
     }
 }

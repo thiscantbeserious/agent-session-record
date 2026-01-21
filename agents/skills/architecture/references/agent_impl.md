@@ -52,7 +52,15 @@ cargo clippy       # Lint for common issues
 cargo test         # Run all tests
 cargo build --release  # Build release binary
 ./tests/e2e_test.sh    # E2E tests
+
+# Coverage check (uses tarpaulin.toml config)
+cargo tarpaulin    # Fails if coverage < threshold in config
 ```
+
+## Coverage
+
+Coverage rules are defined in `tarpaulin.toml`. Run `cargo tarpaulin` to check.
+If coverage fails, review `coverage/tarpaulin-report.html` for uncovered lines.
 
 ## Task Claiming
 
