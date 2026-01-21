@@ -1,12 +1,50 @@
+// Derived from asciinema (https://github.com/asciinema/asciinema)
+// Copyright (c) asciinema authors
+// Licensed under GPL-3.0-or-later
+// Vendored by AGR project
+
 //! asciicast v3 format parser and writer
 //!
 //! Reference: https://docs.asciinema.org/manual/asciicast/v3/
+//!
+//! This module provides types and functions for working with asciicast v3 format files.
+//! It is derived from the official asciinema implementation but adapted for AGR's needs.
 
-use anyhow::{bail, Context, Result};
-use serde::{Deserialize, Serialize};
+mod util;
+mod v3;
+
+use std::collections::HashMap;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
+use std::time::Duration;
+
+use anyhow::{bail, Context, Result};
+use serde::{Deserialize, Serialize};
+
+pub use v3::V3Encoder;
+
+/// asciicast format version
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Version {
+    Three,
+}
+
+impl std::fmt::Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Version::Three => write!(f, "3"),
+        }
+    }
+}
+
+/// Terminal theme (colors)
+#[derive(Debug, Clone)]
+pub struct TtyTheme {
+    pub fg: rgb::RGB8,
+    pub bg: rgb::RGB8,
+    pub palette: Vec<rgb::RGB8>,
+}
 
 /// asciicast v3 header
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,6 +68,38 @@ pub struct Header {
     pub env: Option<EnvInfo>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub idle_time_limit: Option<f64>,
+}
+
+/// Internal header representation (compatible with asciinema crate)
+#[derive(Debug, Clone)]
+pub struct InternalHeader {
+    pub term_cols: u16,
+    pub term_rows: u16,
+    pub term_type: Option<String>,
+    pub term_version: Option<String>,
+    pub term_theme: Option<TtyTheme>,
+    pub timestamp: Option<u64>,
+    pub idle_time_limit: Option<f64>,
+    pub command: Option<String>,
+    pub title: Option<String>,
+    pub env: Option<HashMap<String, String>>,
+}
+
+impl Default for InternalHeader {
+    fn default() -> Self {
+        Self {
+            term_cols: 80,
+            term_rows: 24,
+            term_type: None,
+            term_version: None,
+            term_theme: None,
+            timestamp: None,
+            idle_time_limit: None,
+            command: None,
+            title: None,
+            env: None,
+        }
+    }
 }
 
 /// Terminal information
@@ -88,6 +158,17 @@ impl EventType {
             EventType::Exit => "x",
         }
     }
+}
+
+/// Event data types (derived from asciinema crate)
+#[derive(Debug, Clone)]
+pub enum EventData {
+    Output(String),
+    Input(String),
+    Resize(u16, u16),
+    Marker(String),
+    Exit(i32),
+    Other(char, String),
 }
 
 /// An event in the asciicast file
@@ -164,6 +245,50 @@ impl Event {
             self.data
         ]))
         .unwrap()
+    }
+}
+
+/// Internal event representation with Duration-based time (compatible with asciinema crate)
+#[derive(Debug, Clone)]
+pub struct InternalEvent {
+    pub time: Duration,
+    pub data: EventData,
+}
+
+impl InternalEvent {
+    pub fn output(time: Duration, text: String) -> Self {
+        InternalEvent {
+            time,
+            data: EventData::Output(text),
+        }
+    }
+
+    pub fn input(time: Duration, text: String) -> Self {
+        InternalEvent {
+            time,
+            data: EventData::Input(text),
+        }
+    }
+
+    pub fn resize(time: Duration, size: (u16, u16)) -> Self {
+        InternalEvent {
+            time,
+            data: EventData::Resize(size.0, size.1),
+        }
+    }
+
+    pub fn marker(time: Duration, label: String) -> Self {
+        InternalEvent {
+            time,
+            data: EventData::Marker(label),
+        }
+    }
+
+    pub fn exit(time: Duration, status: i32) -> Self {
+        InternalEvent {
+            time,
+            data: EventData::Exit(status),
+        }
     }
 }
 
@@ -309,6 +434,29 @@ impl AsciicastFile {
         let cumulative_times = self.cumulative_times();
         let prev_cumulative = cumulative_times.get(index - 1).copied().unwrap_or(0.0);
         absolute_timestamp - prev_cumulative
+    }
+}
+
+/// Encoder trait for asciicast formats
+pub trait Encoder {
+    fn header(&mut self, header: &InternalHeader) -> Vec<u8>;
+    fn event(&mut self, event: &InternalEvent) -> Vec<u8>;
+}
+
+impl Encoder for V3Encoder {
+    fn header(&mut self, header: &InternalHeader) -> Vec<u8> {
+        self.header(header)
+    }
+
+    fn event(&mut self, event: &InternalEvent) -> Vec<u8> {
+        self.event(event)
+    }
+}
+
+/// Create an encoder for the given version
+pub fn encoder(version: Version) -> Option<Box<dyn Encoder>> {
+    match version {
+        Version::Three => Some(Box::new(V3Encoder::new())),
     }
 }
 
