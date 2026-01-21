@@ -64,6 +64,11 @@ cargo fmt && cargo clippy && cargo test && ./tests/e2e_test.sh
 cargo tarpaulin            # Coverage check (see tarpaulin.toml)
 ```
 
+### Development Prerequisites
+```bash
+cargo install cargo-tarpaulin  # Coverage tool (required for local coverage checks)
+```
+
 ## Project Context
 
 - Records sessions to `~/recorded_agent_sessions/<agent>/`
