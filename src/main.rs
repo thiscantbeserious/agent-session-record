@@ -21,7 +21,7 @@ fn build_version() -> &'static str {
         const BUILD_DATE: &str = env!("AGR_BUILD_DATE");
         const REPO_NAME: &str = env!("AGR_REPO_NAME");
 
-        // Use a static string with the full version
+        // Use OnceLock for lazy initialization of the version string
         static VERSION_STRING: std::sync::OnceLock<String> = std::sync::OnceLock::new();
         VERSION_STRING.get_or_init(|| {
             let version_part = if GIT_SHA.is_empty() || GIT_SHA == "unknown" {

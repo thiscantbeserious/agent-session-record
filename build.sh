@@ -8,7 +8,7 @@ echo
 
 # Run tests first
 echo "Running tests..."
-docker build -f docker/Dockerfile --target test -t asr-test . || {
+docker build -f docker/Dockerfile --target test -t agr-test . || {
     echo "Tests failed!"
     exit 1
 }
@@ -17,11 +17,11 @@ echo
 
 # Build release
 echo "Building release..."
-docker build -f docker/Dockerfile --target final -t asr-build .
+docker build -f docker/Dockerfile --target final -t agr-build .
 
 # Extract binary
 mkdir -p dist
-CONTAINER_ID=$(docker create asr-build)
+CONTAINER_ID=$(docker create agr-build)
 docker cp "$CONTAINER_ID:/agr" dist/agr
 docker rm "$CONTAINER_ID" > /dev/null
 

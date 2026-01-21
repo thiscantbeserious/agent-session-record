@@ -85,26 +85,26 @@ fn main() {
         use vergen_gitcl::{Emitter, GitclBuilder};
 
         // Configure git info - we need the SHA
-        let git = GitclBuilder::default()
-            .sha(true)
-            .build()
-            .expect("Failed to configure git info");
+        // Use graceful fallback if git info is unavailable
+        let git_result = GitclBuilder::default().sha(true).build();
 
-        // Emit the git SHA environment variable
-        if let Err(e) = Emitter::default()
-            .add_instructions(&git)
-            .expect("Failed to add git instructions")
-            .emit()
-        {
+        let emit_result = match git_result {
+            Ok(git) => Emitter::default()
+                .add_instructions(&git)
+                .and_then(|emitter| emitter.emit()),
+            Err(e) => {
+                eprintln!("cargo:warning=Failed to configure git info: {}", e);
+                println!("cargo:rustc-env=VERGEN_GIT_SHA=unknown");
+                return;
+            }
+        };
+
+        if let Err(e) = emit_result {
             // If git info fails (e.g., not in a git repo), emit fallback value
             eprintln!("cargo:warning=Failed to get git info: {}", e);
             println!("cargo:rustc-env=VERGEN_GIT_SHA=unknown");
         }
     }
 
-    // For release builds, no git SHA is emitted
-    #[cfg(feature = "release")]
-    {
-        // No git info for official release builds
-    }
+    // For release builds, no git SHA is emitted (clean version string)
 }
