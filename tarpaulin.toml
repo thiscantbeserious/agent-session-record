@@ -1,7 +1,7 @@
 # Coverage configuration for cargo-tarpaulin
 # Run: cargo tarpaulin
 
-[report]
+[default]
 # Fail if coverage drops below threshold
 # NOTE: Starting threshold set to 40% based on current coverage (~43%).
 # This is a baseline to prevent regression. Improve coverage incrementally:
@@ -10,13 +10,8 @@
 # - src/asciicast.rs (88%), src/markers.rs (95%), src/storage.rs (89%) are well covered
 fail-under = 40.0
 
-[run]
 # Exclude test files from coverage calculation
 exclude-files = ["tests/*", "*/tests.rs"]
-
-# Output formats
-out = ["Xml", "Html"]
-output-dir = "coverage"
 
 # Skip functions that are hard to test
 ignore = [
@@ -25,3 +20,8 @@ ignore = [
     # CLI parsing (tested via integration tests)
     "build_cli",
 ]
+
+[report]
+# Output formats
+out = ["Xml", "Html"]
+output-dir = "coverage"

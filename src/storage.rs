@@ -759,8 +759,8 @@ mod tests {
         // Create same filename in multiple agents
         let _older = create_test_session(temp.path(), "claude", "shared.cast", "claude content");
 
-        // Sleep briefly to ensure different modification times
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        // Sleep briefly to ensure different modification times (100ms for CI reliability)
+        std::thread::sleep(std::time::Duration::from_millis(100));
 
         let newer = create_test_session(temp.path(), "codex", "shared.cast", "codex content");
 
