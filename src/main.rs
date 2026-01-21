@@ -965,10 +965,14 @@ fn cmd_shell_install() -> Result<()> {
     println!("Installed shell integration: {}", rc_file.display());
 
     // Install completions
-    if let Ok(Some(path)) = agr::shell::install_bash_completions() {
+    if let Some(path) = agr::shell::install_bash_completions()
+        .map_err(|e| anyhow::anyhow!("Failed to install bash completions: {}", e))?
+    {
         println!("Installed bash completions: {}", path.display());
     }
-    if let Ok(Some(path)) = agr::shell::install_zsh_completions() {
+    if let Some(path) = agr::shell::install_zsh_completions()
+        .map_err(|e| anyhow::anyhow!("Failed to install zsh completions: {}", e))?
+    {
         println!("Installed zsh completions: {}", path.display());
     }
 
@@ -1011,12 +1015,16 @@ fn cmd_shell_uninstall() -> Result<()> {
         }
 
         // Remove completions
-        if agr::shell::uninstall_bash_completions().unwrap_or(false) {
+        if agr::shell::uninstall_bash_completions()
+            .map_err(|e| anyhow::anyhow!("Failed to remove bash completions: {}", e))?
+        {
             if let Some(path) = agr::shell::bash_completion_path() {
                 println!("Removed bash completions: {}", path.display());
             }
         }
-        if agr::shell::uninstall_zsh_completions().unwrap_or(false) {
+        if agr::shell::uninstall_zsh_completions()
+            .map_err(|e| anyhow::anyhow!("Failed to remove zsh completions: {}", e))?
+        {
             if let Some(path) = agr::shell::zsh_completion_path() {
                 println!("Removed zsh completions: {}", path.display());
             }
