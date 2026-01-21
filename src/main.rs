@@ -9,22 +9,22 @@ use agr::{Analyzer, Config, MarkerManager, Recorder, StorageManager};
 
 /// Build version string.
 ///
-/// For dev builds (default): "0.1.0-dev+abc1234" (with git hash)
-/// For release builds (--features release): "0.1.0" (clean)
+/// For dev builds (default): "0.1.0-dev+abc1234 (owner/repo, built 2025-01-21)"
+/// For release builds (--features release): "0.1.0 (owner/repo, built 2025-01-21)"
 fn build_version() -> &'static str {
     #[cfg(not(feature = "release"))]
     {
         // Dev build: include git hash
-        // VERGEN_GIT_SHA is set by build.rs via vergen
+        // Environment variables are set by build.rs via vergen
         const GIT_SHA: &str = env!("VERGEN_GIT_SHA");
         const VERSION: &str = env!("CARGO_PKG_VERSION");
+        const BUILD_DATE: &str = env!("AGR_BUILD_DATE");
+        const REPO_NAME: &str = env!("AGR_REPO_NAME");
 
         // Use a static string with the full version
-        // We need to use concat! for compile-time string concatenation
-        // but that doesn't work with env! directly, so we use lazy_static pattern
         static VERSION_STRING: std::sync::OnceLock<String> = std::sync::OnceLock::new();
         VERSION_STRING.get_or_init(|| {
-            if GIT_SHA.is_empty() || GIT_SHA == "unknown" {
+            let version_part = if GIT_SHA.is_empty() || GIT_SHA == "unknown" {
                 format!("{}-dev", VERSION)
             } else {
                 // Take first 7 characters of SHA for short hash
@@ -34,14 +34,20 @@ fn build_version() -> &'static str {
                     GIT_SHA
                 };
                 format!("{}-dev+{}", VERSION, short_sha)
-            }
+            };
+            format!("{} ({}, built {})", version_part, REPO_NAME, BUILD_DATE)
         })
     }
 
     #[cfg(feature = "release")]
     {
-        // Release build: clean version only
-        env!("CARGO_PKG_VERSION")
+        // Release build: clean version with repo and build date
+        const VERSION: &str = env!("CARGO_PKG_VERSION");
+        const BUILD_DATE: &str = env!("AGR_BUILD_DATE");
+        const REPO_NAME: &str = env!("AGR_REPO_NAME");
+
+        static VERSION_STRING: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+        VERSION_STRING.get_or_init(|| format!("{} ({}, built {})", VERSION, REPO_NAME, BUILD_DATE))
     }
 }
 
