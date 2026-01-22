@@ -397,14 +397,14 @@ cargo test
 
 ```
 src/
-├── main.rs       # CLI entry point (clap)
-├── lib.rs        # Library root
-├── config.rs     # TOML configuration
-├── asciicast.rs  # v3 parser/writer
-├── markers.rs    # Marker injection
-├── storage.rs    # Storage management
-├── recording.rs  # asciinema wrapper
-└── analyzer.rs   # Auto-analysis with AI agents
+├── main.rs       # CLI entry point - clap definitions and command dispatch
+├── lib.rs        # Library root - re-exports all modules
+├── commands/     # CLI command handlers (one file per command)
+└── *.rs          # Domain modules (config, storage, recording, etc.)
+tests/
+├── *_test.rs     # Integration tests
+├── e2e/          # End-to-end test scripts
+└── helpers/      # Shared test utilities
 ```
 
 ### Cross-Compilation
