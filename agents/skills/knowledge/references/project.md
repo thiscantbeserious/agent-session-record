@@ -6,17 +6,16 @@
 - Uses asciicast v3 format with native marker support
 - AI agents can analyze recordings via `agr analyze <file>` command
 
-## Key Source Files
+## Source Code
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `src/main.rs` | CLI entry point (clap) |
-| `src/lib.rs` | Library root |
-| `src/config.rs` | TOML config loading |
-| `src/asciicast.rs` | v3 format parser/writer |
-| `src/markers.rs` | Marker injection logic |
-| `src/storage.rs` | Storage stats & cleanup |
-| `src/recording.rs` | asciinema wrapper, rename flow |
+| `src/main.rs` | CLI entry point - clap definitions and command dispatch |
+| `src/lib.rs` | Library root - re-exports all modules |
+| `src/commands/` | CLI command handlers (one file per command) |
+| `tests/` | Integration tests, E2E tests (`e2e/`), and test helpers |
+
+Explore `src/` for domain modules (config, storage, recording, etc.).
 
 ## Auto-Analysis
 
