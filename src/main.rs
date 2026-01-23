@@ -9,27 +9,17 @@ use clap_complete::Shell as CompletionShell;
 use terminal_size::{terminal_size, Width};
 
 mod commands;
+mod tui;
 
 /// Generate the ASCII logo with dynamic-width REC line.
+///
+/// Uses the TUI module's static logo builder for consistency.
 fn build_logo() -> String {
     let width = terminal_size()
         .map(|(Width(w), _)| w as usize)
         .unwrap_or(80);
 
-    // Logo is 27 chars wide, REC indicator is " ⏺ REC "
-    let rec_prefix = " ⏺ REC ";
-    let rec_prefix_width = 7; // visual width
-    let dashes = width.saturating_sub(rec_prefix_width);
-    let rec_line = format!("{}{}", rec_prefix, "─".repeat(dashes));
-
-    const LOGO: &str = " █████╗  ██████╗ ██████╗
-██╔══██╗██╔════╝ ██╔══██╗
-███████║██║  ███╗██████╔╝
-██╔══██║██║   ██║██╔══██╗
-██║  ██║╚██████╔╝██║  ██║
-╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝";
-
-    format!("\n\n{}\n{}\n", LOGO, rec_line)
+    tui::widgets::logo::build_static_logo(width)
 }
 
 /// Build version string.
@@ -500,8 +490,88 @@ EXAMPLE:
     Uninstall,
 }
 
+/// Check if we should show TUI help.
+///
+/// Returns true if:
+/// - The user passed --help or -h as the only argument (or with agr)
+/// - Output is a TTY (not piped)
+fn should_show_tui_help() -> bool {
+    let args: Vec<String> = std::env::args().collect();
+
+    // Check if --help or -h is present as the only argument after program name
+    // We want TUI help only for top-level help, not subcommand help
+    let is_help_request =
+        args.len() == 2 && (args[1] == "--help" || args[1] == "-h" || args[1] == "help");
+
+    // Check if stdout is a TTY
+    let is_tty = atty::is(atty::Stream::Stdout);
+
+    is_help_request && is_tty
+}
+
+/// Show interactive TUI help screen.
+///
+/// Displays the logo with dynamic REC line that responds to terminal resize.
+/// Press 'q', Escape, or Ctrl+C to exit and see the full help text.
+fn show_tui_help() -> Result<()> {
+    use crossterm::{
+        event::{self, Event as CrosstermEvent, KeyCode, KeyModifiers},
+        execute,
+        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    };
+    use ratatui::{backend::CrosstermBackend, Terminal};
+    use std::io;
+    use std::time::Duration;
+
+    // Setup terminal
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    // Draw loop
+    loop {
+        // Draw
+        terminal.draw(|frame| {
+            tui::ui::render_logo(frame);
+        })?;
+
+        // Handle events
+        if event::poll(Duration::from_millis(100))? {
+            if let CrosstermEvent::Key(key) = event::read()? {
+                // Exit on q, Escape, or Ctrl+C
+                if key.code == KeyCode::Char('q')
+                    || key.code == KeyCode::Esc
+                    || (key.code == KeyCode::Char('c')
+                        && key.modifiers.contains(KeyModifiers::CONTROL))
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    // Restore terminal
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    terminal.show_cursor()?;
+
+    // Now show the static help text
+    let mut cmd = Cli::command().before_help(build_logo());
+    cmd.print_help()?;
+    println!(); // Add newline after help
+
+    Ok(())
+}
+
 #[cfg(not(tarpaulin_include))]
 fn main() -> Result<()> {
+    // Check for interactive TUI help
+    if should_show_tui_help() {
+        return show_tui_help();
+    }
+
     let cli = Cli::command().before_help(build_logo()).get_matches();
     let cli = Cli::from_arg_matches(&cli).unwrap();
 
