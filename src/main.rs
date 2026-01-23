@@ -16,15 +16,15 @@ use agr::tui;
 /// Build clap styles using our theme colors.
 ///
 /// Maps theme colors to clap's styling system for consistent CLI appearance.
+/// - Green: headers, usage, command names (accent color)
+/// - White: descriptions, placeholders (renders as light gray on dark terminals)
 fn build_cli_styles() -> Styles {
-    // Use theme-aligned colors for clap output
-    // Gray for most text, green for highlights
     Styles::styled()
         .header(AnsiColor::Green.on_default() | Effects::BOLD)
         .usage(AnsiColor::Green.on_default() | Effects::BOLD)
         .literal(AnsiColor::Green.on_default())
-        .placeholder(AnsiColor::BrightBlack.on_default())
-        .valid(AnsiColor::BrightBlack.on_default())
+        .placeholder(AnsiColor::White.on_default()) // Light gray for descriptions
+        .valid(AnsiColor::White.on_default())       // Light gray for valid values
         .invalid(AnsiColor::Red.on_default())
         .error(AnsiColor::Red.on_default() | Effects::BOLD)
 }
