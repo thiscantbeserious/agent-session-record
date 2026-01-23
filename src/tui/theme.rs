@@ -33,12 +33,12 @@ impl Theme {
     /// Claude Code inspired theme - green text on dark background.
     pub fn claude_code() -> Self {
         Self {
-            text_primary: Color::Rgb(144, 238, 144), // Light green
-            text_secondary: Color::DarkGray,
-            accent: Color::Rgb(144, 238, 144), // Light green
+            text_primary: Color::Rgb(144, 238, 144),  // Light green
+            text_secondary: Color::Rgb(128, 128, 128), // Medium gray (visible on dark bg)
+            accent: Color::Rgb(144, 238, 144),        // Light green
             error: Color::Red,
             success: Color::Green,
-            background: Color::Reset, // Use terminal default
+            background: Color::Reset,                  // Use terminal default
         }
     }
 
