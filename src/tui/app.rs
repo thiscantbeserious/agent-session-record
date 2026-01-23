@@ -93,6 +93,36 @@ impl App {
         self.terminal.draw(f)?;
         Ok(())
     }
+
+    /// Suspend the TUI and restore normal terminal mode.
+    ///
+    /// Use this before running external commands that need the terminal.
+    /// Call `resume()` afterward to re-enter TUI mode.
+    pub fn suspend(&mut self) -> Result<()> {
+        disable_raw_mode()?;
+        execute!(
+            self.terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )?;
+        self.terminal.show_cursor()?;
+        Ok(())
+    }
+
+    /// Resume the TUI after a suspend.
+    ///
+    /// Re-enters alternate screen and raw mode.
+    pub fn resume(&mut self) -> Result<()> {
+        enable_raw_mode()?;
+        execute!(
+            self.terminal.backend_mut(),
+            EnterAlternateScreen,
+            EnableMouseCapture
+        )?;
+        self.terminal.hide_cursor()?;
+        self.terminal.clear()?;
+        Ok(())
+    }
 }
 
 impl Drop for App {
