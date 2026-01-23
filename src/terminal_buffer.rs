@@ -862,4 +862,197 @@ mod tests {
             .iter()
             .any(|c| c.style.bg == Color::Rgb(100, 150, 200)));
     }
+
+    // Additional tests for uncovered code paths
+
+    #[test]
+    fn backspace_moves_cursor_back() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("AB\x08C"); // AB, backspace, C
+        assert_eq!(buf.to_string(), "AC");
+    }
+
+    #[test]
+    fn backspace_at_start_does_nothing() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("\x08X"); // Backspace at start, then X
+        assert_eq!(buf.to_string(), "X");
+    }
+
+    #[test]
+    fn tab_moves_to_next_tab_stop() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("A\tB"); // A, tab, B
+        let output = buf.to_string();
+        assert!(output.starts_with("A"));
+        assert!(output.contains("B"));
+        // Tab stop is at column 8, so there should be spaces between A and B
+        assert!(output.len() >= 8);
+    }
+
+    #[test]
+    fn cursor_down_moves_cursor() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("Line1\x1b[BX"); // Line1, cursor down, X
+        let output = buf.to_string();
+        assert!(output.contains("Line1"));
+        assert!(output.contains("X"));
+    }
+
+    #[test]
+    fn cursor_forward_moves_cursor() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("A\x1b[3CB"); // A, cursor forward 3, B
+        let output = buf.to_string();
+        assert!(output.starts_with("A"));
+        assert!(output.ends_with("B"));
+    }
+
+    #[test]
+    fn cursor_back_moves_cursor() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("ABCD\x1b[2DX"); // ABCD, cursor back 2, X
+        assert_eq!(buf.to_string(), "ABXD");
+    }
+
+    #[test]
+    fn erase_line_clears_entire_line() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("Hello World\x1b[1;6H\x1b[2K"); // Move to col 6, erase line
+        assert_eq!(buf.to_string(), "");
+    }
+
+    #[test]
+    fn erase_to_end_of_screen() {
+        let mut buf = TerminalBuffer::new(10, 3);
+        buf.process("Line1\r\nLine2\r\nLine3");
+        buf.process("\x1b[2;1H\x1b[0J"); // Move to row 2 col 1, erase to end of screen
+        assert_eq!(buf.to_string(), "Line1");
+    }
+
+    #[test]
+    fn sgr_reset_bold_and_dim() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("\x1b[1;2mX\x1b[22mY"); // Bold+dim, then reset bold/dim
+        let lines = buf.styled_lines();
+        let first_line = &lines[0];
+        // X should be bold and dim
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.char == 'X' && c.style.bold && c.style.dim));
+        // Y should not be bold or dim
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.char == 'Y' && !c.style.bold && !c.style.dim));
+    }
+
+    #[test]
+    fn sgr_reset_italic() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("\x1b[3mX\x1b[23mY"); // Italic, then reset italic
+        let lines = buf.styled_lines();
+        let first_line = &lines[0];
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.char == 'X' && c.style.italic));
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.char == 'Y' && !c.style.italic));
+    }
+
+    #[test]
+    fn sgr_reset_underline() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("\x1b[4mX\x1b[24mY"); // Underline, then reset underline
+        let lines = buf.styled_lines();
+        let first_line = &lines[0];
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.char == 'X' && c.style.underline));
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.char == 'Y' && !c.style.underline));
+    }
+
+    #[test]
+    fn cursor_position_with_f_command() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("Hello\x1b[1;3fX"); // Use 'f' command (same as H)
+        assert_eq!(buf.to_string(), "HeXlo");
+    }
+
+    #[test]
+    fn all_bright_foreground_colors() {
+        let colors = [
+            ("\x1b[90m", Color::BrightBlack),
+            ("\x1b[91m", Color::BrightRed),
+            ("\x1b[92m", Color::BrightGreen),
+            ("\x1b[93m", Color::BrightYellow),
+            ("\x1b[94m", Color::BrightBlue),
+            ("\x1b[95m", Color::BrightMagenta),
+            ("\x1b[96m", Color::BrightCyan),
+            ("\x1b[97m", Color::BrightWhite),
+        ];
+        for (seq, expected) in colors {
+            let mut buf = TerminalBuffer::new(80, 24);
+            buf.process(&format!("{}X", seq));
+            let lines = buf.styled_lines();
+            assert!(
+                lines[0].cells.iter().any(|c| c.style.fg == expected),
+                "Expected {:?} for sequence {}",
+                expected,
+                seq
+            );
+        }
+    }
+
+    #[test]
+    fn all_bright_background_colors() {
+        let colors = [
+            ("\x1b[100m", Color::BrightBlack),
+            ("\x1b[101m", Color::BrightRed),
+            ("\x1b[102m", Color::BrightGreen),
+            ("\x1b[103m", Color::BrightYellow),
+            ("\x1b[104m", Color::BrightBlue),
+            ("\x1b[105m", Color::BrightMagenta),
+            ("\x1b[106m", Color::BrightCyan),
+            ("\x1b[107m", Color::BrightWhite),
+        ];
+        for (seq, expected) in colors {
+            let mut buf = TerminalBuffer::new(80, 24);
+            buf.process(&format!("{}X", seq));
+            let lines = buf.styled_lines();
+            assert!(
+                lines[0].cells.iter().any(|c| c.style.bg == expected),
+                "Expected bg {:?} for sequence {}",
+                expected,
+                seq
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_sgr_code_is_ignored() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("\x1b[999mX"); // Unknown SGR code
+        let lines = buf.styled_lines();
+        // Should still work, just with default style
+        assert!(lines[0].cells.iter().any(|c| c.char == 'X'));
+    }
+
+    #[test]
+    fn unknown_csi_action_is_ignored() {
+        let mut buf = TerminalBuffer::new(80, 24);
+        buf.process("X\x1b[5ZY"); // Unknown CSI Z action
+                                  // Should still process X and Y
+        let output = buf.to_string();
+        assert!(output.contains("X"));
+        assert!(output.contains("Y"));
+    }
 }
