@@ -26,3 +26,6 @@ mod shell_test;
 
 #[path = "unit/storage_test.rs"]
 mod storage_test;
+
+#[path = "unit/tui_test.rs"]
+mod tui_test;

@@ -9,7 +9,8 @@ use clap_complete::Shell as CompletionShell;
 use terminal_size::{terminal_size, Width};
 
 mod commands;
-mod tui;
+
+use agr::tui;
 
 /// Generate the ASCII logo with dynamic-width REC line.
 ///

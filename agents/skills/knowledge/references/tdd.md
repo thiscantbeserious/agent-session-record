@@ -14,7 +14,7 @@
 ## Test Commands
 
 ```bash
-cargo test              # Unit tests
+cargo test              # Unit tests (includes snapshot tests)
 ./tests/e2e_test.sh     # E2E tests (requires asciinema)
 ```
 
@@ -31,3 +31,53 @@ cargo test              # Unit tests
 - One assertion per test when possible
 - Use descriptive test names
 - Test edge cases and error conditions
+
+## Snapshot Testing (Visual Components)
+
+For TUI/visual components, use `insta` for snapshot testing. This ensures visual output remains consistent.
+
+### Location
+
+- Test file: `tests/unit/tui_test.rs`
+- Snapshots: `tests/unit/snapshots/`
+
+### Current Snapshots
+
+| Snapshot | Purpose |
+|----------|---------|
+| `snapshot_theme_colors` | Captures exact color values (text_primary, accent, etc.) |
+| `snapshot_logo_visual` | Renders Logo widget and captures visual output with colors |
+| `snapshot_logo_rec_line_scales` | Verifies REC line scales at 40/80/120 widths |
+
+### Updating Snapshots
+
+When theme colors or visual output intentionally changes:
+
+```bash
+# Run tests - will fail with diff showing changes
+cargo test tui_test
+
+# Review the .snap.new files in tests/unit/snapshots/
+# If changes are correct, accept them:
+cd tests/unit/snapshots
+for f in *.snap.new; do mv "$f" "${f%.new}"; done
+
+# Re-run to confirm
+cargo test tui_test
+```
+
+IMPORTANT: If snapshot tests fail unexpectedly, ASK THE USER before accepting new snapshots. Only accept if the user confirms the visual changes were intentional.
+
+### Adding New Snapshot Tests
+
+```rust
+use insta;
+
+#[test]
+fn snapshot_my_widget() {
+    let output = render_widget_to_string(MyWidget::new(), 80, 24);
+    insta::assert_snapshot!(output);
+}
+```
+
+First run creates `.snap.new` file. Review and rename to `.snap` to accept.
