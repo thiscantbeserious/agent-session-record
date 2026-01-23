@@ -73,8 +73,9 @@ _agr_setup_wrappers() {
     local agents agent
 
     # Try to get agent list from agr
+    # Strip ANSI color codes from output to handle themed CLI output
     if command -v agr &>/dev/null; then
-        agents=$(agr agents list 2>/dev/null | grep -v "^Configured" | grep -v "^No agents" | sed 's/^  //')
+        agents=$(agr agents list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -v "^Configured" | grep -v "^No agents" | sed 's/^  //')
     fi
 
     # Fallback to default agents if agr not available
