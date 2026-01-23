@@ -4,6 +4,7 @@
 //! Command implementations are in the `commands` module.
 
 use anyhow::Result;
+use clap::builder::styling::{AnsiColor, Effects, Styles};
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use clap_complete::Shell as CompletionShell;
 use terminal_size::{terminal_size, Width};
@@ -11,6 +12,22 @@ use terminal_size::{terminal_size, Width};
 mod commands;
 
 use agr::tui;
+
+/// Build clap styles using our theme colors.
+///
+/// Maps theme colors to clap's styling system for consistent CLI appearance.
+fn build_cli_styles() -> Styles {
+    // Use theme-aligned colors for clap output
+    // Gray for most text, green for highlights
+    Styles::styled()
+        .header(AnsiColor::Green.on_default() | Effects::BOLD)
+        .usage(AnsiColor::Green.on_default() | Effects::BOLD)
+        .literal(AnsiColor::Green.on_default())
+        .placeholder(AnsiColor::BrightBlack.on_default())
+        .valid(AnsiColor::BrightBlack.on_default())
+        .invalid(AnsiColor::Red.on_default())
+        .error(AnsiColor::Red.on_default() | Effects::BOLD)
+}
 
 /// Generate the ASCII logo with dynamic-width REC line.
 ///
@@ -566,7 +583,7 @@ fn show_tui_help() -> Result<()> {
 
     // Generate help text (without the logo - we render that separately)
     let help_text = {
-        let mut cmd = Cli::command();
+        let mut cmd = Cli::command().styles(build_cli_styles());
         let mut buf = Vec::new();
         cmd.write_long_help(&mut buf)?;
         String::from_utf8_lossy(&buf).to_string()
@@ -655,7 +672,10 @@ fn main() -> Result<()> {
         return show_tui_help();
     }
 
-    let cli = Cli::command().before_help(build_logo()).get_matches();
+    let cli = Cli::command()
+        .styles(build_cli_styles())
+        .before_help(build_logo())
+        .get_matches();
     let cli = Cli::from_arg_matches(&cli).unwrap();
 
     match cli.command {
