@@ -10,6 +10,7 @@ pub mod app;
 pub mod cleanup_app;
 pub mod event;
 pub mod list_app;
+pub mod preview_cache;
 pub mod theme;
 pub mod ui;
 pub mod widgets;
