@@ -393,6 +393,40 @@ impl FileExplorer {
         self.sync_list_state();
     }
 
+    /// Remove an item by its path
+    ///
+    /// Returns true if the item was found and removed.
+    pub fn remove_item(&mut self, path: &str) -> bool {
+        if let Some(idx) = self.items.iter().position(|item| item.path == path) {
+            // Remove from multi-selected if present
+            self.multi_selected.remove(&idx);
+
+            // Adjust multi_selected indices for items after the removed one
+            self.multi_selected = self
+                .multi_selected
+                .iter()
+                .map(|&i| if i > idx { i - 1 } else { i })
+                .collect();
+
+            // Remove the item
+            self.items.remove(idx);
+
+            // Rebuild visible indices and adjust selection
+            self.apply_filter();
+            self.apply_sort();
+
+            // Adjust selection if needed
+            if self.selected >= self.visible_indices.len() && !self.visible_indices.is_empty() {
+                self.selected = self.visible_indices.len() - 1;
+            }
+            self.sync_list_state();
+
+            true
+        } else {
+            false
+        }
+    }
+
     /// Apply current filter to rebuild visible indices
     fn apply_filter(&mut self) {
         self.visible_indices = self

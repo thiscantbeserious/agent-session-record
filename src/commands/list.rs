@@ -51,9 +51,7 @@ fn handle_tui(sessions: Vec<agr::storage::SessionInfo>, agent: Option<&str>) -> 
 
     // If agent filter was specified on command line, apply it
     if let Some(agent_name) = agent {
-        // The ListApp will need a method to set initial filter
-        // For now, we'll just run with all items and let user filter
-        let _ = agent_name; // Suppress unused warning for now
+        app.set_agent_filter(agent_name);
     }
 
     app.run()

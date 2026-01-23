@@ -80,6 +80,15 @@ impl ListApp {
         })
     }
 
+    /// Set initial agent filter (for CLI argument support)
+    pub fn set_agent_filter(&mut self, agent: &str) {
+        // Find the agent in available_agents and set the index
+        if let Some(idx) = self.available_agents.iter().position(|a| a == agent) {
+            self.agent_filter_idx = idx;
+            self.apply_agent_filter();
+        }
+    }
+
     /// Run the list application event loop.
     pub fn run(&mut self) -> Result<()> {
         loop {
@@ -388,11 +397,9 @@ impl ListApp {
             if let Err(e) = std::fs::remove_file(&path) {
                 self.status_message = Some(format!("Failed to delete: {}", e));
             } else {
+                // Remove from explorer to keep UI in sync
+                self.explorer.remove_item(&path);
                 self.status_message = Some(format!("Deleted: {}", name));
-
-                // Rebuild the explorer without the deleted item
-                // For now, just show message - the explorer state is stale
-                // A proper implementation would refresh from storage
             }
         }
         Ok(())
