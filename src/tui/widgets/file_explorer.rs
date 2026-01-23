@@ -699,7 +699,7 @@ impl Widget for FileExplorerWidget<'_> {
                         )]));
 
                         // Add terminal preview lines (limited to fit)
-                        for preview_line in terminal_preview.lines().take(6) {
+                        for preview_line in terminal_preview.lines().take(12) {
                             lines.push(Line::from(vec![Span::styled(
                                 format!(" {}", preview_line),
                                 theme.text_style(),
