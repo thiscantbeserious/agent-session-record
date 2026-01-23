@@ -306,17 +306,7 @@ impl ListApp {
     /// Handle keys in agent filter mode.
     fn handle_agent_filter_key(&mut self, key: KeyEvent) -> Result<()> {
         match key.code {
-            KeyCode::Esc => {
-                self.mode = Mode::Normal;
-            }
-            KeyCode::Enter => {
-                // Apply agent filter
-                let selected = &self.available_agents[self.agent_filter_idx];
-                if selected == "All" {
-                    self.explorer.set_agent_filter(None);
-                } else {
-                    self.explorer.set_agent_filter(Some(selected.clone()));
-                }
+            KeyCode::Esc | KeyCode::Enter => {
                 self.mode = Mode::Normal;
             }
             KeyCode::Left | KeyCode::Char('h') => {
@@ -325,13 +315,25 @@ impl ListApp {
                 } else {
                     self.agent_filter_idx = self.available_agents.len() - 1;
                 }
+                self.apply_agent_filter();
             }
             KeyCode::Right | KeyCode::Char('l') => {
                 self.agent_filter_idx = (self.agent_filter_idx + 1) % self.available_agents.len();
+                self.apply_agent_filter();
             }
             _ => {}
         }
         Ok(())
+    }
+
+    /// Apply the currently selected agent filter
+    fn apply_agent_filter(&mut self) {
+        let selected = &self.available_agents[self.agent_filter_idx];
+        if selected == "All" {
+            self.explorer.set_agent_filter(None);
+        } else {
+            self.explorer.set_agent_filter(Some(selected.clone()));
+        }
     }
 
     /// Handle keys in help mode.

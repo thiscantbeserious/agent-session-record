@@ -23,6 +23,8 @@ pub struct App {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     /// Event handler
     events: EventHandler,
+    /// Tick rate for event handler (needed for recreation after suspend)
+    tick_rate: Duration,
     /// Whether the app should quit
     should_quit: bool,
 }
@@ -60,6 +62,7 @@ impl App {
         Ok(Self {
             terminal,
             events,
+            tick_rate,
             should_quit: false,
         })
     }
@@ -111,7 +114,7 @@ impl App {
 
     /// Resume the TUI after a suspend.
     ///
-    /// Re-enters alternate screen and raw mode.
+    /// Re-enters alternate screen and raw mode, and recreates the event handler.
     pub fn resume(&mut self) -> Result<()> {
         enable_raw_mode()?;
         execute!(
@@ -121,6 +124,10 @@ impl App {
         )?;
         self.terminal.hide_cursor()?;
         self.terminal.clear()?;
+
+        // Recreate event handler (old one may be in bad state after suspend)
+        self.events = EventHandler::new(self.tick_rate);
+
         Ok(())
     }
 }
