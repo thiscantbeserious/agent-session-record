@@ -35,7 +35,7 @@ impl Theme {
     /// Uses standard ANSI colors for consistent terminal rendering.
     pub fn claude_code() -> Self {
         Self {
-            text_primary: Color::Gray,       // Light gray for help text
+            text_primary: Color::Gray,       // Light gray for help text (ANSI 37)
             text_secondary: Color::DarkGray, // Dark gray for footer hints
             accent: Color::Green,            // Standard ANSI green for logo (matches terminal)
             error: Color::Red,
@@ -136,10 +136,96 @@ impl Theme {
 }
 
 /// ANSI reset sequence
-const ANSI_RESET: &str = "\x1b[0m";
+pub const ANSI_RESET: &str = "\x1b[0m";
+
+/// ANSI color codes for CLI output - exposed for clap styling
+pub mod ansi {
+    /// Gray color (ANSI 37) - used for descriptions
+    pub const GRAY: &str = "\x1b[37m";
+    /// Green color (ANSI 32) - used for accent/headers
+    pub const GREEN: &str = "\x1b[32m";
+    /// Red color (ANSI 31) - used for errors
+    pub const RED: &str = "\x1b[31m";
+    /// Dark gray (ANSI 90) - used for secondary text
+    pub const DARK_GRAY: &str = "\x1b[90m";
+    /// Reset color
+    pub const RESET: &str = "\x1b[0m";
+}
+
+/// Colorize CLI help text using the theme.
+///
+/// Wraps description text (after command/option names) in the primary text color.
+/// This post-processes clap's output to apply consistent theming.
+pub fn colorize_help(text: &str) -> String {
+    let theme = current_theme();
+    let gray = color_to_ansi(theme.text_primary);
+    let reset = ANSI_RESET;
+
+    // Process each line to wrap description text in gray
+    text.lines()
+        .map(|line| {
+            // Skip lines that are already fully styled (headers, etc.)
+            if line.contains("\x1b[") && !line.trim().starts_with("\x1b[32m") {
+                return line.to_string();
+            }
+
+            // For command lines like "  record      Start recording..."
+            // The format is: spaces + command (green) + spaces + description
+            // We want to wrap the description part in gray
+
+            // Check if this is a command/option line with a description
+            if line.contains("  ") {
+                // Find where the description starts (after multiple spaces following command name)
+                let trimmed = line.trim_start();
+                if !trimmed.is_empty() && !trimmed.starts_with('-') && !trimmed.starts_with('<') {
+                    // This might be a command line or section header
+                    // Look for pattern: command_name followed by 2+ spaces then description
+                    if let Some(desc_start) = find_description_start(line) {
+                        let (prefix, desc) = line.split_at(desc_start);
+                        if !desc.trim().is_empty() && !desc.contains("\x1b[") {
+                            return format!("{}{}{}{}", prefix, gray, desc, reset);
+                        }
+                    }
+                }
+            }
+
+            line.to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Find the start position of description text in a help line.
+fn find_description_start(line: &str) -> Option<usize> {
+    // Look for the pattern: word(s) followed by 2+ spaces
+    // The description starts after those spaces
+    let mut in_word = false;
+    let mut space_count = 0;
+    let mut last_word_end = 0;
+
+    for (i, c) in line.char_indices() {
+        if c.is_whitespace() {
+            if in_word {
+                in_word = false;
+                last_word_end = i;
+                space_count = 1;
+            } else {
+                space_count += 1;
+            }
+        } else {
+            if !in_word && space_count >= 2 && last_word_end > 0 {
+                // Found description start
+                return Some(i);
+            }
+            in_word = true;
+            space_count = 0;
+        }
+    }
+    None
+}
 
 /// Convert a ratatui Color to an ANSI escape code.
-fn color_to_ansi(color: Color) -> &'static str {
+pub fn color_to_ansi(color: Color) -> &'static str {
     match color {
         Color::Black => "\x1b[30m",
         Color::Red => "\x1b[31m",

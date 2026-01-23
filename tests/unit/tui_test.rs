@@ -161,3 +161,25 @@ fn logo_uses_secondary_color_for_dashes() {
         "Dashes should use text_secondary color (dark gray)"
     );
 }
+
+#[test]
+fn snapshot_cli_ansi_theme_colors() {
+    // Snapshot the ANSI color codes used by the theme for CLI output
+    let theme = current_theme();
+
+    let snapshot = format!(
+        "CLI ANSI Theme Colors\n\
+         =====================\n\
+         accent_text(\"test\"): {:?}\n\
+         primary_text(\"test\"): {:?}\n\
+         secondary_text(\"test\"): {:?}\n\
+         error_text(\"test\"): {:?}\n\
+         success_text(\"test\"): {:?}",
+        theme.accent_text("test"),
+        theme.primary_text("test"),
+        theme.secondary_text("test"),
+        theme.error_text("test"),
+        theme.success_text("test"),
+    );
+    insta::assert_snapshot!(snapshot);
+}

@@ -24,7 +24,7 @@ fn build_cli_styles() -> Styles {
         .usage(AnsiColor::Green.on_default() | Effects::BOLD)
         .literal(AnsiColor::Green.on_default())
         .placeholder(AnsiColor::White.on_default()) // Light gray for descriptions
-        .valid(AnsiColor::White.on_default())       // Light gray for valid values
+        .valid(AnsiColor::White.on_default()) // Light gray for valid values
         .invalid(AnsiColor::Red.on_default())
         .error(AnsiColor::Red.on_default() | Effects::BOLD)
 }
@@ -665,6 +665,17 @@ fn show_tui_help() -> Result<()> {
     Ok(())
 }
 
+/// Print help with theme-based colorization.
+///
+/// Takes clap's error which contains the rendered help, applies theme colors,
+/// and prints the result.
+fn print_themed_help(err: &clap::Error) {
+    // Get the rendered help from the error
+    let help_text = err.to_string();
+    let colored = tui::colorize_help(&help_text);
+    print!("{}", colored);
+}
+
 #[cfg(not(tarpaulin_include))]
 fn main() -> Result<()> {
     // Check for interactive TUI help
@@ -672,11 +683,39 @@ fn main() -> Result<()> {
         return show_tui_help();
     }
 
-    let cli = Cli::command()
+    // Build command with styles and logo
+    let cmd = Cli::command()
         .styles(build_cli_styles())
-        .before_help(build_logo())
-        .get_matches();
-    let cli = Cli::from_arg_matches(&cli).unwrap();
+        .before_help(build_logo());
+
+    // Try to parse, handling help requests with themed output
+    let matches = match cmd.try_get_matches() {
+        Ok(m) => m,
+        Err(e) => {
+            match e.kind() {
+                clap::error::ErrorKind::DisplayHelp => {
+                    // For help requests, use themed colorization
+                    print_themed_help(&e);
+                    std::process::exit(0);
+                }
+                clap::error::ErrorKind::DisplayVersion => {
+                    // Version is handled normally
+                    e.exit();
+                }
+                clap::error::ErrorKind::MissingSubcommand => {
+                    // Missing subcommand also shows help - colorize it
+                    print_themed_help(&e);
+                    std::process::exit(2);
+                }
+                _ => {
+                    // Other errors (invalid args, etc.)
+                    e.exit();
+                }
+            }
+        }
+    };
+
+    let cli = Cli::from_arg_matches(&matches).unwrap();
 
     match cli.command {
         Commands::Record { agent, name, args } => {
