@@ -652,7 +652,10 @@ mod tests {
         let first_line = &lines[0];
         // Should have both red cells and default cells
         assert!(first_line.cells.iter().any(|c| c.style.fg == Color::Red));
-        assert!(first_line.cells.iter().any(|c| c.style.fg == Color::Default && c.char == 'N'));
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.style.fg == Color::Default && c.char == 'N'));
     }
 
     #[test]
@@ -661,7 +664,10 @@ mod tests {
         buf.process("\x1b[91mBright Red");
         let lines = buf.styled_lines();
         let first_line = &lines[0];
-        assert!(first_line.cells.iter().any(|c| c.style.fg == Color::BrightRed));
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.style.fg == Color::BrightRed));
     }
 
     #[test]
@@ -670,7 +676,10 @@ mod tests {
         buf.process("\x1b[38;5;196mIndexed");
         let lines = buf.styled_lines();
         let first_line = &lines[0];
-        assert!(first_line.cells.iter().any(|c| c.style.fg == Color::Indexed(196)));
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.style.fg == Color::Indexed(196)));
     }
 
     #[test]
@@ -679,7 +688,10 @@ mod tests {
         buf.process("\x1b[38;2;255;128;64mRGB");
         let lines = buf.styled_lines();
         let first_line = &lines[0];
-        assert!(first_line.cells.iter().any(|c| c.style.fg == Color::Rgb(255, 128, 64)));
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.style.fg == Color::Rgb(255, 128, 64)));
     }
 
     #[test]
@@ -688,9 +700,10 @@ mod tests {
         buf.process("\x1b[1;4;31mBold Underline Red");
         let lines = buf.styled_lines();
         let first_line = &lines[0];
-        assert!(first_line.cells.iter().any(|c| {
-            c.style.bold && c.style.underline && c.style.fg == Color::Red
-        }));
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| { c.style.bold && c.style.underline && c.style.fg == Color::Red }));
     }
 
     #[test]
@@ -791,8 +804,14 @@ mod tests {
         buf.process("\x1b[31mR\x1b[39mD");
         let lines = buf.styled_lines();
         let first_line = &lines[0];
-        assert!(first_line.cells.iter().any(|c| c.char == 'R' && c.style.fg == Color::Red));
-        assert!(first_line.cells.iter().any(|c| c.char == 'D' && c.style.fg == Color::Default));
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.char == 'R' && c.style.fg == Color::Red));
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.char == 'D' && c.style.fg == Color::Default));
     }
 
     #[test]
@@ -801,8 +820,14 @@ mod tests {
         buf.process("\x1b[41mR\x1b[49mD");
         let lines = buf.styled_lines();
         let first_line = &lines[0];
-        assert!(first_line.cells.iter().any(|c| c.char == 'R' && c.style.bg == Color::Red));
-        assert!(first_line.cells.iter().any(|c| c.char == 'D' && c.style.bg == Color::Default));
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.char == 'R' && c.style.bg == Color::Red));
+        assert!(first_line
+            .cells
+            .iter()
+            .any(|c| c.char == 'D' && c.style.bg == Color::Default));
     }
 
     #[test]
@@ -810,7 +835,10 @@ mod tests {
         let mut buf = TerminalBuffer::new(80, 24);
         buf.process("\x1b[100mX");
         let lines = buf.styled_lines();
-        assert!(lines[0].cells.iter().any(|c| c.style.bg == Color::BrightBlack));
+        assert!(lines[0]
+            .cells
+            .iter()
+            .any(|c| c.style.bg == Color::BrightBlack));
     }
 
     #[test]
@@ -818,7 +846,10 @@ mod tests {
         let mut buf = TerminalBuffer::new(80, 24);
         buf.process("\x1b[48;5;82mX");
         let lines = buf.styled_lines();
-        assert!(lines[0].cells.iter().any(|c| c.style.bg == Color::Indexed(82)));
+        assert!(lines[0]
+            .cells
+            .iter()
+            .any(|c| c.style.bg == Color::Indexed(82)));
     }
 
     #[test]
@@ -826,6 +857,9 @@ mod tests {
         let mut buf = TerminalBuffer::new(80, 24);
         buf.process("\x1b[48;2;100;150;200mX");
         let lines = buf.styled_lines();
-        assert!(lines[0].cells.iter().any(|c| c.style.bg == Color::Rgb(100, 150, 200)));
+        assert!(lines[0]
+            .cells
+            .iter()
+            .any(|c| c.style.bg == Color::Rgb(100, 150, 200)));
     }
 }

@@ -64,12 +64,25 @@ fn session_preview_generates_styled_preview() {
     let (temp_dir, path) = temp_fixture("sample.cast");
     let preview = SessionPreview::load(&path).expect("Should load preview");
 
-    // At 10% of 0.8 seconds = 0.08 seconds, which is after the first event (0.5s)
-    // Actually, cumulative time at first event is 0.5, so at 0.08 nothing is shown yet
-    // The preview might be empty or contain partial output
-    // This is okay - the important thing is that it doesn't panic
-    // Just verify we can access the styled_preview field
-    let _ = &preview.styled_preview;
+    // At 10% of 0.8 seconds = 0.08 seconds, which is before the first event (0.5s)
+    // So the preview should be empty or contain only blank lines at this point.
+    // The important thing is that styled_preview is a valid Vec that we can inspect.
+    // For sample.cast, which has 3 lines of terminal output, we expect 24 lines
+    // (default terminal height) but they may all be empty at 10%.
+    assert!(
+        !preview.styled_preview.is_empty(),
+        "styled_preview should have at least one line (terminal height)"
+    );
+
+    // Each styled line should have cells
+    for line in &preview.styled_preview {
+        // Lines should have width matching terminal dimensions
+        // (default is 80 cols, but styled_lines trims trailing spaces)
+        assert!(
+            line.cells.len() <= 80,
+            "Line width should not exceed terminal width"
+        );
+    }
 
     drop(temp_dir);
 }
