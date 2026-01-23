@@ -19,7 +19,7 @@ use ratatui::{
 use super::app::App;
 use super::event::Event;
 use super::theme::current_theme;
-use super::widgets::{FileExplorer, FileExplorerWidget, FileItem};
+use super::widgets::{FileExplorer, FileExplorerWidget, FileItem, SessionPreview};
 
 /// UI mode for the list application
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -53,6 +53,10 @@ pub struct ListApp {
     available_agents: Vec<String>,
     /// Status message to display
     status_message: Option<String>,
+    /// Cached preview for the currently selected file
+    current_preview: Option<SessionPreview>,
+    /// Path of the file the current preview is for
+    preview_path: Option<String>,
 }
 
 impl ListApp {
@@ -77,6 +81,8 @@ impl ListApp {
             agent_filter_idx: 0,
             available_agents,
             status_message: None,
+            current_preview: None,
+            preview_path: None,
         })
     }
 
@@ -122,12 +128,16 @@ impl ListApp {
         self.explorer
             .set_page_size((height.saturating_sub(6)) as usize);
 
+        // Update preview cache if selection changed
+        self.update_preview_cache();
+
         let explorer = &mut self.explorer;
         let mode = self.mode;
         let search_input = &self.search_input;
         let status = self.status_message.clone();
         let agent_filter_idx = self.agent_filter_idx;
         let available_agents = &self.available_agents;
+        let preview = self.current_preview.as_ref();
 
         self.app.draw(|frame| {
             let area = frame.area();
@@ -141,7 +151,9 @@ impl ListApp {
             .split(area);
 
             // Render file explorer (no checkboxes in list view - it's single-select)
-            let widget = FileExplorerWidget::new(explorer).show_checkboxes(false);
+            let widget = FileExplorerWidget::new(explorer)
+                .show_checkboxes(false)
+                .session_preview(preview);
             frame.render_widget(widget, chunks[0]);
 
             // Render status line
@@ -403,6 +415,17 @@ impl ListApp {
             }
         }
         Ok(())
+    }
+
+    /// Update the preview cache if the selected file changed.
+    fn update_preview_cache(&mut self) {
+        let current_path = self.explorer.selected_item().map(|item| item.path.clone());
+
+        // Only reload if selection changed
+        if current_path != self.preview_path {
+            self.preview_path = current_path.clone();
+            self.current_preview = current_path.and_then(|path| SessionPreview::load(&path));
+        }
     }
 
     /// Add a marker to the selected session (placeholder).
