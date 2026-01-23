@@ -30,15 +30,15 @@ impl Default for Theme {
 }
 
 impl Theme {
-    /// Claude Code inspired theme - green text on dark background.
+    /// Claude Code inspired theme - green accents on dark background.
     pub fn claude_code() -> Self {
         Self {
-            text_primary: Color::Rgb(144, 238, 144),  // Light green
-            text_secondary: Color::Rgb(128, 128, 128), // Medium gray (visible on dark bg)
-            accent: Color::Rgb(144, 238, 144),        // Light green
+            text_primary: Color::Rgb(200, 200, 200),   // Light gray for main text
+            text_secondary: Color::Rgb(128, 128, 128), // Medium gray for hints
+            accent: Color::Rgb(144, 238, 144),         // Light green for logo/highlights
             error: Color::Red,
             success: Color::Green,
-            background: Color::Reset,                  // Use terminal default
+            background: Color::Reset,                   // Use terminal default
         }
     }
 
@@ -115,7 +115,9 @@ mod tests {
     #[test]
     fn default_theme_is_claude_code() {
         let theme = Theme::default();
-        assert_eq!(theme.text_primary, Color::Rgb(144, 238, 144));
+        // text_primary is light gray, accent is green
+        assert_eq!(theme.text_primary, Color::Rgb(200, 200, 200));
+        assert_eq!(theme.accent, Color::Rgb(144, 238, 144));
     }
 
     #[test]
@@ -133,7 +135,8 @@ mod tests {
     #[test]
     fn style_helpers_return_correct_colors() {
         let theme = Theme::claude_code();
-        assert_eq!(theme.text_style().fg, Some(Color::Rgb(144, 238, 144)));
-        assert_eq!(theme.text_secondary_style().fg, Some(Color::DarkGray));
+        assert_eq!(theme.text_style().fg, Some(Color::Rgb(200, 200, 200)));
+        assert_eq!(theme.text_secondary_style().fg, Some(Color::Rgb(128, 128, 128)));
+        assert_eq!(theme.accent_style().fg, Some(Color::Rgb(144, 238, 144)));
     }
 }

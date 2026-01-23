@@ -45,9 +45,9 @@ impl Logo {
     pub fn new() -> Self {
         let theme = current_theme();
         Self {
-            logo_style: theme.text_style(),
-            rec_style: theme.accent_style(),
-            dash_style: theme.text_secondary_style(),
+            logo_style: theme.accent_style(),         // Logo in accent color (green)
+            rec_style: theme.accent_style(),          // REC in accent color (green)
+            dash_style: theme.text_secondary_style(), // Dashes in muted gray
         }
     }
 
@@ -185,8 +185,8 @@ mod tests {
     fn logo_widget_can_be_created() {
         let logo = Logo::new();
         let theme = current_theme();
-        // Ensure it uses the theme's text style
-        assert!(logo.logo_style == theme.text_style());
+        // Ensure it uses the theme's accent style for logo
+        assert!(logo.logo_style == theme.accent_style());
     }
 
     #[test]
