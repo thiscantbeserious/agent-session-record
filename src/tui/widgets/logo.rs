@@ -45,8 +45,8 @@ impl Logo {
     pub fn new() -> Self {
         let theme = current_theme();
         Self {
-            logo_style: theme.accent_style(),         // Logo in accent color (green)
-            rec_style: theme.accent_style(),          // REC in accent color (green)
+            logo_style: theme.accent_style(), // Logo in accent color (green)
+            rec_style: theme.accent_style(),  // REC in accent color (green)
             dash_style: theme.text_secondary_style(), // Dashes in muted gray
         }
     }

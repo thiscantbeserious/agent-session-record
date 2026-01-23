@@ -30,15 +30,15 @@ impl Default for Theme {
 }
 
 impl Theme {
-    /// Claude Code inspired theme - green accents on dark background.
+    /// AGR theme - gray text with green logo accent.
     pub fn claude_code() -> Self {
         Self {
-            text_primary: Color::Rgb(200, 200, 200),   // Light gray for main text
-            text_secondary: Color::Rgb(128, 128, 128), // Medium gray for hints
-            accent: Color::Rgb(144, 238, 144),         // Light green for logo/highlights
+            text_primary: Color::Rgb(180, 180, 180), // Light gray for help text
+            text_secondary: Color::Rgb(100, 100, 100), // Dim gray for footer hints
+            accent: Color::Rgb(50, 205, 50),         // Lime green (vibrant) for logo
             error: Color::Red,
             success: Color::Green,
-            background: Color::Reset,                   // Use terminal default
+            background: Color::Reset,
         }
     }
 
@@ -115,9 +115,9 @@ mod tests {
     #[test]
     fn default_theme_is_claude_code() {
         let theme = Theme::default();
-        // text_primary is light gray, accent is green
-        assert_eq!(theme.text_primary, Color::Rgb(200, 200, 200));
-        assert_eq!(theme.accent, Color::Rgb(144, 238, 144));
+        // text_primary is light gray, accent is lime green
+        assert_eq!(theme.text_primary, Color::Rgb(180, 180, 180));
+        assert_eq!(theme.accent, Color::Rgb(50, 205, 50));
     }
 
     #[test]
@@ -135,8 +135,11 @@ mod tests {
     #[test]
     fn style_helpers_return_correct_colors() {
         let theme = Theme::claude_code();
-        assert_eq!(theme.text_style().fg, Some(Color::Rgb(200, 200, 200)));
-        assert_eq!(theme.text_secondary_style().fg, Some(Color::Rgb(128, 128, 128)));
-        assert_eq!(theme.accent_style().fg, Some(Color::Rgb(144, 238, 144)));
+        assert_eq!(theme.text_style().fg, Some(Color::Rgb(180, 180, 180)));
+        assert_eq!(
+            theme.text_secondary_style().fg,
+            Some(Color::Rgb(100, 100, 100))
+        );
+        assert_eq!(theme.accent_style().fg, Some(Color::Rgb(50, 205, 50)));
     }
 }
