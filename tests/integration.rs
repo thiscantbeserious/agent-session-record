@@ -27,8 +27,8 @@ mod shell_test;
 #[path = "integration/storage_test.rs"]
 mod storage_test;
 
-#[path = "integration/tui_test.rs"]
-mod tui_test;
+#[path = "integration/tui_snapshots_test.rs"]
+mod tui_snapshots_test;
 
-#[path = "integration/cli_test.rs"]
-mod cli_test;
+#[path = "integration/cli_snapshots_test.rs"]
+mod cli_snapshots_test;
