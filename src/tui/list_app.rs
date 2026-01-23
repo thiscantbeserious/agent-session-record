@@ -18,8 +18,9 @@ use ratatui::{
 
 use super::app::App;
 use super::event::Event;
+use super::preview_cache::PreviewCache;
 use super::theme::current_theme;
-use super::widgets::{FileExplorer, FileExplorerWidget, FileItem, SessionPreview};
+use super::widgets::{FileExplorer, FileExplorerWidget, FileItem};
 
 /// UI mode for the list application
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -53,10 +54,8 @@ pub struct ListApp {
     available_agents: Vec<String>,
     /// Status message to display
     status_message: Option<String>,
-    /// Cached preview for the currently selected file
-    current_preview: Option<SessionPreview>,
-    /// Path of the file the current preview is for
-    preview_path: Option<String>,
+    /// Preview cache with async loading
+    preview_cache: PreviewCache,
 }
 
 impl ListApp {
@@ -81,8 +80,7 @@ impl ListApp {
             agent_filter_idx: 0,
             available_agents,
             status_message: None,
-            current_preview: None,
-            preview_path: None,
+            preview_cache: PreviewCache::default(),
         })
     }
 
@@ -128,8 +126,9 @@ impl ListApp {
         self.explorer
             .set_page_size((height.saturating_sub(6)) as usize);
 
-        // Update preview cache if selection changed
-        self.update_preview_cache();
+        // Poll cache for completed loads and request prefetch
+        self.preview_cache.poll();
+        self.prefetch_adjacent_previews();
 
         let explorer = &mut self.explorer;
         let mode = self.mode;
@@ -137,7 +136,12 @@ impl ListApp {
         let status = self.status_message.clone();
         let agent_filter_idx = self.agent_filter_idx;
         let available_agents = &self.available_agents;
-        let preview = self.current_preview.as_ref();
+
+        // Get preview for current selection from cache
+        let current_path = explorer.selected_item().map(|i| i.path.clone());
+        let preview = current_path
+            .as_ref()
+            .and_then(|p| self.preview_cache.get(p));
 
         self.app.draw(|frame| {
             let area = frame.area();
@@ -418,15 +422,36 @@ impl ListApp {
         Ok(())
     }
 
-    /// Update the preview cache if the selected file changed.
-    fn update_preview_cache(&mut self) {
-        let current_path = self.explorer.selected_item().map(|item| item.path.clone());
-
-        // Only reload if selection changed
-        if current_path != self.preview_path {
-            self.preview_path = current_path.clone();
-            self.current_preview = current_path.and_then(|path| SessionPreview::load(&path));
+    /// Prefetch previews for current, previous, and next items.
+    fn prefetch_adjacent_previews(&mut self) {
+        let selected = self.explorer.selected();
+        let len = self.explorer.len();
+        if len == 0 {
+            return;
         }
+
+        // Collect paths to prefetch (current, prev, next)
+        let mut paths_to_prefetch = Vec::with_capacity(3);
+
+        // Current selection
+        if let Some(item) = self.explorer.selected_item() {
+            paths_to_prefetch.push(item.path.clone());
+        }
+
+        // Previous item (with wrap)
+        let prev_idx = if selected > 0 { selected - 1 } else { len - 1 };
+        if let Some((_, item, _)) = self.explorer.visible_items().nth(prev_idx) {
+            paths_to_prefetch.push(item.path.clone());
+        }
+
+        // Next item (with wrap)
+        let next_idx = if selected < len - 1 { selected + 1 } else { 0 };
+        if let Some((_, item, _)) = self.explorer.visible_items().nth(next_idx) {
+            paths_to_prefetch.push(item.path.clone());
+        }
+
+        // Request prefetch for all
+        self.preview_cache.prefetch(&paths_to_prefetch);
     }
 
     /// Add a marker to the selected session (placeholder).
@@ -577,6 +602,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::clone_on_copy)]
     fn mode_clone_and_copy() {
         let mode = Mode::Help;
         let cloned = mode.clone();

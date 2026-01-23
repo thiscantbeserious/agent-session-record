@@ -21,7 +21,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Widget},
 };
 
-use crate::asciicast::AsciicastFile;
+use crate::asciicast::EventType;
 use crate::storage::SessionInfo;
 use crate::tui::current_theme;
 
@@ -87,16 +87,120 @@ pub struct SessionPreview {
 }
 
 impl SessionPreview {
-    /// Load preview information from an asciicast file.
+    /// Load preview information from an asciicast file using streaming parsing.
+    ///
+    /// This is optimized to avoid loading the entire file into memory:
+    /// - Parses header for terminal size
+    /// - Streams events, only processing terminal output for first ~10%
+    /// - Counts markers and sums times for full duration
     ///
     /// Returns None if the file cannot be parsed.
     pub fn load<P: AsRef<Path>>(path: P) -> Option<Self> {
-        let cast = AsciicastFile::parse(path).ok()?;
+        Self::load_streaming(path)
+    }
+
+    /// Streaming loader that minimizes memory usage and processing time.
+    ///
+    /// Single-pass approach:
+    /// - Process terminal output for first ~30 seconds (enough for preview)
+    /// - Continue scanning for total duration and marker count
+    /// - Never stores all events in memory
+    fn load_streaming<P: AsRef<Path>>(path: P) -> Option<Self> {
+        use crate::asciicast::{EventType, Header};
+        use crate::terminal_buffer::TerminalBuffer;
+        use std::fs::File;
+        use std::io::{BufRead, BufReader};
+
+        let file = File::open(path.as_ref()).ok()?;
+        let reader = BufReader::new(file);
+        let mut lines = reader.lines();
+
+        // Parse header
+        let header_line = lines.next()?.ok()?;
+        let header: Header = serde_json::from_str(&header_line).ok()?;
+        if header.version != 3 {
+            return None;
+        }
+
+        // Get terminal size
+        let cols = header.term.as_ref().and_then(|t| t.cols).unwrap_or(80) as usize;
+        let rows = header.term.as_ref().and_then(|t| t.rows).unwrap_or(24) as usize;
+
+        let mut buffer = TerminalBuffer::new(cols, rows);
+        let mut total_duration = 0.0;
+        let mut marker_count = 0;
+        let mut preview_captured = false;
+        let mut styled_preview = Vec::new();
+
+        // Single pass: process events
+        // - Process terminal output until 30 seconds (capture preview snapshot)
+        // - Continue counting markers and duration
+        const PREVIEW_THRESHOLD_SECS: f64 = 30.0;
+
+        for line_result in lines {
+            let line = match line_result {
+                Ok(l) if !l.trim().is_empty() => l,
+                _ => continue,
+            };
+
+            // Quick parse for time, type, and optionally data
+            if let Some((time, event_type, data)) = Self::parse_event_minimal(&line) {
+                total_duration += time;
+
+                if event_type == EventType::Marker {
+                    marker_count += 1;
+                }
+
+                // Only process terminal output before threshold
+                if !preview_captured {
+                    if event_type == EventType::Output {
+                        if let Some(output) = data {
+                            buffer.process(&output);
+                        }
+                    }
+
+                    // Capture preview at threshold
+                    if total_duration >= PREVIEW_THRESHOLD_SECS {
+                        styled_preview = buffer.styled_lines();
+                        preview_captured = true;
+                        // Don't need buffer anymore, drop it
+                    }
+                }
+            }
+        }
+
+        // If file was shorter than threshold, capture final state
+        if !preview_captured {
+            styled_preview = buffer.styled_lines();
+        }
+
         Some(Self {
-            duration_secs: cast.duration(),
-            marker_count: cast.marker_count(),
-            styled_preview: cast.styled_preview_at(0.1),
+            duration_secs: total_duration,
+            marker_count,
+            styled_preview,
         })
+    }
+
+    /// Minimal event parsing - only extracts what we need
+    fn parse_event_minimal(line: &str) -> Option<(f64, EventType, Option<String>)> {
+        let value: serde_json::Value = serde_json::from_str(line).ok()?;
+        let arr = value.as_array()?;
+        if arr.len() < 2 {
+            return None;
+        }
+
+        let time = arr[0].as_f64()?;
+        let type_str = arr[1].as_str()?;
+        let event_type = EventType::from_code(type_str)?;
+
+        // Only extract data for output events (avoid string allocation for markers)
+        let data = if event_type == EventType::Output && arr.len() >= 3 {
+            arr[2].as_str().map(String::from)
+        } else {
+            None
+        };
+
+        Some((time, event_type, data))
     }
 
     /// Convert our Color enum to ratatui Color
@@ -798,7 +902,7 @@ impl Widget for FileExplorerWidget<'_> {
                     if !styled_preview.is_empty() {
                         lines.push(Line::from("")); // Empty line separator
                         lines.push(Line::from(vec![Span::styled(
-                            "Preview @ 10%",
+                            "Preview",
                             theme.text_secondary_style(),
                         )]));
 

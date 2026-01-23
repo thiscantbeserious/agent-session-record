@@ -536,3 +536,72 @@ fn test_file_explorer_remove_item_clears_multi_select() {
     // Should only have one selected now (codex)
     assert_eq!(explorer.selected_items().len(), 1);
 }
+
+/// Render a file explorer widget with a session preview to a string.
+fn render_explorer_with_preview(
+    explorer: &mut FileExplorer,
+    preview: Option<&agr::tui::widgets::SessionPreview>,
+    width: u16,
+    height: u16,
+) -> String {
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+
+    let widget = FileExplorerWidget::new(explorer).session_preview(preview);
+    widget.render(area, &mut buf);
+
+    let mut output = String::new();
+    for y in 0..height {
+        for x in 0..width {
+            let cell = &buf[(x, y)];
+            output.push_str(cell.symbol());
+        }
+        output.push('\n');
+    }
+    output
+}
+
+#[test]
+fn snapshot_file_explorer_with_session_preview() {
+    use agr::terminal_buffer::{Cell, CellStyle, Color, StyledLine};
+    use agr::tui::widgets::SessionPreview;
+
+    let mut explorer = FileExplorer::new(create_test_file_items());
+
+    // Create a mock session preview
+    let preview = SessionPreview {
+        duration_secs: 125.5, // 2m 5s
+        marker_count: 3,
+        styled_preview: vec![
+            StyledLine {
+                cells: "$ cargo build"
+                    .chars()
+                    .map(|c| Cell {
+                        char: c,
+                        style: CellStyle::default(),
+                    })
+                    .collect(),
+            },
+            StyledLine {
+                cells: "   Compiling agr v0.1.0"
+                    .chars()
+                    .enumerate()
+                    .map(|(i, c)| Cell {
+                        char: c,
+                        style: if i >= 3 {
+                            CellStyle {
+                                fg: Color::Green,
+                                ..CellStyle::default()
+                            }
+                        } else {
+                            CellStyle::default()
+                        },
+                    })
+                    .collect(),
+            },
+        ],
+    };
+
+    let output = render_explorer_with_preview(&mut explorer, Some(&preview), 100, 20);
+    insta::assert_snapshot!("file_explorer_with_session_preview", output);
+}
