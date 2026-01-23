@@ -1,6 +1,7 @@
-//! Theme configuration for TUI
+//! Theme configuration for TUI and CLI
 //!
 //! Centralizes all color and style definitions for easy customization.
+//! Provides both ratatui styles (for TUI) and ANSI escape codes (for CLI).
 
 use ratatui::style::{Color, Modifier, Style};
 
@@ -100,6 +101,66 @@ impl Theme {
     pub fn success_style(&self) -> Style {
         Style::default().fg(self.success)
     }
+
+    // ANSI color helpers for CLI output
+
+    /// Format text with the accent color (for CLI output).
+    pub fn accent_text(&self, text: &str) -> String {
+        format!("{}{}{}", color_to_ansi(self.accent), text, ANSI_RESET)
+    }
+
+    /// Format text with the primary color (for CLI output).
+    pub fn primary_text(&self, text: &str) -> String {
+        format!("{}{}{}", color_to_ansi(self.text_primary), text, ANSI_RESET)
+    }
+
+    /// Format text with the secondary color (for CLI output).
+    pub fn secondary_text(&self, text: &str) -> String {
+        format!(
+            "{}{}{}",
+            color_to_ansi(self.text_secondary),
+            text,
+            ANSI_RESET
+        )
+    }
+
+    /// Format text with the error color (for CLI output).
+    pub fn error_text(&self, text: &str) -> String {
+        format!("{}{}{}", color_to_ansi(self.error), text, ANSI_RESET)
+    }
+
+    /// Format text with the success color (for CLI output).
+    pub fn success_text(&self, text: &str) -> String {
+        format!("{}{}{}", color_to_ansi(self.success), text, ANSI_RESET)
+    }
+}
+
+/// ANSI reset sequence
+const ANSI_RESET: &str = "\x1b[0m";
+
+/// Convert a ratatui Color to an ANSI escape code.
+fn color_to_ansi(color: Color) -> &'static str {
+    match color {
+        Color::Black => "\x1b[30m",
+        Color::Red => "\x1b[31m",
+        Color::Green => "\x1b[32m",
+        Color::Yellow => "\x1b[33m",
+        Color::Blue => "\x1b[34m",
+        Color::Magenta => "\x1b[35m",
+        Color::Cyan => "\x1b[36m",
+        Color::Gray => "\x1b[37m",
+        Color::DarkGray => "\x1b[90m",
+        Color::LightRed => "\x1b[91m",
+        Color::LightGreen => "\x1b[92m",
+        Color::LightYellow => "\x1b[93m",
+        Color::LightBlue => "\x1b[94m",
+        Color::LightMagenta => "\x1b[95m",
+        Color::LightCyan => "\x1b[96m",
+        Color::White => "\x1b[97m",
+        Color::Reset => "\x1b[0m",
+        // For RGB and indexed colors, fall back to reset (no color)
+        _ => "",
+    }
 }
 
 /// Global theme instance.
@@ -139,5 +200,31 @@ mod tests {
         assert_eq!(theme.text_style().fg, Some(Color::Gray));
         assert_eq!(theme.text_secondary_style().fg, Some(Color::DarkGray));
         assert_eq!(theme.accent_style().fg, Some(Color::Green));
+    }
+
+    #[test]
+    fn ansi_text_helpers_wrap_with_color_codes() {
+        let theme = Theme::claude_code();
+
+        // Accent text should wrap with green
+        let accent = theme.accent_text("test");
+        assert!(accent.starts_with("\x1b[32m")); // Green
+        assert!(accent.ends_with("\x1b[0m")); // Reset
+        assert!(accent.contains("test"));
+
+        // Primary text should wrap with gray
+        let primary = theme.primary_text("hello");
+        assert!(primary.starts_with("\x1b[37m")); // Gray
+        assert!(primary.ends_with("\x1b[0m"));
+        assert!(primary.contains("hello"));
+    }
+
+    #[test]
+    fn color_to_ansi_maps_standard_colors() {
+        assert_eq!(color_to_ansi(Color::Green), "\x1b[32m");
+        assert_eq!(color_to_ansi(Color::Red), "\x1b[31m");
+        assert_eq!(color_to_ansi(Color::Gray), "\x1b[37m");
+        assert_eq!(color_to_ansi(Color::DarkGray), "\x1b[90m");
+        assert_eq!(color_to_ansi(Color::Reset), "\x1b[0m");
     }
 }
