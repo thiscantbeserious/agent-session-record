@@ -13,4 +13,4 @@ pub mod ui;
 pub mod widgets;
 
 // Re-export theme for convenience
-pub use theme::{current_theme, Theme};
+pub use theme::current_theme;

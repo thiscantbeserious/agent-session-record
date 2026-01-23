@@ -9,7 +9,7 @@ use ratatui::{
     Frame,
 };
 
-use super::theme::current_theme;
+use super::current_theme;
 use super::widgets::Logo;
 
 /// Render the logo centered at the top of the frame.
