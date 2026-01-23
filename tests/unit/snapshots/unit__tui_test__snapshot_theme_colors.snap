@@ -6,7 +6,7 @@ expression: snapshot
 Theme: claude_code
 text_primary: Gray
 text_secondary: DarkGray
-accent: Green
+accent: LightGreen
 error: Red
 success: Green
 background: Reset

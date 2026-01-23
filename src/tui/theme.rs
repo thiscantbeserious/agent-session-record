@@ -37,7 +37,7 @@ impl Theme {
         Self {
             text_primary: Color::Gray,       // Light gray for help text (ANSI 37)
             text_secondary: Color::DarkGray, // Dark gray for footer hints
-            accent: Color::Green,            // Standard ANSI green for logo (matches terminal)
+            accent: Color::LightGreen,       // Bright green (ANSI 92) for logo
             error: Color::Red,
             success: Color::Green,
             background: Color::Reset,
@@ -175,6 +175,7 @@ pub fn colorize_help(text: &str) -> String {
             }
 
             // Detect logo lines (contain Unicode block characters like █ ╔ ╗ ║ ╚ ╝ ═)
+            // Use bright green (ANSI 92) to match terminal's native green
             if line.contains('\u{2588}')
                 || line.contains('\u{2554}')
                 || line.contains('\u{2557}')
@@ -187,8 +188,8 @@ pub fn colorize_help(text: &str) -> String {
             }
 
             // Detect REC line (starts with ⏺ REC)
+            // REC prefix in bright green, dashes are dark gray
             if line.contains("\u{23FA}") && line.contains("REC") {
-                // Split into REC prefix and dashes
                 if let Some(dash_start) = line.find('\u{2500}') {
                     let (prefix, dashes) = line.split_at(dash_start);
                     return format!(
@@ -286,9 +287,9 @@ mod tests {
     #[test]
     fn default_theme_is_claude_code() {
         let theme = Theme::default();
-        // text_primary is light gray, accent is standard ANSI green
+        // text_primary is light gray, accent is bright green
         assert_eq!(theme.text_primary, Color::Gray);
-        assert_eq!(theme.accent, Color::Green);
+        assert_eq!(theme.accent, Color::LightGreen);
     }
 
     #[test]
@@ -308,16 +309,16 @@ mod tests {
         let theme = Theme::claude_code();
         assert_eq!(theme.text_style().fg, Some(Color::Gray));
         assert_eq!(theme.text_secondary_style().fg, Some(Color::DarkGray));
-        assert_eq!(theme.accent_style().fg, Some(Color::Green));
+        assert_eq!(theme.accent_style().fg, Some(Color::LightGreen));
     }
 
     #[test]
     fn ansi_text_helpers_wrap_with_color_codes() {
         let theme = Theme::claude_code();
 
-        // Accent text should wrap with green
+        // Accent text should wrap with bright green
         let accent = theme.accent_text("test");
-        assert!(accent.starts_with("\x1b[32m")); // Green
+        assert!(accent.starts_with("\x1b[92m")); // Bright green (ANSI 92)
         assert!(accent.ends_with("\x1b[0m")); // Reset
         assert!(accent.contains("test"));
 

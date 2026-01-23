@@ -132,11 +132,11 @@ fn logo_uses_accent_color_for_logo_text() {
     // The logo starts after 2 blank lines, so row 2 is the first logo line
     let logo_cell = &buf[(0, 2)]; // First char of first logo line
 
-    // Logo should use accent color (standard ANSI green)
+    // Logo should use accent color (bright green)
     assert_eq!(
         logo_cell.style().fg,
-        Some(Color::Green),
-        "Logo should use accent color (ANSI green)"
+        Some(Color::LightGreen),
+        "Logo should use accent color (bright green)"
     );
 }
 
