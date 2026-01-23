@@ -17,6 +17,7 @@ use ratatui::{
 
 use super::app::App;
 use super::event::Event;
+use super::preview_cache::PreviewCache;
 use super::theme::current_theme;
 use super::widgets::{FileExplorer, FileExplorerWidget, FileItem};
 use crate::StorageManager;
@@ -61,6 +62,8 @@ pub struct CleanupApp {
     storage: StorageManager,
     /// Whether files were deleted (for success message)
     files_deleted: bool,
+    /// Preview cache with async loading
+    preview_cache: PreviewCache,
 }
 
 impl CleanupApp {
@@ -88,6 +91,7 @@ impl CleanupApp {
             status_message: None,
             storage,
             files_deleted: false,
+            preview_cache: PreviewCache::default(),
         })
     }
 
@@ -129,6 +133,10 @@ impl CleanupApp {
         self.explorer
             .set_page_size((height.saturating_sub(6)) as usize);
 
+        // Poll cache for completed loads and request prefetch
+        self.preview_cache.poll();
+        self.prefetch_adjacent_previews();
+
         let explorer = &mut self.explorer;
         let mode = self.mode;
         let search_input = &self.search_input;
@@ -141,6 +149,12 @@ impl CleanupApp {
         let selected_size: u64 = explorer.selected_items().iter().map(|i| i.size).sum();
         let selected_count = explorer.selected_count();
 
+        // Get preview for current selection from cache
+        let current_path = explorer.selected_item().map(|i| i.path.clone());
+        let preview = current_path
+            .as_ref()
+            .and_then(|p| self.preview_cache.get(p));
+
         self.app.draw(|frame| {
             let area = frame.area();
 
@@ -152,8 +166,8 @@ impl CleanupApp {
             ])
             .split(area);
 
-            // Render file explorer
-            let widget = FileExplorerWidget::new(explorer);
+            // Render file explorer with preview
+            let widget = FileExplorerWidget::new(explorer).session_preview(preview);
             frame.render_widget(widget, chunks[0]);
 
             // Render status line
@@ -260,7 +274,6 @@ impl CleanupApp {
             // Selection
             KeyCode::Char(' ') => {
                 self.explorer.toggle_select();
-                self.explorer.down(); // Move to next after toggle
             }
             KeyCode::Char('a') => {
                 self.explorer.toggle_all();
@@ -274,6 +287,7 @@ impl CleanupApp {
             KeyCode::Char('/') => {
                 self.mode = Mode::Search;
                 self.search_input.clear();
+                self.status_message = None;
             }
             KeyCode::Char('f') => {
                 self.mode = Mode::AgentFilter;
@@ -542,6 +556,38 @@ impl CleanupApp {
         Ok(())
     }
 
+    /// Prefetch previews for current, previous, and next items.
+    fn prefetch_adjacent_previews(&mut self) {
+        let selected = self.explorer.selected();
+        let len = self.explorer.len();
+        if len == 0 {
+            return;
+        }
+
+        // Collect paths to prefetch (current, prev, next)
+        let mut paths_to_prefetch = Vec::with_capacity(3);
+
+        // Current selection
+        if let Some(item) = self.explorer.selected_item() {
+            paths_to_prefetch.push(item.path.clone());
+        }
+
+        // Previous item (with wrap)
+        let prev_idx = if selected > 0 { selected - 1 } else { len - 1 };
+        if let Some((_, item, _)) = self.explorer.visible_items().nth(prev_idx) {
+            paths_to_prefetch.push(item.path.clone());
+        }
+
+        // Next item (with wrap)
+        let next_idx = if selected < len - 1 { selected + 1 } else { 0 };
+        if let Some((_, item, _)) = self.explorer.visible_items().nth(next_idx) {
+            paths_to_prefetch.push(item.path.clone());
+        }
+
+        // Request prefetch for all
+        self.preview_cache.prefetch(&paths_to_prefetch);
+    }
+
     /// Render the help modal overlay.
     fn render_help_modal(frame: &mut Frame, area: Rect) {
         let theme = current_theme();
@@ -767,6 +813,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::clone_on_copy)]
     fn mode_clone_and_copy() {
         let mode = Mode::Help;
         let cloned = mode.clone();
