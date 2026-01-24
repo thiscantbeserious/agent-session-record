@@ -14,7 +14,10 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
-    event::{self, Event, KeyCode, KeyModifiers},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers, MouseButton,
+        MouseEventKind,
+    },
     execute,
     style::{Color, Print, ResetColor, SetBackgroundColor, SetForegroundColor},
     terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
@@ -125,7 +128,7 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
     // Setup terminal
     let mut stdout = io::stdout();
     crossterm::terminal::enable_raw_mode()?;
-    execute!(stdout, EnterAlternateScreen, Hide)?;
+    execute!(stdout, EnterAlternateScreen, Hide, EnableMouseCapture)?;
 
     let result = (|| -> Result<PlaybackResult> {
         // Helper closure to process events up to a time
@@ -383,7 +386,42 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                         }
                         needs_render = true;
                     }
-                    _ => {} // Ignore other events (mouse, focus, etc.)
+                    Event::Mouse(mouse) => {
+                        // Handle mouse click on progress bar to seek
+                        if let MouseEventKind::Down(MouseButton::Left) = mouse.kind {
+                            let progress_row = term_rows - 2;
+                            if mouse.row == progress_row {
+                                // Calculate time from x position on progress bar
+                                // Bar starts at column 1, width is term_cols - 14
+                                let bar_start = 1u16;
+                                let bar_width = (term_cols as usize).saturating_sub(14);
+                                if mouse.column >= bar_start
+                                    && mouse.column < bar_start + bar_width as u16
+                                {
+                                    let click_pos = (mouse.column - bar_start) as f64;
+                                    let ratio = click_pos / bar_width as f64;
+                                    let new_time =
+                                        (ratio * total_duration).clamp(0.0, total_duration);
+
+                                    // Exit free mode if active
+                                    free_mode = false;
+
+                                    // Seek to clicked position
+                                    seek_to_time(&mut buffer, &cast, new_time, rec_cols, rec_rows);
+                                    current_time = new_time;
+                                    time_offset = current_time;
+                                    start_time = Instant::now();
+                                    (event_idx, cumulative_time) =
+                                        find_event_index_at_time(&cast, current_time);
+
+                                    // Resume playback after seeking
+                                    paused = false;
+                                    needs_render = true;
+                                }
+                            }
+                        }
+                    }
+                    _ => {} // Ignore other events (focus, etc.)
                 }
             }
 
@@ -520,7 +558,7 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
     })();
 
     // Cleanup
-    execute!(stdout, Show, LeaveAlternateScreen)?;
+    execute!(stdout, Show, DisableMouseCapture, LeaveAlternateScreen)?;
     crossterm::terminal::disable_raw_mode()?;
 
     result
