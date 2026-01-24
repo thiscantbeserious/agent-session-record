@@ -104,9 +104,8 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
     let mut view_rows = (term_rows.saturating_sub(status_lines)) as usize;
     let mut view_cols = term_cols as usize;
 
-    // Viewport offset (for scrolling) - start at bottom to see input
-    let max_row_offset = (rec_rows as usize).saturating_sub(view_rows);
-    let mut view_row_offset: usize = max_row_offset;
+    // Viewport offset (for scrolling) - start at top since buffer is empty initially
+    let mut view_row_offset: usize = 0;
     let mut view_col_offset: usize = 0;
 
     // Playback state
