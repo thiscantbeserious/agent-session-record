@@ -94,13 +94,14 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
     let mut buffer = TerminalBuffer::new(rec_cols as usize, rec_rows as usize);
 
     // Get current terminal size for viewport
-    let (term_cols, term_rows) = crossterm::terminal::size()?;
-    let status_lines = 3; // Separator + progress bar + status bar
-    let view_rows = (term_rows.saturating_sub(status_lines)) as usize;
-    let view_cols = term_cols as usize;
+    let (mut term_cols, mut term_rows) = crossterm::terminal::size()?;
+    let status_lines: u16 = 3; // Separator + progress bar + status bar
+    let mut view_rows = (term_rows.saturating_sub(status_lines)) as usize;
+    let mut view_cols = term_cols as usize;
 
-    // Viewport offset (for scrolling)
-    let mut view_row_offset: usize = 0;
+    // Viewport offset (for scrolling) - start at bottom to see input
+    let max_row_offset = (rec_rows as usize).saturating_sub(view_rows);
+    let mut view_row_offset: usize = max_row_offset;
     let mut view_col_offset: usize = 0;
 
     // Playback state
@@ -108,8 +109,10 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
     let mut speed = 1.0f64;
     let mut event_idx = 0;
     let mut current_time = 0.0f64;
+    let mut cumulative_time = 0.0f64; // Track cumulative event time at current event_idx
     let mut show_help = false;
-    let start_time = Instant::now();
+    let mut viewport_mode = false;
+    let mut start_time = Instant::now();
     let mut time_offset = 0.0f64;
 
     // Setup terminal
@@ -143,12 +146,24 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                     }
 
                     match key.code {
-                        KeyCode::Char('q') | KeyCode::Esc => {
+                        KeyCode::Char('q') => {
                             return Ok(PlaybackResult::Interrupted);
+                        }
+                        KeyCode::Esc => {
+                            if viewport_mode {
+                                viewport_mode = false;
+                            } else {
+                                return Ok(PlaybackResult::Interrupted);
+                            }
+                        }
+                        KeyCode::Char('v') => {
+                            viewport_mode = !viewport_mode;
                         }
                         KeyCode::Char(' ') => {
                             paused = !paused;
                             if !paused {
+                                // Reset timing when resuming
+                                start_time = Instant::now();
                                 time_offset = current_time;
                             }
                         }
@@ -161,6 +176,28 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                         KeyCode::Char('?') => {
                             show_help = true;
                         }
+                        KeyCode::Char('r') => {
+                            // Resize terminal to match recording size
+                            let target_rows = rec_rows + status_lines as u32;
+                            write!(stdout, "\x1b[8;{};{}t", target_rows, rec_cols)?;
+                            stdout.flush()?;
+                            // Small delay for terminal to resize
+                            std::thread::sleep(Duration::from_millis(50));
+                            // Update view dimensions after resize
+                            if let Ok((new_cols, new_rows)) = crossterm::terminal::size() {
+                                term_cols = new_cols;
+                                term_rows = new_rows;
+                                view_rows = (new_rows.saturating_sub(status_lines)) as usize;
+                                view_cols = new_cols as usize;
+                                // Reset viewport offset since we now fit
+                                if view_rows >= rec_rows as usize {
+                                    view_row_offset = 0;
+                                }
+                                if view_cols >= rec_cols as usize {
+                                    view_col_offset = 0;
+                                }
+                            }
+                        }
                         // Marker navigation
                         KeyCode::Char(']') => {
                             if let Some(next) = markers.iter().find(|m| m.time > current_time + 0.1)
@@ -168,7 +205,8 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                                 seek_to_time(&mut buffer, &cast, next.time, rec_cols, rec_rows);
                                 current_time = next.time;
                                 time_offset = current_time;
-                                event_idx = find_event_index_at_time(&cast, current_time);
+                                (event_idx, cumulative_time) =
+                                    find_event_index_at_time(&cast, current_time);
                                 paused = true;
                             }
                         }
@@ -179,7 +217,8 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                                 seek_to_time(&mut buffer, &cast, prev.time, rec_cols, rec_rows);
                                 current_time = prev.time;
                                 time_offset = current_time;
-                                event_idx = find_event_index_at_time(&cast, current_time);
+                                (event_idx, cumulative_time) =
+                                    find_event_index_at_time(&cast, current_time);
                                 paused = true;
                             }
                         }
@@ -189,36 +228,78 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                             seek_to_time(&mut buffer, &cast, new_time, rec_cols, rec_rows);
                             current_time = new_time;
                             time_offset = current_time;
-                            event_idx = find_event_index_at_time(&cast, current_time);
+                            start_time = Instant::now();
+                            (event_idx, cumulative_time) =
+                                find_event_index_at_time(&cast, current_time);
                         }
                         KeyCode::Char('>') | KeyCode::Char('.') => {
                             let new_time = (current_time + 5.0).min(total_duration);
                             current_time = new_time;
                             time_offset = current_time;
-                            event_idx = find_event_index_at_time(&cast, current_time);
+                            start_time = Instant::now();
+                            (event_idx, cumulative_time) =
+                                find_event_index_at_time(&cast, current_time);
                             buffer = TerminalBuffer::new(rec_cols as usize, rec_rows as usize);
                             process_up_to_time(&mut buffer, current_time, &cast);
                         }
-                        // Viewport scrolling
-                        KeyCode::Up => {
-                            view_row_offset = view_row_offset.saturating_sub(1);
-                        }
-                        KeyCode::Down => {
-                            let max_offset = (rec_rows as usize).saturating_sub(view_rows);
-                            view_row_offset = (view_row_offset + 1).min(max_offset);
-                        }
+                        // Arrow keys: seek by default, viewport scroll in viewport mode
+                        // Shift+Arrow: seek by 5% of total duration
                         KeyCode::Left => {
-                            view_col_offset = view_col_offset.saturating_sub(1);
+                            if viewport_mode {
+                                view_col_offset = view_col_offset.saturating_sub(1);
+                            } else {
+                                let step = if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    total_duration * 0.05 // 5% jump
+                                } else {
+                                    5.0 // 5 seconds
+                                };
+                                let new_time = (current_time - step).max(0.0);
+                                seek_to_time(&mut buffer, &cast, new_time, rec_cols, rec_rows);
+                                current_time = new_time;
+                                time_offset = current_time;
+                                start_time = Instant::now();
+                                (event_idx, cumulative_time) =
+                                    find_event_index_at_time(&cast, current_time);
+                            }
                         }
                         KeyCode::Right => {
-                            let max_offset = (rec_cols as usize).saturating_sub(view_cols);
-                            view_col_offset = (view_col_offset + 1).min(max_offset);
+                            if viewport_mode {
+                                let max_offset = (rec_cols as usize).saturating_sub(view_cols);
+                                view_col_offset = (view_col_offset + 1).min(max_offset);
+                            } else {
+                                let step = if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    total_duration * 0.05 // 5% jump
+                                } else {
+                                    5.0 // 5 seconds
+                                };
+                                let new_time = (current_time + step).min(total_duration);
+                                current_time = new_time;
+                                time_offset = current_time;
+                                start_time = Instant::now();
+                                (event_idx, cumulative_time) =
+                                    find_event_index_at_time(&cast, current_time);
+                                buffer = TerminalBuffer::new(rec_cols as usize, rec_rows as usize);
+                                process_up_to_time(&mut buffer, current_time, &cast);
+                            }
+                        }
+                        KeyCode::Up => {
+                            if viewport_mode {
+                                view_row_offset = view_row_offset.saturating_sub(1);
+                            }
+                        }
+                        KeyCode::Down => {
+                            if viewport_mode {
+                                let max_offset = (rec_rows as usize).saturating_sub(view_rows);
+                                view_row_offset = (view_row_offset + 1).min(max_offset);
+                            }
                         }
                         KeyCode::Home => {
                             seek_to_time(&mut buffer, &cast, 0.0, rec_cols, rec_rows);
                             current_time = 0.0;
                             time_offset = 0.0;
+                            start_time = Instant::now();
                             event_idx = 0;
+                            cumulative_time = 0.0;
                             view_row_offset = 0;
                             view_col_offset = 0;
                         }
@@ -228,6 +309,7 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                             current_time = total_duration;
                             time_offset = current_time;
                             event_idx = cast.events.len();
+                            cumulative_time = total_duration;
                             paused = true;
                         }
                         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -239,31 +321,27 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
             }
 
             // Process events if not paused
-            if !paused && event_idx < cast.events.len() {
+            if !paused {
                 let elapsed = start_time.elapsed().as_secs_f64() * speed + time_offset;
+                // Cap elapsed time to total duration
+                let elapsed = elapsed.min(total_duration);
                 current_time = elapsed;
-
-                let mut cumulative = 0.0f64;
-                for (i, evt) in cast.events.iter().enumerate() {
-                    if i < event_idx {
-                        cumulative += evt.time;
-                    }
-                }
 
                 while event_idx < cast.events.len() {
                     let evt = &cast.events[event_idx];
-                    cumulative += evt.time;
+                    let next_time = cumulative_time + evt.time;
 
-                    if cumulative > elapsed {
+                    if next_time > elapsed {
                         break;
                     }
+
+                    cumulative_time = next_time;
 
                     if evt.is_output() {
                         buffer.process(&evt.data);
                     }
 
                     event_idx += 1;
-                    current_time = cumulative;
                 }
             }
 
@@ -278,6 +356,18 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                     view_col_offset,
                     view_rows,
                     view_cols,
+                )?;
+
+                // Show scroll indicator if viewport can scroll
+                render_scroll_indicator(
+                    &mut stdout,
+                    term_cols,
+                    view_row_offset,
+                    view_col_offset,
+                    view_rows,
+                    view_cols,
+                    rec_rows as usize,
+                    rec_cols as usize,
                 )?;
 
                 render_separator_line(&mut stdout, term_cols, term_rows - 3)?;
@@ -304,6 +394,7 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                     view_col_offset,
                     view_row_offset,
                     markers.len(),
+                    viewport_mode,
                 )?;
             }
 
@@ -343,16 +434,18 @@ fn collect_markers(cast: &AsciicastFile) -> Vec<MarkerPosition> {
     markers
 }
 
-/// Find the event index at a given time.
-fn find_event_index_at_time(cast: &AsciicastFile, target_time: f64) -> usize {
+/// Find the event index and cumulative time at a given target time.
+/// Returns (event_index, cumulative_time_before_that_event)
+fn find_event_index_at_time(cast: &AsciicastFile, target_time: f64) -> (usize, f64) {
     let mut cumulative = 0.0f64;
     for (i, event) in cast.events.iter().enumerate() {
-        cumulative += event.time;
-        if cumulative > target_time {
-            return i;
+        let next_cumulative = cumulative + event.time;
+        if next_cumulative > target_time {
+            return (i, cumulative);
         }
+        cumulative = next_cumulative;
     }
-    cast.events.len()
+    (cast.events.len(), cumulative)
 }
 
 /// Seek to a specific time by re-rendering the buffer from scratch.
@@ -463,6 +556,70 @@ fn render_progress_bar(
     Ok(())
 }
 
+/// Render scroll indicator in top-right showing available scroll directions.
+#[allow(clippy::too_many_arguments)]
+fn render_scroll_indicator(
+    stdout: &mut io::Stdout,
+    term_cols: u16,
+    row_offset: usize,
+    col_offset: usize,
+    view_rows: usize,
+    view_cols: usize,
+    rec_rows: usize,
+    rec_cols: usize,
+) -> Result<()> {
+    // Calculate which directions have more content
+    let can_up = row_offset > 0;
+    let can_down = row_offset + view_rows < rec_rows;
+    let can_left = col_offset > 0;
+    let can_right = col_offset + view_cols < rec_cols;
+
+    // Only show if there's something to scroll
+    if !can_up && !can_down && !can_left && !can_right {
+        return Ok(());
+    }
+
+    // Build arrow string with only active arrows (with spacing)
+    let mut arrows = Vec::new();
+    if can_up {
+        arrows.push("▲");
+    }
+    if can_down {
+        arrows.push("▼");
+    }
+    if can_left {
+        arrows.push("◀");
+    }
+    if can_right {
+        arrows.push("▶");
+    }
+
+    if arrows.is_empty() {
+        return Ok(());
+    }
+
+    let arrow_str = arrows.join(" ");
+
+    // Draw at top-right, completely aligned to edge
+    let arrow_color = Color::Yellow;
+    let bg_color = Color::AnsiValue(236); // Same as progress bar
+    // Width = arrows + spaces between + padding on sides
+    let display_width = (arrows.len() * 2 + 1) as u16; // each arrow + space, plus padding
+    let start_col = term_cols.saturating_sub(display_width);
+
+    execute!(
+        stdout,
+        MoveTo(start_col, 0),
+        SetBackgroundColor(bg_color),
+        SetForegroundColor(arrow_color),
+        Print(" "),
+        Print(&arrow_str),
+        Print(" "),
+        ResetColor,
+    )?;
+    Ok(())
+}
+
 /// Render a separator line.
 fn render_separator_line(stdout: &mut io::Stdout, width: u16, row: u16) -> Result<()> {
     execute!(
@@ -495,6 +652,7 @@ fn render_status_bar(
     col_offset: usize,
     row_offset: usize,
     marker_count: usize,
+    viewport_mode: bool,
 ) -> Result<()> {
     execute!(
         stdout,
@@ -504,8 +662,16 @@ fn render_status_bar(
         SetForegroundColor(Color::White),
     )?;
 
-    let state = if paused { "⏸  " } else { "▶  " };
+    let state = if paused { "▶  " } else { "⏸  " };
     execute!(stdout, Print(state))?;
+
+    if viewport_mode {
+        execute!(
+            stdout,
+            SetForegroundColor(Color::Magenta),
+            Print("[V] "),
+        )?;
+    }
 
     execute!(
         stdout,
@@ -531,30 +697,39 @@ fn render_status_bar(
         )?;
     }
 
+    let play_action = if paused { ":ply " } else { ":pau " };
     execute!(
         stdout,
         SetForegroundColor(Color::DarkGrey),
         Print("│ "),
         SetForegroundColor(Color::Cyan),
-        Print("space"),
+        Print("spc"),
         SetForegroundColor(Color::DarkGrey),
-        Print(":play "),
+        Print(play_action),
+        SetForegroundColor(Color::Cyan),
+        Print("←/→"),
+        SetForegroundColor(Color::DarkGrey),
+        Print(":sek "),
         SetForegroundColor(Color::Cyan),
         Print("+/-"),
         SetForegroundColor(Color::DarkGrey),
-        Print(":speed "),
+        Print(":spd "),
         SetForegroundColor(Color::Cyan),
         Print("[/]"),
         SetForegroundColor(Color::DarkGrey),
-        Print(":marker "),
+        Print(":mkr "),
         SetForegroundColor(Color::Cyan),
-        Print("</>"),
+        Print("v"),
         SetForegroundColor(Color::DarkGrey),
-        Print(":seek "),
+        Print(":vpt "),
+        SetForegroundColor(Color::Cyan),
+        Print("r"),
+        SetForegroundColor(Color::DarkGrey),
+        Print(":rsz "),
         SetForegroundColor(Color::Cyan),
         Print("?"),
         SetForegroundColor(Color::DarkGrey),
-        Print(":help "),
+        Print(":hlp "),
         SetForegroundColor(Color::Cyan),
         Print("q"),
         SetForegroundColor(Color::DarkGrey),
@@ -575,8 +750,9 @@ fn render_help(stdout: &mut io::Stdout, width: u16, height: u16) -> Result<()> {
         "  ║                                           ║",
         "  ║  Playback                                 ║",
         "  ║    Space      Pause / Resume              ║",
+        "  ║    ←/→        Seek backward / forward 5s  ║",
+        "  ║    Shift+←/→  Seek by 5% of duration      ║",
         "  ║    +/-        Increase / Decrease speed   ║",
-        "  ║    < / >      Seek backward / forward 5s  ║",
         "  ║    Home       Go to start                 ║",
         "  ║    End        Go to end                   ║",
         "  ║                                           ║",
@@ -584,12 +760,14 @@ fn render_help(stdout: &mut io::Stdout, width: u16, height: u16) -> Result<()> {
         "  ║    [          Jump to previous marker     ║",
         "  ║    ]          Jump to next marker         ║",
         "  ║                                           ║",
-        "  ║  Viewport                                 ║",
+        "  ║  Viewport (press v to toggle)             ║",
         "  ║    ↑↓←→       Scroll viewport             ║",
+        "  ║    r          Resize to recording size   ║",
+        "  ║    Esc        Exit viewport mode          ║",
         "  ║                                           ║",
         "  ║  General                                  ║",
         "  ║    ?          Show this help              ║",
-        "  ║    q / Esc    Quit player                 ║",
+        "  ║    q          Quit player                 ║",
         "  ║                                           ║",
         "  ║         Press any key to close            ║",
         "  ╚═══════════════════════════════════════════╝",
