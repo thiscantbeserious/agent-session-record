@@ -1,133 +1,60 @@
 # Design Principles
 
-Architectural guidelines for planning and evaluating design decisions.
+Strategic guidelines for architectural decisions. Reference `sdlc.md` for workflow integration.
 
-## Simplicity First
+## SOLID Principles
 
-**Default to the simplest solution that works.**
+Adapted for Rust - not all apply directly.
 
-Before adding abstraction, ask:
-- Can this be a function instead of a trait?
-- Can this be a module instead of a crate?
-- Can this be inline instead of a separate file?
-- Will someone understand this in 6 months?
+**Single Responsibility**
+One module, one reason to change. If describing what a module does requires "and", split it.
 
-Complexity must justify itself with concrete benefits, not hypothetical future needs.
+**Open/Closed**
+Extend behavior through composition and new types, not modifying existing code. Add new match arms, don't change existing ones.
 
-## Module Boundaries
+**Dependency Inversion**
+Depend on abstractions at system boundaries (traits for external services, configs for behavior). Internal code can be concrete.
 
-**Create a new module when:**
-- A distinct responsibility emerges (single clear purpose)
-- The code would exceed 400 lines in current location
-- Multiple files would benefit from shared private helpers
-- Testing requires isolation from other components
+## Clean Code Philosophy
 
-**Keep code in existing module when:**
-- It's closely related to existing functionality
-- It would create a module with only 1-2 small functions
-- The "new module" would just re-export or wrap existing code
+**KISS** - Simplest solution that works. Complexity must justify itself with concrete benefits.
 
-## Abstraction Decisions
+**YAGNI** - Don't build for hypothetical futures. Solve today's problem.
 
-**Abstraction is justified when:**
-- There are 3+ concrete implementations (not 2, not "maybe later")
-- The abstraction simplifies the calling code
-- Testing becomes easier with the abstraction
+**DRY** - Avoid repetition, but don't over-abstract. Duplication is better than the wrong abstraction.
 
-**Avoid abstraction when:**
-- "We might need this flexibility later"
-- There's only one implementation
-- The abstraction adds indirection without reducing complexity
+## Problem Decomposition
 
-```
-# Rule of Three
-1 implementation → just write it
-2 implementations → maybe extract common parts
-3+ implementations → consider a trait/interface
-```
+**One thing at a time**
+Each PR/branch addresses one concern. Mixed concerns get split.
 
-## Dependency Evaluation
+**Domain grouping**
+Related changes stay together. A "user auth" change doesn't include "logging refactor".
 
-**Before adding a crate, consider:**
-- Does the standard library have this? (prefer std)
-- Is the dependency maintained? (check last commit, issues)
-- What's the transitive dependency cost?
-- Can we implement the needed subset ourselves in <100 lines?
-
-**Acceptable reasons to add:**
-- Security-critical code (crypto, parsing untrusted input)
-- Complex domain (async runtime, serialization)
-- Significant time savings with minimal dependency cost
-
-**Poor reasons to add:**
-- "It's popular"
-- Saves 20 lines of straightforward code
-- We only need 5% of its features
-
-## API Surface
-
-**Public API guidelines:**
-- Minimize public surface - start private, expose when needed
-- One obvious way to do things (not multiple paths to same result)
-- Inputs should be validated at boundaries, trusted internally
-- Return `Result` for operations that can fail; don't panic in library code
-
-**Internal boundaries:**
-- Modules expose a clean interface via `mod.rs`
-- Implementation details stay private
-- Cross-module communication through defined interfaces
-
-## Error Handling
-
-**Error philosophy:**
-- Use `Result<T, E>` for recoverable errors
-- Use `panic!` only for programmer errors (bugs), never for runtime conditions
-- Errors should be actionable - tell the user what went wrong and how to fix it
-- Prefer specific error types over `String` or generic `Error`
-
-**Error granularity:**
-- One error enum per module/domain is usually enough
-- Don't create an error variant for every possible failure
-- Group related failures when the caller doesn't need to distinguish them
+**Small iterations**
+Prefer many small cycles over one big-bang change. Each iteration is independently shippable.
 
 ## Trade-off Evaluation
 
-When comparing approaches, evaluate:
+When comparing approaches:
 
 | Criterion | Question |
 |-----------|----------|
 | Simplicity | Which is easier to understand? |
-| Testability | Which is easier to test in isolation? |
 | Maintainability | Which will be easier to modify later? |
-| Performance | Does it matter here? (usually no) |
+| Testability | Which is easier to test in isolation? |
 | Consistency | Which fits existing patterns? |
 
-**Priority order:** Simplicity > Maintainability > Testability > Consistency > Performance
+**Priority:** Simplicity > Maintainability > Testability > Consistency
 
-Performance is last because it rarely matters and is easy to optimize later. Premature optimization creates complexity that's hard to remove.
-
-## Patterns in This Project
-
-**Established patterns to follow:**
-- Commands in `src/commands/` with one file per command
-- Domain modules in `src/` (config, storage, recording, etc.)
-- Tests in `tests/unit/` mirroring source structure
-- Configuration via TOML in `~/.config/agr/`
-
-**Patterns to avoid:**
-- God modules that do everything
-- Traits with single implementations
-- Deep module hierarchies (prefer flat)
-- Builder patterns for simple structs (just use struct literals)
+Performance rarely matters at design time. Optimize later when you have data.
 
 ## Checklist
 
 Before finalizing a design:
 
-- [ ] Is this the simplest approach that solves the problem?
-- [ ] Are new modules justified by distinct responsibilities?
-- [ ] Are abstractions backed by 3+ concrete uses?
-- [ ] Are new dependencies truly necessary?
-- [ ] Does the API surface stay minimal?
-- [ ] Do errors help users fix problems?
-- [ ] Does this fit existing project patterns?
+- [ ] Single responsibility per module?
+- [ ] Simplest approach that solves the problem?
+- [ ] One concern per PR/branch?
+- [ ] Small enough to review in one sitting?
+- [ ] Fits SDLC workflow (testable stages)?
