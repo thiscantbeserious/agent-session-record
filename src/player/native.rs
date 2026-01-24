@@ -116,9 +116,11 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
     let mut viewport_mode = false;
     let mut free_mode = false;
     let mut free_line: usize = 0; // Highlighted line in free mode (buffer row)
+    let mut prev_free_line: usize = 0; // Previous highlight for partial updates
     let mut start_time = Instant::now();
     let mut time_offset = 0.0f64;
     let mut needs_render = true; // Track when screen needs redraw
+    let mut free_line_only = false; // True if only free_line changed (partial update)
 
     // Setup terminal
     let mut stdout = io::stdout();
@@ -312,10 +314,16 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                         KeyCode::Up => {
                             if free_mode {
                                 // Move highlight up one line
+                                let old_offset = view_row_offset;
+                                prev_free_line = free_line;
                                 free_line = free_line.saturating_sub(1);
                                 // Auto-scroll viewport to keep highlighted line visible
                                 if free_line < view_row_offset {
                                     view_row_offset = free_line;
+                                }
+                                // If viewport didn't scroll, only update highlight lines
+                                if view_row_offset == old_offset && prev_free_line != free_line {
+                                    free_line_only = true;
                                 }
                             } else if viewport_mode {
                                 view_row_offset = view_row_offset.saturating_sub(1);
@@ -324,11 +332,17 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                         KeyCode::Down => {
                             if free_mode {
                                 // Move highlight down one line
+                                let old_offset = view_row_offset;
+                                prev_free_line = free_line;
                                 let max_line = (rec_rows as usize).saturating_sub(1);
                                 free_line = (free_line + 1).min(max_line);
                                 // Auto-scroll viewport to keep highlighted line visible
                                 if free_line >= view_row_offset + view_rows {
                                     view_row_offset = free_line - view_rows + 1;
+                                }
+                                // If viewport didn't scroll, only update highlight lines
+                                if view_row_offset == old_offset && prev_free_line != free_line {
+                                    free_line_only = true;
                                 }
                             } else if viewport_mode {
                                 let max_offset = (rec_rows as usize).saturating_sub(view_rows);
@@ -404,15 +418,38 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                 // Begin synchronized update to prevent flicker
                 write!(stdout, "\x1b[?2026h")?;
 
-                render_viewport(
-                    &mut stdout,
-                    &buffer,
-                    view_row_offset,
-                    view_col_offset,
-                    view_rows,
-                    view_cols,
-                    if free_mode { Some(free_line) } else { None },
-                )?;
+                // Partial update: only re-render changed highlight lines in free mode
+                if free_line_only && free_mode {
+                    render_single_line(
+                        &mut stdout,
+                        &buffer,
+                        prev_free_line,
+                        view_row_offset,
+                        view_col_offset,
+                        view_cols,
+                        false, // not highlighted
+                    )?;
+                    render_single_line(
+                        &mut stdout,
+                        &buffer,
+                        free_line,
+                        view_row_offset,
+                        view_col_offset,
+                        view_cols,
+                        true, // highlighted
+                    )?;
+                    free_line_only = false;
+                } else {
+                    render_viewport(
+                        &mut stdout,
+                        &buffer,
+                        view_row_offset,
+                        view_col_offset,
+                        view_rows,
+                        view_cols,
+                        if free_mode { Some(free_line) } else { None },
+                    )?;
+                }
 
                 // Show scroll indicator if viewport can scroll
                 render_scroll_indicator(
@@ -990,6 +1027,75 @@ fn render_viewport(
 
         // Ensure we've written the full width (clear any trailing content)
         let _ = chars_written; // Already writing full width above
+    }
+
+    write!(stdout, "{}", output)?;
+    Ok(())
+}
+
+/// Render a single line of the viewport (for partial updates in free mode).
+#[allow(clippy::too_many_arguments)]
+fn render_single_line(
+    stdout: &mut io::Stdout,
+    buffer: &TerminalBuffer,
+    buf_row: usize,
+    view_row_offset: usize,
+    col_offset: usize,
+    view_cols: usize,
+    is_highlighted: bool,
+) -> Result<()> {
+    // Calculate screen row from buffer row
+    if buf_row < view_row_offset {
+        return Ok(()); // Line is above viewport
+    }
+    let screen_row = buf_row - view_row_offset;
+
+    let mut output = String::with_capacity(view_cols * 2);
+
+    // Move cursor to start of line
+    output.push_str(&format!("\x1b[{};1H", screen_row + 1));
+
+    if is_highlighted {
+        output.push_str("\x1b[97;42m"); // White on green
+    }
+
+    if let Some(row) = buffer.row(buf_row) {
+        let mut current_style = CellStyle::default();
+
+        for view_col in 0..view_cols {
+            let buf_col = view_col + col_offset;
+
+            if buf_col < row.len() {
+                let cell = &row[buf_col];
+
+                if !is_highlighted && cell.style != current_style {
+                    output.push_str("\x1b[0m");
+                    style_to_ansi_fg(&cell.style, &mut output);
+                    style_to_ansi_bg(&cell.style, &mut output);
+                    current_style = cell.style;
+                }
+
+                output.push(cell.char);
+            } else {
+                if !is_highlighted && current_style != CellStyle::default() {
+                    output.push_str("\x1b[0m");
+                    current_style = CellStyle::default();
+                }
+                output.push(' ');
+            }
+        }
+
+        if current_style != CellStyle::default() || is_highlighted {
+            output.push_str("\x1b[0m");
+        }
+    } else {
+        // Empty row
+        for _ in 0..view_cols {
+            output.push(' ');
+        }
+        if is_highlighted {
+            output.push_str("\x1b[0m");
+        }
     }
 
     write!(stdout, "{}", output)?;
