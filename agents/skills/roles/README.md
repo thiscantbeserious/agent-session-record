@@ -23,18 +23,18 @@ User Request
        │            Decision record (immutable)      │
        │                                             │
        │            ┌──────────┐                     │
-       └───────────▶│ PLAN.md  │                     │
-                    └────┬─────┘                     │
-                    Execution tasks (mutable)        │
-                         │                           │
-                         ▼                           │
-               ┌─────────────────┐                   │
-               │   Implementer   │  Works from PLAN  │
-               └────────┬────────┘                   │
+       └───────────▶│ PLAN.md  │◀────────────┐       │
+                    └────┬─────┘             │       │
+                    Execution (mutable)      │       │
+                         │                   │       │
+                         ▼                   │       │
+               ┌─────────────────┐           │       │
+               │   Implementer   │  Works ───┘       │
+               └────────┬────────┘  from PLAN        │
                         │                            │
                         ▼                            │
-               ┌─────────────────┐                   │
-               │    Reviewer     │───────────────────┤ Validates against ADR
+               ┌─────────────────┐  Validates ───────┤
+               │    Reviewer     │  against ADR+PLAN │
                └────────┬────────┘                   │
                         │                            │
                         ▼                            │
