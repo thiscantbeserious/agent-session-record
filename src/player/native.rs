@@ -224,7 +224,10 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                                 show_help = true;
                             }
                             KeyCode::Char('r') => {
-                                // Resize terminal to match recording size
+                                // Resize terminal to match recording size.
+                                // NOTE: This uses xterm escape sequence which only works on
+                                // xterm-compatible terminals (iTerm2, xterm, etc.). Other terminals
+                                // may ignore this request silently.
                                 let target_rows = rec_rows + status_lines as u32;
                                 write!(stdout, "\x1b[8;{};{}t", target_rows, rec_cols)?;
                                 stdout.flush()?;
@@ -236,13 +239,19 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                                     term_rows = new_rows;
                                     view_rows = (new_rows.saturating_sub(status_lines)) as usize;
                                     view_cols = new_cols as usize;
-                                    // Reset viewport offset since we now fit
-                                    if view_rows >= rec_rows as usize {
-                                        view_row_offset = 0;
+                                    // Check if resize succeeded (terminal at least as big as recording)
+                                    let resize_ok = new_cols as u32 >= rec_cols
+                                        && new_rows >= status_lines + rec_rows as u16;
+                                    if resize_ok {
+                                        // Reset viewport offset since we now fit
+                                        if view_rows >= rec_rows as usize {
+                                            view_row_offset = 0;
+                                        }
+                                        if view_cols >= rec_cols as usize {
+                                            view_col_offset = 0;
+                                        }
                                     }
-                                    if view_cols >= rec_cols as usize {
-                                        view_col_offset = 0;
-                                    }
+                                    // Note: If resize failed, viewport mode still works for navigation
                                 }
                             }
                             // Marker navigation (forward only)
@@ -616,16 +625,14 @@ fn seek_to_time(
     }
 }
 
-/// Render the progress bar with markers (no background).
-fn render_progress_bar(
-    stdout: &mut io::Stdout,
-    width: u16,
-    row: u16,
+/// Build the progress bar character array.
+/// Returns (bar_chars, filled_count) where bar_chars contains the visual representation.
+fn build_progress_bar_chars(
+    bar_width: usize,
     current_time: f64,
     total_duration: f64,
     markers: &[MarkerPosition],
-) -> Result<()> {
-    let bar_width = (width as usize).saturating_sub(14); // Account for padding and time display
+) -> (Vec<char>, usize) {
     let progress = if total_duration > 0.0 {
         (current_time / total_duration).clamp(0.0, 1.0)
     } else {
@@ -650,6 +657,21 @@ fn render_progress_bar(
             bar[marker_pos] = '◆';
         }
     }
+
+    (bar, filled)
+}
+
+/// Render the progress bar with markers (no background).
+fn render_progress_bar(
+    stdout: &mut io::Stdout,
+    width: u16,
+    row: u16,
+    current_time: f64,
+    total_duration: f64,
+    markers: &[MarkerPosition],
+) -> Result<()> {
+    let bar_width = (width as usize).saturating_sub(14); // Account for padding and time display
+    let (bar, filled) = build_progress_bar_chars(bar_width, current_time, total_duration, markers);
 
     let current_str = format_duration(current_time);
     let total_str = format_duration(total_duration);
@@ -705,30 +727,35 @@ fn render_progress_bar(
     Ok(())
 }
 
-/// Render scroll indicator in top-right showing available scroll directions.
-#[allow(clippy::too_many_arguments)]
-fn render_scroll_indicator(
-    stdout: &mut io::Stdout,
-    term_cols: u16,
+/// Calculate which scroll directions are available.
+/// Returns (can_up, can_down, can_left, can_right).
+fn calc_scroll_directions(
     row_offset: usize,
     col_offset: usize,
     view_rows: usize,
     view_cols: usize,
     rec_rows: usize,
     rec_cols: usize,
-) -> Result<()> {
-    // Calculate which directions have more content
+) -> (bool, bool, bool, bool) {
     let can_up = row_offset > 0;
     let can_down = row_offset + view_rows < rec_rows;
     let can_left = col_offset > 0;
     let can_right = col_offset + view_cols < rec_cols;
+    (can_up, can_down, can_left, can_right)
+}
 
-    // Only show if there's something to scroll
+/// Build the scroll indicator arrow string.
+/// Returns None if no scrolling is possible.
+fn build_scroll_arrows(
+    can_up: bool,
+    can_down: bool,
+    can_left: bool,
+    can_right: bool,
+) -> Option<String> {
     if !can_up && !can_down && !can_left && !can_right {
-        return Ok(());
+        return None;
     }
 
-    // Build arrow string with only active arrows (with spacing)
     let mut arrows = Vec::new();
     if can_up {
         arrows.push("▲");
@@ -744,16 +771,43 @@ fn render_scroll_indicator(
     }
 
     if arrows.is_empty() {
-        return Ok(());
+        None
+    } else {
+        Some(arrows.join(" "))
     }
+}
 
-    let arrow_str = arrows.join(" ");
+/// Render scroll indicator in top-right showing available scroll directions.
+#[allow(clippy::too_many_arguments)]
+fn render_scroll_indicator(
+    stdout: &mut io::Stdout,
+    term_cols: u16,
+    row_offset: usize,
+    col_offset: usize,
+    view_rows: usize,
+    view_cols: usize,
+    rec_rows: usize,
+    rec_cols: usize,
+) -> Result<()> {
+    let (can_up, can_down, can_left, can_right) = calc_scroll_directions(
+        row_offset, col_offset, view_rows, view_cols, rec_rows, rec_cols,
+    );
+
+    let arrow_str = match build_scroll_arrows(can_up, can_down, can_left, can_right) {
+        Some(s) => s,
+        None => return Ok(()),
+    };
+
+    let arrows_count = [can_up, can_down, can_left, can_right]
+        .iter()
+        .filter(|&&x| x)
+        .count();
 
     // Draw at top-right, completely aligned to edge
     let arrow_color = Color::Yellow;
     let bg_color = Color::AnsiValue(236); // Same as progress bar
                                           // Width = arrows + spaces between + padding on sides
-    let display_width = (arrows.len() * 2 + 1) as u16; // each arrow + space, plus padding
+    let display_width = (arrows_count * 2 + 1) as u16; // each arrow + space, plus padding
     let start_col = term_cols.saturating_sub(display_width);
 
     execute!(
@@ -926,55 +980,69 @@ fn count_digits(n: usize) -> usize {
     }
 }
 
+/// Help text lines for the help overlay.
+const HELP_LINES: &[&str] = &[
+    "",
+    "  ╔═══════════════════════════════════════════╗",
+    "  ║          AGR Native Player Help           ║",
+    "  ╠═══════════════════════════════════════════╣",
+    "  ║                                           ║",
+    "  ║  Playback                                 ║",
+    "  ║    Space      Pause / Resume              ║",
+    "  ║    ←/→        Seek ±5s                    ║",
+    "  ║    Shift+←/→  Seek ±5%                    ║",
+    "  ║    +/-        Speed up / down             ║",
+    "  ║    Home/End   Go to start / end           ║",
+    "  ║                                           ║",
+    "  ║  Markers                                  ║",
+    "  ║    m          Jump to next marker         ║",
+    "  ║                                           ║",
+    "  ║  Free Mode (line-by-line navigation)       ║",
+    "  ║    f          Toggle free mode            ║",
+    "  ║    ↑/↓        Move highlight up/down      ║",
+    "  ║    Esc        Exit free mode              ║",
+    "  ║                                           ║",
+    "  ║  Viewport                                 ║",
+    "  ║    v          Toggle viewport mode        ║",
+    "  ║    ↑↓←→       Scroll viewport (v mode)    ║",
+    "  ║    r          Resize to recording         ║",
+    "  ║    Esc        Exit viewport mode          ║",
+    "  ║                                           ║",
+    "  ║  General                                  ║",
+    "  ║    ?          Show this help              ║",
+    "  ║    q          Quit player                 ║",
+    "  ║                                           ║",
+    "  ║         Press any key to close            ║",
+    "  ╚═══════════════════════════════════════════╝",
+    "",
+];
+
+/// Width of the help box (for centering calculations).
+const HELP_BOX_WIDTH: usize = 47;
+
+/// Calculate the starting row for centering the help box.
+fn calc_help_start_row(term_height: u16) -> u16 {
+    let box_height = HELP_LINES.len() as u16;
+    (term_height.saturating_sub(box_height)) / 2
+}
+
+/// Calculate the starting column for centering the help box.
+fn calc_help_start_col(term_width: u16) -> u16 {
+    ((term_width as usize).saturating_sub(HELP_BOX_WIDTH) / 2) as u16
+}
+
 /// Render the help overlay.
 fn render_help(stdout: &mut io::Stdout, width: u16, height: u16) -> Result<()> {
-    let help_lines = [
-        "",
-        "  ╔═══════════════════════════════════════════╗",
-        "  ║          AGR Native Player Help           ║",
-        "  ╠═══════════════════════════════════════════╣",
-        "  ║                                           ║",
-        "  ║  Playback                                 ║",
-        "  ║    Space      Pause / Resume              ║",
-        "  ║    ←/→        Seek ±5s                    ║",
-        "  ║    Shift+←/→  Seek ±5%                    ║",
-        "  ║    +/-        Speed up / down             ║",
-        "  ║    Home/End   Go to start / end           ║",
-        "  ║                                           ║",
-        "  ║  Markers                                  ║",
-        "  ║    m          Jump to next marker         ║",
-        "  ║                                           ║",
-        "  ║  Free Mode (line-by-line navigation)       ║",
-        "  ║    f          Toggle free mode            ║",
-        "  ║    ↑/↓        Move highlight up/down      ║",
-        "  ║    Esc        Exit free mode              ║",
-        "  ║                                           ║",
-        "  ║  Viewport                                 ║",
-        "  ║    v          Toggle viewport mode        ║",
-        "  ║    ↑↓←→       Scroll viewport (v mode)    ║",
-        "  ║    r          Resize to recording         ║",
-        "  ║    Esc        Exit viewport mode          ║",
-        "  ║                                           ║",
-        "  ║  General                                  ║",
-        "  ║    ?          Show this help              ║",
-        "  ║    q          Quit player                 ║",
-        "  ║                                           ║",
-        "  ║         Press any key to close            ║",
-        "  ╚═══════════════════════════════════════════╝",
-        "",
-    ];
-
-    let box_height = help_lines.len() as u16;
-    let start_row = (height.saturating_sub(box_height)) / 2;
+    let start_row = calc_help_start_row(height);
+    let col = calc_help_start_col(width);
 
     execute!(stdout, Clear(ClearType::All))?;
 
-    for (i, line) in help_lines.iter().enumerate() {
+    for (i, line) in HELP_LINES.iter().enumerate() {
         let row = start_row + i as u16;
-        let col = (width as usize).saturating_sub(47) / 2;
         execute!(
             stdout,
-            MoveTo(col as u16, row),
+            MoveTo(col, row),
             SetForegroundColor(Color::Green),
             Print(line),
             ResetColor,
@@ -1384,5 +1452,1003 @@ mod tests {
         assert_eq!(count_digits(10), 2);
         assert_eq!(count_digits(99), 2);
         assert_eq!(count_digits(100), 3);
+    }
+
+    #[test]
+    fn count_digits_large_numbers() {
+        assert_eq!(count_digits(999), 3);
+        assert_eq!(count_digits(1000), 4);
+        assert_eq!(count_digits(9999), 4);
+        assert_eq!(count_digits(10000), 5);
+        assert_eq!(count_digits(1_000_000), 7);
+    }
+
+    #[test]
+    fn format_duration_edge_cases() {
+        // Fractional seconds are truncated
+        assert_eq!(format_duration(0.9), "00:00");
+        assert_eq!(format_duration(1.5), "00:01");
+        assert_eq!(format_duration(59.9), "00:59");
+        // Very large durations (hours)
+        assert_eq!(format_duration(7200.0), "120:00"); // 2 hours
+    }
+
+    #[test]
+    fn style_to_ansi_fg_all_basic_colors() {
+        let test_cases = [
+            (TermColor::Black, "\x1b[30m"),
+            (TermColor::Red, "\x1b[31m"),
+            (TermColor::Green, "\x1b[32m"),
+            (TermColor::Yellow, "\x1b[33m"),
+            (TermColor::Blue, "\x1b[34m"),
+            (TermColor::Magenta, "\x1b[35m"),
+            (TermColor::Cyan, "\x1b[36m"),
+            (TermColor::White, "\x1b[37m"),
+        ];
+
+        for (color, expected) in test_cases {
+            let style = CellStyle {
+                fg: color,
+                ..Default::default()
+            };
+            let mut buf = String::new();
+            assert!(style_to_ansi_fg(&style, &mut buf));
+            assert_eq!(buf, expected, "Failed for {:?}", color);
+        }
+    }
+
+    #[test]
+    fn style_to_ansi_fg_all_bright_colors() {
+        let test_cases = [
+            (TermColor::BrightBlack, "\x1b[90m"),
+            (TermColor::BrightRed, "\x1b[91m"),
+            (TermColor::BrightGreen, "\x1b[92m"),
+            (TermColor::BrightYellow, "\x1b[93m"),
+            (TermColor::BrightBlue, "\x1b[94m"),
+            (TermColor::BrightMagenta, "\x1b[95m"),
+            (TermColor::BrightCyan, "\x1b[96m"),
+            (TermColor::BrightWhite, "\x1b[97m"),
+        ];
+
+        for (color, expected) in test_cases {
+            let style = CellStyle {
+                fg: color,
+                ..Default::default()
+            };
+            let mut buf = String::new();
+            assert!(style_to_ansi_fg(&style, &mut buf));
+            assert_eq!(buf, expected, "Failed for {:?}", color);
+        }
+    }
+
+    #[test]
+    fn style_to_ansi_fg_indexed_color() {
+        let style = CellStyle {
+            fg: TermColor::Indexed(196),
+            ..Default::default()
+        };
+        let mut buf = String::new();
+        assert!(style_to_ansi_fg(&style, &mut buf));
+        assert_eq!(buf, "\x1b[38;5;196m");
+    }
+
+    #[test]
+    fn style_to_ansi_fg_rgb_color() {
+        let style = CellStyle {
+            fg: TermColor::Rgb(255, 128, 64),
+            ..Default::default()
+        };
+        let mut buf = String::new();
+        assert!(style_to_ansi_fg(&style, &mut buf));
+        assert_eq!(buf, "\x1b[38;2;255;128;64m");
+    }
+
+    #[test]
+    fn style_to_ansi_bg_default_returns_false() {
+        let style = CellStyle::default();
+        let mut buf = String::new();
+        assert!(!style_to_ansi_bg(&style, &mut buf));
+        assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn style_to_ansi_bg_all_basic_colors() {
+        let test_cases = [
+            (TermColor::Black, "\x1b[40m"),
+            (TermColor::Red, "\x1b[41m"),
+            (TermColor::Green, "\x1b[42m"),
+            (TermColor::Yellow, "\x1b[43m"),
+            (TermColor::Blue, "\x1b[44m"),
+            (TermColor::Magenta, "\x1b[45m"),
+            (TermColor::Cyan, "\x1b[46m"),
+            (TermColor::White, "\x1b[47m"),
+        ];
+
+        for (color, expected) in test_cases {
+            let style = CellStyle {
+                bg: color,
+                ..Default::default()
+            };
+            let mut buf = String::new();
+            assert!(style_to_ansi_bg(&style, &mut buf));
+            assert_eq!(buf, expected, "Failed for {:?}", color);
+        }
+    }
+
+    #[test]
+    fn style_to_ansi_bg_all_bright_colors() {
+        let test_cases = [
+            (TermColor::BrightBlack, "\x1b[100m"),
+            (TermColor::BrightRed, "\x1b[101m"),
+            (TermColor::BrightGreen, "\x1b[102m"),
+            (TermColor::BrightYellow, "\x1b[103m"),
+            (TermColor::BrightBlue, "\x1b[104m"),
+            (TermColor::BrightMagenta, "\x1b[105m"),
+            (TermColor::BrightCyan, "\x1b[106m"),
+            (TermColor::BrightWhite, "\x1b[107m"),
+        ];
+
+        for (color, expected) in test_cases {
+            let style = CellStyle {
+                bg: color,
+                ..Default::default()
+            };
+            let mut buf = String::new();
+            assert!(style_to_ansi_bg(&style, &mut buf));
+            assert_eq!(buf, expected, "Failed for {:?}", color);
+        }
+    }
+
+    #[test]
+    fn style_to_ansi_bg_indexed_color() {
+        let style = CellStyle {
+            bg: TermColor::Indexed(236),
+            ..Default::default()
+        };
+        let mut buf = String::new();
+        assert!(style_to_ansi_bg(&style, &mut buf));
+        assert_eq!(buf, "\x1b[48;5;236m");
+    }
+
+    #[test]
+    fn style_to_ansi_bg_rgb_color() {
+        let style = CellStyle {
+            bg: TermColor::Rgb(0, 128, 255),
+            ..Default::default()
+        };
+        let mut buf = String::new();
+        assert!(style_to_ansi_bg(&style, &mut buf));
+        assert_eq!(buf, "\x1b[48;2;0;128;255m");
+    }
+
+    // Tests for find_event_index_at_time
+    mod find_event_index_tests {
+        use super::*;
+        use crate::asciicast::{Event, EventType, Header};
+
+        fn make_cast(event_times: &[f64]) -> AsciicastFile {
+            let header = Header {
+                version: 3,
+                width: Some(80),
+                height: Some(24),
+                term: None,
+                timestamp: None,
+                duration: None,
+                title: None,
+                command: None,
+                env: None,
+                idle_time_limit: None,
+            };
+            let events: Vec<Event> = event_times
+                .iter()
+                .map(|&t| Event {
+                    time: t,
+                    event_type: EventType::Output,
+                    data: "x".to_string(),
+                })
+                .collect();
+            AsciicastFile { header, events }
+        }
+
+        #[test]
+        fn empty_cast_returns_zero_index() {
+            let cast = make_cast(&[]);
+            let (idx, cumulative) = find_event_index_at_time(&cast, 5.0);
+            assert_eq!(idx, 0);
+            assert_eq!(cumulative, 0.0);
+        }
+
+        #[test]
+        fn target_before_first_event() {
+            let cast = make_cast(&[1.0, 1.0, 1.0]); // Events at t=1, t=2, t=3
+            let (idx, cumulative) = find_event_index_at_time(&cast, 0.5);
+            assert_eq!(idx, 0);
+            assert_eq!(cumulative, 0.0);
+        }
+
+        #[test]
+        fn target_at_first_event() {
+            let cast = make_cast(&[1.0, 1.0, 1.0]);
+            let (idx, cumulative) = find_event_index_at_time(&cast, 1.0);
+            assert_eq!(idx, 1); // After first event
+            assert_eq!(cumulative, 1.0);
+        }
+
+        #[test]
+        fn target_between_events() {
+            let cast = make_cast(&[1.0, 1.0, 1.0]); // Events at t=1, t=2, t=3
+            let (idx, cumulative) = find_event_index_at_time(&cast, 1.5);
+            assert_eq!(idx, 1); // At event index 1 (second event)
+            assert_eq!(cumulative, 1.0);
+        }
+
+        #[test]
+        fn target_at_last_event() {
+            let cast = make_cast(&[1.0, 1.0, 1.0]); // Events at t=1, t=2, t=3
+            let (idx, cumulative) = find_event_index_at_time(&cast, 3.0);
+            assert_eq!(idx, 3); // Past all events
+            assert_eq!(cumulative, 3.0);
+        }
+
+        #[test]
+        fn target_past_all_events() {
+            let cast = make_cast(&[1.0, 1.0, 1.0]); // Events at t=1, t=2, t=3
+            let (idx, cumulative) = find_event_index_at_time(&cast, 10.0);
+            assert_eq!(idx, 3); // All events processed
+            assert_eq!(cumulative, 3.0);
+        }
+    }
+
+    // Tests for collect_markers
+    mod collect_markers_tests {
+        use super::*;
+        use crate::asciicast::{Event, EventType, Header};
+
+        fn make_header() -> Header {
+            Header {
+                version: 3,
+                width: Some(80),
+                height: Some(24),
+                term: None,
+                timestamp: None,
+                duration: None,
+                title: None,
+                command: None,
+                env: None,
+                idle_time_limit: None,
+            }
+        }
+
+        #[test]
+        fn empty_cast_returns_no_markers() {
+            let cast = AsciicastFile {
+                header: make_header(),
+                events: vec![],
+            };
+            let markers = collect_markers(&cast);
+            assert!(markers.is_empty());
+        }
+
+        #[test]
+        fn cast_with_only_output_returns_no_markers() {
+            let cast = AsciicastFile {
+                header: make_header(),
+                events: vec![
+                    Event {
+                        time: 1.0,
+                        event_type: EventType::Output,
+                        data: "hello".to_string(),
+                    },
+                    Event {
+                        time: 1.0,
+                        event_type: EventType::Output,
+                        data: "world".to_string(),
+                    },
+                ],
+            };
+            let markers = collect_markers(&cast);
+            assert!(markers.is_empty());
+        }
+
+        #[test]
+        fn cast_with_markers_collects_them() {
+            let cast = AsciicastFile {
+                header: make_header(),
+                events: vec![
+                    Event {
+                        time: 1.0,
+                        event_type: EventType::Output,
+                        data: "hello".to_string(),
+                    },
+                    Event {
+                        time: 1.0,
+                        event_type: EventType::Marker,
+                        data: "marker1".to_string(),
+                    },
+                    Event {
+                        time: 2.0,
+                        event_type: EventType::Output,
+                        data: "world".to_string(),
+                    },
+                    Event {
+                        time: 1.0,
+                        event_type: EventType::Marker,
+                        data: "marker2".to_string(),
+                    },
+                ],
+            };
+            let markers = collect_markers(&cast);
+            assert_eq!(markers.len(), 2);
+            assert_eq!(markers[0].time, 2.0); // 1.0 + 1.0
+            assert_eq!(markers[0].label, "marker1");
+            assert_eq!(markers[1].time, 5.0); // 1.0 + 1.0 + 2.0 + 1.0
+            assert_eq!(markers[1].label, "marker2");
+        }
+
+        #[test]
+        fn marker_at_start() {
+            let cast = AsciicastFile {
+                header: make_header(),
+                events: vec![
+                    Event {
+                        time: 0.0,
+                        event_type: EventType::Marker,
+                        data: "start".to_string(),
+                    },
+                    Event {
+                        time: 1.0,
+                        event_type: EventType::Output,
+                        data: "output".to_string(),
+                    },
+                ],
+            };
+            let markers = collect_markers(&cast);
+            assert_eq!(markers.len(), 1);
+            assert_eq!(markers[0].time, 0.0);
+            assert_eq!(markers[0].label, "start");
+        }
+    }
+
+    // Tests for seek_to_time
+    mod seek_to_time_tests {
+        use super::*;
+        use crate::asciicast::{Event, EventType, Header};
+
+        fn make_header() -> Header {
+            Header {
+                version: 3,
+                width: Some(80),
+                height: Some(24),
+                term: None,
+                timestamp: None,
+                duration: None,
+                title: None,
+                command: None,
+                env: None,
+                idle_time_limit: None,
+            }
+        }
+
+        #[test]
+        fn seek_to_zero_clears_buffer() {
+            let cast = AsciicastFile {
+                header: make_header(),
+                events: vec![Event {
+                    time: 1.0,
+                    event_type: EventType::Output,
+                    data: "hello".to_string(),
+                }],
+            };
+            let mut buffer = TerminalBuffer::new(80, 24);
+            buffer.process("some content");
+
+            seek_to_time(&mut buffer, &cast, 0.0, 80, 24);
+
+            // Buffer should be cleared (no content at 0.0)
+            let row = buffer.row(0).unwrap();
+            assert!(row.iter().all(|c| c.char == ' '));
+        }
+
+        #[test]
+        fn seek_to_after_event_includes_output() {
+            let cast = AsciicastFile {
+                header: make_header(),
+                events: vec![Event {
+                    time: 1.0,
+                    event_type: EventType::Output,
+                    data: "hello".to_string(),
+                }],
+            };
+            let mut buffer = TerminalBuffer::new(80, 24);
+
+            seek_to_time(&mut buffer, &cast, 2.0, 80, 24);
+
+            // Buffer should contain "hello"
+            let row = buffer.row(0).unwrap();
+            let content: String = row.iter().take(5).map(|c| c.char).collect();
+            assert_eq!(content, "hello");
+        }
+
+        #[test]
+        fn seek_skips_markers() {
+            let cast = AsciicastFile {
+                header: make_header(),
+                events: vec![
+                    Event {
+                        time: 1.0,
+                        event_type: EventType::Marker,
+                        data: "marker".to_string(),
+                    },
+                    Event {
+                        time: 1.0,
+                        event_type: EventType::Output,
+                        data: "text".to_string(),
+                    },
+                ],
+            };
+            let mut buffer = TerminalBuffer::new(80, 24);
+
+            seek_to_time(&mut buffer, &cast, 3.0, 80, 24);
+
+            // Buffer should contain "text" (marker data not rendered)
+            let row = buffer.row(0).unwrap();
+            let content: String = row.iter().take(4).map(|c| c.char).collect();
+            assert_eq!(content, "text");
+        }
+    }
+
+    // Tests for PlaybackResult
+    #[test]
+    fn playback_result_clone() {
+        let result = PlaybackResult::Success("test.cast".to_string());
+        let cloned = result.clone();
+        assert_eq!(result.message(), cloned.message());
+    }
+
+    #[test]
+    fn playback_result_debug() {
+        let result = PlaybackResult::Interrupted;
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("Interrupted"));
+    }
+
+    // Tests for build_progress_bar_chars
+    mod progress_bar_tests {
+        use super::*;
+
+        #[test]
+        fn empty_bar_at_zero() {
+            let (bar, filled) = build_progress_bar_chars(10, 0.0, 10.0, &[]);
+            assert_eq!(filled, 0);
+            assert_eq!(bar[0], '⏺'); // Playhead at start
+            assert_eq!(bar[1], '─');
+        }
+
+        #[test]
+        fn full_bar_at_end() {
+            let (bar, filled) = build_progress_bar_chars(10, 10.0, 10.0, &[]);
+            assert_eq!(filled, 10);
+            // All positions should be regular bar chars (no playhead since filled == bar_width)
+            assert!(bar.iter().all(|&c| c == '─'));
+        }
+
+        #[test]
+        fn half_progress() {
+            let (bar, filled) = build_progress_bar_chars(10, 5.0, 10.0, &[]);
+            assert_eq!(filled, 5);
+            assert_eq!(bar[5], '⏺'); // Playhead at middle
+        }
+
+        #[test]
+        fn marker_at_position() {
+            let markers = vec![MarkerPosition {
+                time: 5.0,
+                label: "test".to_string(),
+            }];
+            let (bar, _) = build_progress_bar_chars(10, 0.0, 10.0, &markers);
+            assert_eq!(bar[5], '◆'); // Marker at position 5
+        }
+
+        #[test]
+        fn marker_not_overwritten_by_playhead() {
+            // Marker at same position as playhead - playhead wins
+            let markers = vec![MarkerPosition {
+                time: 5.0,
+                label: "test".to_string(),
+            }];
+            let (bar, _) = build_progress_bar_chars(10, 5.0, 10.0, &markers);
+            assert_eq!(bar[5], '⏺'); // Playhead takes precedence
+        }
+
+        #[test]
+        fn multiple_markers() {
+            let markers = vec![
+                MarkerPosition {
+                    time: 2.0,
+                    label: "m1".to_string(),
+                },
+                MarkerPosition {
+                    time: 8.0,
+                    label: "m2".to_string(),
+                },
+            ];
+            let (bar, _) = build_progress_bar_chars(10, 0.0, 10.0, &markers);
+            assert_eq!(bar[2], '◆');
+            assert_eq!(bar[8], '◆');
+        }
+
+        #[test]
+        fn zero_duration_returns_full() {
+            let (_, filled) = build_progress_bar_chars(10, 5.0, 0.0, &[]);
+            assert_eq!(filled, 10); // progress = 1.0 when duration is 0
+        }
+
+        #[test]
+        fn progress_clamped_to_one() {
+            // Current time exceeds total duration
+            let (_, filled) = build_progress_bar_chars(10, 15.0, 10.0, &[]);
+            assert_eq!(filled, 10); // Clamped to 100%
+        }
+
+        #[test]
+        fn marker_at_zero_duration() {
+            let markers = vec![MarkerPosition {
+                time: 5.0,
+                label: "m".to_string(),
+            }];
+            let (bar, _) = build_progress_bar_chars(10, 0.0, 0.0, &markers);
+            // When duration is 0, marker_pos = 0
+            assert_eq!(bar[0], '◆');
+        }
+    }
+
+    // Tests for calc_scroll_directions
+    mod scroll_direction_tests {
+        use super::*;
+
+        #[test]
+        fn no_scroll_when_viewport_fits() {
+            let (up, down, left, right) = calc_scroll_directions(0, 0, 24, 80, 24, 80);
+            assert!(!up);
+            assert!(!down);
+            assert!(!left);
+            assert!(!right);
+        }
+
+        #[test]
+        fn can_scroll_down_when_content_below() {
+            let (up, down, left, right) = calc_scroll_directions(0, 0, 24, 80, 48, 80);
+            assert!(!up);
+            assert!(down);
+            assert!(!left);
+            assert!(!right);
+        }
+
+        #[test]
+        fn can_scroll_up_when_offset_positive() {
+            let (up, down, left, right) = calc_scroll_directions(10, 0, 24, 80, 48, 80);
+            assert!(up);
+            assert!(down); // Still more content below
+            assert!(!left);
+            assert!(!right);
+        }
+
+        #[test]
+        fn can_scroll_right_when_content_wider() {
+            let (up, down, left, right) = calc_scroll_directions(0, 0, 24, 80, 24, 120);
+            assert!(!up);
+            assert!(!down);
+            assert!(!left);
+            assert!(right);
+        }
+
+        #[test]
+        fn can_scroll_left_when_col_offset() {
+            let (up, down, left, right) = calc_scroll_directions(0, 20, 24, 80, 24, 120);
+            assert!(!up);
+            assert!(!down);
+            assert!(left);
+            assert!(right);
+        }
+
+        #[test]
+        fn all_directions_when_in_middle() {
+            // Viewport in middle of larger content
+            let (up, down, left, right) = calc_scroll_directions(10, 10, 24, 80, 48, 160);
+            assert!(up);
+            assert!(down);
+            assert!(left);
+            assert!(right);
+        }
+
+        #[test]
+        fn at_bottom_right_corner() {
+            // At bottom-right, can only scroll up and left
+            let (up, down, left, right) = calc_scroll_directions(24, 40, 24, 80, 48, 120);
+            assert!(up);
+            assert!(!down); // At bottom
+            assert!(left);
+            assert!(!right); // At right edge
+        }
+    }
+
+    // Tests for build_scroll_arrows
+    mod scroll_arrows_tests {
+        use super::*;
+
+        #[test]
+        fn no_arrows_when_no_scroll() {
+            let result = build_scroll_arrows(false, false, false, false);
+            assert!(result.is_none());
+        }
+
+        #[test]
+        fn up_arrow_only() {
+            let result = build_scroll_arrows(true, false, false, false);
+            assert_eq!(result, Some("▲".to_string()));
+        }
+
+        #[test]
+        fn down_arrow_only() {
+            let result = build_scroll_arrows(false, true, false, false);
+            assert_eq!(result, Some("▼".to_string()));
+        }
+
+        #[test]
+        fn left_arrow_only() {
+            let result = build_scroll_arrows(false, false, true, false);
+            assert_eq!(result, Some("◀".to_string()));
+        }
+
+        #[test]
+        fn right_arrow_only() {
+            let result = build_scroll_arrows(false, false, false, true);
+            assert_eq!(result, Some("▶".to_string()));
+        }
+
+        #[test]
+        fn up_and_down_arrows() {
+            let result = build_scroll_arrows(true, true, false, false);
+            assert_eq!(result, Some("▲ ▼".to_string()));
+        }
+
+        #[test]
+        fn all_arrows() {
+            let result = build_scroll_arrows(true, true, true, true);
+            assert_eq!(result, Some("▲ ▼ ◀ ▶".to_string()));
+        }
+
+        #[test]
+        fn horizontal_arrows_only() {
+            let result = build_scroll_arrows(false, false, true, true);
+            assert_eq!(result, Some("◀ ▶".to_string()));
+        }
+    }
+
+    // Tests for help box calculations
+    mod help_box_tests {
+        use super::*;
+
+        #[test]
+        fn help_lines_not_empty() {
+            assert!(!HELP_LINES.is_empty());
+        }
+
+        #[test]
+        fn help_lines_has_title() {
+            let has_title = HELP_LINES
+                .iter()
+                .any(|line| line.contains("AGR Native Player Help"));
+            assert!(has_title);
+        }
+
+        #[test]
+        fn help_lines_has_quit_instruction() {
+            let has_quit = HELP_LINES
+                .iter()
+                .any(|line| line.contains("q") && line.contains("Quit"));
+            assert!(has_quit);
+        }
+
+        #[test]
+        fn help_lines_has_close_instruction() {
+            let has_close = HELP_LINES
+                .iter()
+                .any(|line| line.contains("Press any key to close"));
+            assert!(has_close);
+        }
+
+        #[test]
+        fn help_box_width_is_correct() {
+            // The widest line in the help box should match HELP_BOX_WIDTH
+            assert_eq!(HELP_BOX_WIDTH, 47);
+        }
+
+        #[test]
+        fn calc_help_start_row_centers_vertically() {
+            // With height 100 and box of 34 lines, should center
+            let start = calc_help_start_row(100);
+            let box_height = HELP_LINES.len() as u16;
+            assert_eq!(start, (100 - box_height) / 2);
+        }
+
+        #[test]
+        fn calc_help_start_row_handles_small_terminal() {
+            // When terminal is smaller than help box
+            let start = calc_help_start_row(10);
+            assert_eq!(start, 0); // saturating_sub prevents underflow
+        }
+
+        #[test]
+        fn calc_help_start_col_centers_horizontally() {
+            let col = calc_help_start_col(120);
+            // (120 - 47) / 2 = 36
+            assert_eq!(col, 36);
+        }
+
+        #[test]
+        fn calc_help_start_col_handles_narrow_terminal() {
+            let col = calc_help_start_col(40);
+            // (40 - 47) saturating_sub = 0, / 2 = 0
+            assert_eq!(col, 0);
+        }
+    }
+
+    // Additional edge case tests
+    #[test]
+    fn format_duration_negative_treated_as_zero() {
+        // Negative durations should still format (as 0 due to u64 cast)
+        assert_eq!(format_duration(-5.0), "00:00");
+    }
+
+    #[test]
+    fn count_digits_boundary_values() {
+        // Test powers of 10 boundaries
+        assert_eq!(count_digits(9), 1);
+        assert_eq!(count_digits(10), 2);
+        assert_eq!(count_digits(99), 2);
+        assert_eq!(count_digits(100), 3);
+        assert_eq!(count_digits(999), 3);
+        assert_eq!(count_digits(1000), 4);
+    }
+
+    // Behavior tests - test realistic playback scenarios
+    mod playback_behavior_tests {
+        use super::*;
+        use crate::asciicast::{Event, EventType, Header};
+
+        fn make_header(cols: u32, rows: u32) -> Header {
+            Header {
+                version: 3,
+                width: Some(cols),
+                height: Some(rows),
+                term: None,
+                timestamp: None,
+                duration: None,
+                title: None,
+                command: None,
+                env: None,
+                idle_time_limit: None,
+            }
+        }
+
+        /// Helper to create a cast with shell-like output
+        fn make_shell_cast() -> AsciicastFile {
+            AsciicastFile {
+                header: make_header(80, 24),
+                events: vec![
+                    // Prompt appears
+                    Event {
+                        time: 0.5,
+                        event_type: EventType::Output,
+                        data: "$ ".to_string(),
+                    },
+                    // User types command
+                    Event {
+                        time: 1.0,
+                        event_type: EventType::Output,
+                        data: "echo hello\r\n".to_string(),
+                    },
+                    // Marker for command execution
+                    Event {
+                        time: 0.1,
+                        event_type: EventType::Marker,
+                        data: "Command executed".to_string(),
+                    },
+                    // Command output
+                    Event {
+                        time: 0.5,
+                        event_type: EventType::Output,
+                        data: "hello\r\n".to_string(),
+                    },
+                    // Next prompt
+                    Event {
+                        time: 0.2,
+                        event_type: EventType::Output,
+                        data: "$ ".to_string(),
+                    },
+                ],
+            }
+        }
+
+        #[test]
+        fn seeking_to_before_command_shows_prompt_only() {
+            let cast = make_shell_cast();
+            let mut buffer = TerminalBuffer::new(80, 24);
+
+            // Seek to just after the prompt appears (0.5s)
+            seek_to_time(&mut buffer, &cast, 0.5, 80, 24);
+
+            let row = buffer.row(0).unwrap();
+            let content: String = row.iter().take(2).map(|c| c.char).collect();
+            assert_eq!(content, "$ ");
+        }
+
+        #[test]
+        fn seeking_to_after_command_shows_full_interaction() {
+            let cast = make_shell_cast();
+            let mut buffer = TerminalBuffer::new(80, 24);
+
+            // Seek to end (all output processed)
+            seek_to_time(&mut buffer, &cast, 10.0, 80, 24);
+
+            // First line should have "$ echo hello"
+            let row0 = buffer.row(0).unwrap();
+            let line0: String = row0.iter().take(12).map(|c| c.char).collect();
+            assert_eq!(line0, "$ echo hello");
+
+            // Second line should have "hello"
+            let row1 = buffer.row(1).unwrap();
+            let line1: String = row1.iter().take(5).map(|c| c.char).collect();
+            assert_eq!(line1, "hello");
+
+            // Third line should have new prompt
+            let row2 = buffer.row(2).unwrap();
+            let line2: String = row2.iter().take(2).map(|c| c.char).collect();
+            assert_eq!(line2, "$ ");
+        }
+
+        #[test]
+        fn markers_collected_at_correct_cumulative_times() {
+            let cast = make_shell_cast();
+            let markers = collect_markers(&cast);
+
+            // Should have exactly one marker
+            assert_eq!(markers.len(), 1);
+            // Marker at cumulative time: 0.5 + 1.0 + 0.1 = 1.6
+            assert!((markers[0].time - 1.6).abs() < 0.001);
+            assert_eq!(markers[0].label, "Command executed");
+        }
+
+        #[test]
+        fn find_event_finds_correct_position_for_seeking() {
+            let cast = make_shell_cast();
+
+            // Find index at 1.0s (should be after first event, before second)
+            let (idx, cumulative) = find_event_index_at_time(&cast, 1.0);
+            assert_eq!(idx, 1);
+            assert!((cumulative - 0.5).abs() < 0.001);
+
+            // Find index at 2.0s (should be after command output)
+            let (idx, cumulative) = find_event_index_at_time(&cast, 2.0);
+            assert_eq!(idx, 3); // After first 3 events
+            assert!((cumulative - 1.6).abs() < 0.001);
+        }
+
+        #[test]
+        fn progress_bar_shows_marker_at_correct_position() {
+            let markers = vec![MarkerPosition {
+                time: 1.6,
+                label: "Command executed".to_string(),
+            }];
+            // Total duration is 2.3s
+            let total_duration = 2.3;
+            let bar_width = 100;
+
+            let (bar, _) = build_progress_bar_chars(bar_width, 0.0, total_duration, &markers);
+
+            // Marker should be at position (1.6 / 2.3) * 100 ≈ 69
+            let marker_pos = ((1.6 / total_duration) * bar_width as f64) as usize;
+            assert_eq!(bar[marker_pos], '◆');
+        }
+
+        #[test]
+        fn viewport_scrolling_behavior() {
+            // Simulate a recording larger than terminal
+            let rec_rows = 48;
+            let rec_cols = 120;
+            let view_rows = 24;
+            let view_cols = 80;
+
+            // At top-left corner
+            let (up, down, left, right) =
+                calc_scroll_directions(0, 0, view_rows, view_cols, rec_rows, rec_cols);
+            assert!(!up, "Should not scroll up at top");
+            assert!(down, "Should scroll down");
+            assert!(!left, "Should not scroll left at left edge");
+            assert!(right, "Should scroll right");
+
+            // After scrolling down and right
+            let (up, down, left, right) =
+                calc_scroll_directions(12, 20, view_rows, view_cols, rec_rows, rec_cols);
+            assert!(up, "Should scroll up after scrolling down");
+            assert!(down, "Should still scroll down more");
+            assert!(left, "Should scroll left after scrolling right");
+            assert!(right, "Should still scroll right more");
+
+            // At bottom-right corner
+            let (up, down, left, right) =
+                calc_scroll_directions(24, 40, view_rows, view_cols, rec_rows, rec_cols);
+            assert!(up, "Should scroll up");
+            assert!(!down, "Should not scroll down at bottom");
+            assert!(left, "Should scroll left");
+            assert!(!right, "Should not scroll right at right edge");
+        }
+
+        #[test]
+        fn scroll_arrows_reflect_available_directions() {
+            // Verify arrows string matches available directions
+            let arrows = build_scroll_arrows(true, false, false, false);
+            assert_eq!(arrows, Some("▲".to_string()));
+
+            let arrows = build_scroll_arrows(true, true, false, false);
+            assert_eq!(arrows, Some("▲ ▼".to_string()));
+
+            let arrows = build_scroll_arrows(true, true, true, true);
+            assert_eq!(arrows, Some("▲ ▼ ◀ ▶".to_string()));
+        }
+
+        #[test]
+        fn seeking_backwards_rebuilds_buffer_correctly() {
+            let cast = make_shell_cast();
+            let mut buffer = TerminalBuffer::new(80, 24);
+
+            // First seek to end
+            seek_to_time(&mut buffer, &cast, 10.0, 80, 24);
+
+            // Verify full output is there
+            let row1 = buffer.row(1).unwrap();
+            let line1: String = row1.iter().take(5).map(|c| c.char).collect();
+            assert_eq!(line1, "hello");
+
+            // Now seek back to start
+            seek_to_time(&mut buffer, &cast, 0.0, 80, 24);
+
+            // Buffer should be cleared (no output before 0.5s)
+            let row0 = buffer.row(0).unwrap();
+            assert!(
+                row0.iter().all(|c| c.char == ' '),
+                "Buffer should be empty at t=0"
+            );
+
+            // Seek to just after prompt
+            seek_to_time(&mut buffer, &cast, 0.6, 80, 24);
+            let row0 = buffer.row(0).unwrap();
+            let line0: String = row0.iter().take(2).map(|c| c.char).collect();
+            assert_eq!(line0, "$ ");
+        }
+
+        #[test]
+        fn ansi_colors_preserved_in_output() {
+            let cast = AsciicastFile {
+                header: make_header(80, 24),
+                events: vec![Event {
+                    time: 0.1,
+                    event_type: EventType::Output,
+                    data: "\x1b[32mgreen\x1b[0m normal".to_string(),
+                }],
+            };
+            let mut buffer = TerminalBuffer::new(80, 24);
+            seek_to_time(&mut buffer, &cast, 1.0, 80, 24);
+
+            // Check that "green" has green color
+            let row = buffer.row(0).unwrap();
+            assert_eq!(row[0].char, 'g');
+            assert_eq!(row[0].style.fg, TermColor::Green);
+
+            // Check that "normal" has default color
+            assert_eq!(row[6].char, 'n');
+            assert_eq!(row[6].style.fg, TermColor::Default);
+        }
     }
 }
