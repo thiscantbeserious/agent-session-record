@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat \"$CLAUDE_PROJECT_DIR/AGENTS.md\" 2>/dev/null || cat \"$CLAUDE_PROJECT_DIR/CLAUDE.md\" 2>/dev/null || echo 'No AGENTS.md or CLAUDE.md found'"
+          }
+        ]
+      }
+    ]
+  }
+}
