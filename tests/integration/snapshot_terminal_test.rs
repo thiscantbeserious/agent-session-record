@@ -40,7 +40,9 @@ fn terminal_text_with_carriage_return() {
 #[test]
 fn terminal_text_wrap_at_boundary() {
     // 40 columns, text should wrap
-    insta::assert_snapshot!(process("This is a line that is longer than forty characters wide"));
+    insta::assert_snapshot!(process(
+        "This is a line that is longer than forty characters wide"
+    ));
 }
 
 // ============================================================================
@@ -257,7 +259,9 @@ fn terminal_reverse_index() {
 #[test]
 fn terminal_prompt_pattern() {
     // Typical shell prompt with colors
-    insta::assert_snapshot!(process("\x1b[32muser\x1b[0m@\x1b[34mhost\x1b[0m:\x1b[33m~/dir\x1b[0m$ "));
+    insta::assert_snapshot!(process(
+        "\x1b[32muser\x1b[0m@\x1b[34mhost\x1b[0m:\x1b[33m~/dir\x1b[0m$ "
+    ));
 }
 
 #[test]
