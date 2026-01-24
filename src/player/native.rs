@@ -142,8 +142,9 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
             };
 
         loop {
-            // Handle input
-            if event::poll(Duration::from_millis(16))? {
+            // Handle all pending input events before rendering
+            // This prevents lag when keys are pressed faster than we can render
+            while event::poll(Duration::ZERO)? {
                 match event::read()? {
                     Event::Resize(new_cols, new_rows) => {
                         // Terminal was resized - update view dimensions
@@ -161,6 +162,7 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                     Event::Key(key) => {
                     if show_help {
                         show_help = false;
+                        needs_render = true;
                         continue;
                     }
 
