@@ -141,6 +141,8 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                     }
                     if event.is_output() {
                         buffer.process(&event.data);
+                    } else if let Some((cols, rows)) = event.parse_resize() {
+                        buffer.resize(cols as usize, rows as usize);
                     }
                 }
             };
@@ -453,6 +455,8 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
 
                     if evt.is_output() {
                         buffer.process(&evt.data);
+                    } else if let Some((cols, rows)) = evt.parse_resize() {
+                        buffer.resize(cols as usize, rows as usize);
                     }
 
                     event_idx += 1;
@@ -621,6 +625,8 @@ fn seek_to_time(
         }
         if event.is_output() {
             buffer.process(&event.data);
+        } else if let Some((new_cols, new_rows)) = event.parse_resize() {
+            buffer.resize(new_cols as usize, new_rows as usize);
         }
     }
 }
@@ -1104,6 +1110,7 @@ fn render_viewport(
                         output.push_str("\x1b[0m"); // Reset
                         style_to_ansi_fg(&cell.style, &mut output);
                         style_to_ansi_bg(&cell.style, &mut output);
+                        style_to_ansi_attrs(&cell.style, &mut output);
                         current_style = cell.style;
                         in_highlight_style = false;
                     } else if is_highlighted && !in_highlight_style {
@@ -1190,6 +1197,7 @@ fn render_single_line(
                     output.push_str("\x1b[0m");
                     style_to_ansi_fg(&cell.style, &mut output);
                     style_to_ansi_bg(&cell.style, &mut output);
+                    style_to_ansi_attrs(&cell.style, &mut output);
                     current_style = cell.style;
                 }
 
@@ -1393,6 +1401,25 @@ fn style_to_ansi_bg(style: &CellStyle, buf: &mut String) -> bool {
             buf.push('m');
             true
         }
+    }
+}
+
+/// Append ANSI codes for text attributes (bold, dim, italic, underline, reverse) to buffer
+fn style_to_ansi_attrs(style: &CellStyle, buf: &mut String) {
+    if style.bold {
+        buf.push_str("\x1b[1m");
+    }
+    if style.dim {
+        buf.push_str("\x1b[2m");
+    }
+    if style.italic {
+        buf.push_str("\x1b[3m");
+    }
+    if style.underline {
+        buf.push_str("\x1b[4m");
+    }
+    if style.reverse {
+        buf.push_str("\x1b[7m");
     }
 }
 
