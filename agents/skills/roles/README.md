@@ -18,26 +18,28 @@ User Request
        │
        ▼
 ┌─────────────┐     ┌─────────┐
-│  Architect  │────▶│ ADR.md  │  Decision record (immutable)
-└──────┬──────┘     └─────────┘
-       │
-       │            ┌──────────┐
-       └───────────▶│ PLAN.md  │  Execution tasks (mutable)
-                    └────┬─────┘
-                         │
-                         ▼
-               ┌─────────────────┐
-               │   Implementer   │  Works from PLAN.md
-               └────────┬────────┘
-                        │
-                        ▼
-               ┌─────────────────┐
-               │    Reviewer     │  Validates against ADR.md
-               └────────┬────────┘
-                        │
-                        ▼
-               ┌─────────────────┐
-               │  Product Owner  │  Verifies ADR Context solved
+│  Architect  │────▶│ ADR.md  │◀─────────────────────┐
+└──────┬──────┘     └─────────┘                      │
+       │            Decision record (immutable)      │
+       │                                             │
+       │            ┌──────────┐                     │
+       └───────────▶│ PLAN.md  │                     │
+                    └────┬─────┘                     │
+                    Execution tasks (mutable)        │
+                         │                           │
+                         ▼                           │
+               ┌─────────────────┐                   │
+               │   Implementer   │  Works from PLAN  │
+               └────────┬────────┘                   │
+                        │                            │
+                        ▼                            │
+               ┌─────────────────┐                   │
+               │    Reviewer     │───────────────────┤ Validates against ADR
+               └────────┬────────┘                   │
+                        │                            │
+                        ▼                            │
+               ┌─────────────────┐                   │
+               │  Product Owner  │───────────────────┘ Verifies ADR Context
                └────────┬────────┘
                         │
                         ▼
