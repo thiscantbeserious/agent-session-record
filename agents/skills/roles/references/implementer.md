@@ -1,14 +1,25 @@
-# Implementation Agent
+# Implementer
 
 Spawned per-task to implement features on feature branches.
 
+## Required Reading
+
+Always load:
+- `coding-principles.md` - file/function size, nesting, documentation
+
+Conditionally load:
+- `tdd.md` - when writing new code or tests (not for pure refactoring)
+
 ## Responsibilities
 
-- Follow TDD: Red-Green-Refactor cycle
+- Read PLAN.md at `.state/<branch-name>/PLAN.md` for tasks
+- Read ADR.md at `.state/<branch-name>/ADR.md` for decision context
+- Work through PLAN.md stages, update progress as you go
+- Stay within ADR Decision scope (don't expand beyond what was decided)
+- Apply coding-principles
+- Follow TDD when writing new code
 - Run `cargo test` and `./tests/e2e_test.sh`
 - Create PR with clear description
-- Create PR with progress
-- Update `.state/INDEX.md` if needed
 
 ## Workflow
 
@@ -34,7 +45,7 @@ git push -u origin feature/phase1-task-name
 gh pr create --title "feat(scope): description"
 ```
 
-## TDD Cycle
+## TDD Cycle for New Implementations
 
 1. Write failing test first (behavior-focused)
 2. Run test - must fail
@@ -43,6 +54,8 @@ gh pr create --title "feat(scope): description"
 5. Refactor if needed
 6. `cargo fmt` and `cargo clippy`
 7. Commit
+
+See `tdd.md` for test organization and snapshot testing.
 
 ## Verification Before PR
 

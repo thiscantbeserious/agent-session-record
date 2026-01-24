@@ -25,6 +25,27 @@ cargo test              # Unit tests (includes snapshot tests)
 - E2E tests must pass before PR
 - Log results to `.state/phase-N/test-results.md` if tracking
 
+## Test Organization
+
+Tests are separate from source code. Never use inline `#[cfg(test)]` modules.
+
+```
+tests/
+  integration.rs          # Integration test module root
+  integration/
+    storage_test.rs       # Tests for storage module
+    markers_test.rs       # Tests for markers module
+    snapshots/            # Snapshot files for visual tests
+  e2e/
+    *.sh                  # End-to-end shell scripts
+  fixtures/
+    *.cast                # Test data files
+```
+
+**Preference:** Integration tests in `tests/` over inline `#[cfg(test)]` modules, unless not feasible.
+
+**Naming:** `<module>_test.rs` for files, descriptive behavior names for functions.
+
 ## Writing Good Tests
 
 - Test behavior, not implementation
