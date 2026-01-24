@@ -27,19 +27,23 @@ cargo test              # Unit tests (includes snapshot tests)
 
 ## Test Organization
 
-Unit tests go in `tests/unit/`, not inline with source code.
+Tests are separate from source code. Never use inline `#[cfg(test)]` modules.
 
 ```
 tests/
-  unit.rs                 # Module root
+  unit.rs                 # Unit test module root
   unit/
     storage_test.rs       # Tests for storage module
     markers_test.rs       # Tests for markers module
+  integration/
+    *.rs                  # Integration tests (Rust binary tests)
   e2e/
     *.sh                  # End-to-end shell scripts
   fixtures/
     *.cast                # Test data files
 ```
+
+**Preference:** Rust-style binary tests in `tests/` over inline test modules.
 
 **Naming:** `<module>_test.rs` for files, descriptive behavior names for functions.
 
