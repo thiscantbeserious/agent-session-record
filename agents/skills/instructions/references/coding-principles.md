@@ -176,49 +176,7 @@ fn process_item(item: &Item) -> Result<()> {
 
 ## Test Organization
 
-**Tests belong in separate files**
-
-Unit tests go in `tests/unit/` directory, not inline with source code.
-
-### Structure
-
-```
-src/
-  storage.rs              # Implementation only
-  markers.rs              # Implementation only
-tests/
-  unit.rs                 # Module root for unit tests
-  unit/
-    storage_test.rs       # Tests for storage module
-    markers_test.rs       # Tests for markers module
-    helpers/
-      mod.rs              # Shared test utilities
-  e2e/
-    *.sh                  # End-to-end shell scripts
-  fixtures/
-    *.cast                # Test data files
-```
-
-### Naming Convention
-
-- Test file: `<module>_test.rs`
-- Test function: descriptive behavior name (e.g., `parse_header_extracts_version`)
-- Use `#[test]` attribute
-
-### Example
-
-```rust
-// tests/markers_test.rs
-use agr::markers::*;
-
-#[test]
-fn parse_marker_extracts_timestamp_and_label() {
-    let line = r#"[1.5, "m", {"label": "test"}]"#;
-    let marker = parse_marker(line).unwrap();
-    assert_eq!(marker.timestamp, 1.5);
-    assert_eq!(marker.label, "test");
-}
-```
+See `tdd.md` for test structure, naming conventions, and snapshot testing.
 
 ## Documentation
 
@@ -279,5 +237,4 @@ Before committing, verify:
 - [ ] No function exceeds ~20 lines (dispatch-only routing functions may exceed)
 - [ ] Each function has single responsibility
 - [ ] Nesting depth stays at 3 levels max
-- [ ] Tests are in `tests/` directory
 - [ ] Public items have 1-2 sentence docs covering non-obvious details

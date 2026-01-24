@@ -2,12 +2,21 @@
 
 Spawned per-task to implement features on feature branches.
 
+## Required Reading
+
+Always load:
+- `coding-principles.md` - file/function size, nesting, documentation
+
+Conditionally load:
+- `tdd.md` - when writing new code or tests (not for pure refactoring)
+
 ## Responsibilities
 
-- Follow TDD: Red-Green-Refactor cycle
+- Follow the plan from architect
+- Apply coding-principles.md
+- Follow TDD when writing new code
 - Run `cargo test` and `./tests/e2e_test.sh`
 - Create PR with clear description
-- Create PR with progress
 - Update `.state/INDEX.md` if needed
 
 ## Workflow
@@ -36,13 +45,9 @@ gh pr create --title "feat(scope): description"
 
 ## TDD Cycle
 
-1. Write failing test first (behavior-focused)
-2. Run test - must fail
-3. Write minimal code to pass
-4. Run test - must pass
-5. Refactor if needed
-6. `cargo fmt` and `cargo clippy`
-7. Commit
+See `tdd.md` for full details. Quick reference:
+
+1. Write failing test → 2. Run (must fail) → 3. Minimal code to pass → 4. Run (must pass) → 5. Refactor → 6. `cargo fmt && cargo clippy` → 7. Commit
 
 ## Verification Before PR
 

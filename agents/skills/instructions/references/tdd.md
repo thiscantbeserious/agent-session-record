@@ -25,6 +25,24 @@ cargo test              # Unit tests (includes snapshot tests)
 - E2E tests must pass before PR
 - Log results to `.state/phase-N/test-results.md` if tracking
 
+## Test Organization
+
+Unit tests go in `tests/unit/`, not inline with source code.
+
+```
+tests/
+  unit.rs                 # Module root
+  unit/
+    storage_test.rs       # Tests for storage module
+    markers_test.rs       # Tests for markers module
+  e2e/
+    *.sh                  # End-to-end shell scripts
+  fixtures/
+    *.cast                # Test data files
+```
+
+**Naming:** `<module>_test.rs` for files, descriptive behavior names for functions.
+
 ## Writing Good Tests
 
 - Test behavior, not implementation
