@@ -118,6 +118,7 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
     let mut free_line: usize = 0; // Highlighted line in free mode (buffer row)
     let mut start_time = Instant::now();
     let mut time_offset = 0.0f64;
+    let mut needs_render = true; // Track when screen needs redraw
 
     // Setup terminal
     let mut stdout = io::stdout();
@@ -155,6 +156,7 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                         let max_col_offset = (rec_cols as usize).saturating_sub(view_cols);
                         view_row_offset = view_row_offset.min(max_row_offset);
                         view_col_offset = view_col_offset.min(max_col_offset);
+                        needs_render = true;
                     }
                     Event::Key(key) => {
                     if show_help {
@@ -353,6 +355,7 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                         }
                         _ => {}
                     }
+                    needs_render = true;
                     }
                     _ => {} // Ignore other events (mouse, focus, etc.)
                 }
@@ -364,6 +367,7 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                 // Cap elapsed time to total duration
                 let elapsed = elapsed.min(total_duration);
                 current_time = elapsed;
+                needs_render = true; // Always render when playing (time changes)
 
                 while event_idx < cast.events.len() {
                     let evt = &cast.events[event_idx];
@@ -383,7 +387,13 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                 }
             }
 
-            // Render
+            // Render only when needed
+            if !needs_render {
+                std::thread::sleep(Duration::from_millis(8));
+                continue;
+            }
+            needs_render = false;
+
             if show_help {
                 render_help(&mut stdout, term_cols, term_rows)?;
             } else {
