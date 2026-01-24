@@ -69,11 +69,13 @@ pub fn play_session(path: &Path) -> Result<PlaybackResult> {
 /// Controls:
 /// - q/Esc: Quit
 /// - Space: Pause/resume
-/// - Arrow keys: Scroll viewport
+/// - Arrow keys: Seek (or scroll in viewport mode)
 /// - +/-: Adjust speed
-/// - [/]: Jump to prev/next marker
+/// - m: Jump to next marker
 /// - </> or ,/.: Seek backward/forward 5s
 /// - Home/End: Go to start/end
+/// - v: Toggle viewport mode
+/// - r: Resize terminal to recording size
 /// - ?: Show help
 pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
     let cast = AsciicastFile::parse(path)?;
@@ -198,24 +200,12 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                                 }
                             }
                         }
-                        // Marker navigation
-                        KeyCode::Char(']') => {
+                        // Marker navigation (forward only)
+                        KeyCode::Char('m') => {
                             if let Some(next) = markers.iter().find(|m| m.time > current_time + 0.1)
                             {
                                 seek_to_time(&mut buffer, &cast, next.time, rec_cols, rec_rows);
                                 current_time = next.time;
-                                time_offset = current_time;
-                                (event_idx, cumulative_time) =
-                                    find_event_index_at_time(&cast, current_time);
-                                paused = true;
-                            }
-                        }
-                        KeyCode::Char('[') => {
-                            if let Some(prev) =
-                                markers.iter().rev().find(|m| m.time < current_time - 0.1)
-                            {
-                                seek_to_time(&mut buffer, &cast, prev.time, rec_cols, rec_rows);
-                                current_time = prev.time;
                                 time_offset = current_time;
                                 (event_idx, cumulative_time) =
                                     find_event_index_at_time(&cast, current_time);
@@ -697,27 +687,19 @@ fn render_status_bar(
         )?;
     }
 
-    let play_action = if paused { ":ply " } else { ":pau " };
+    let play_action = if paused { ":play " } else { ":pause " };
     execute!(
         stdout,
         SetForegroundColor(Color::DarkGrey),
         Print("│ "),
         SetForegroundColor(Color::Cyan),
-        Print("spc"),
+        Print("space"),
         SetForegroundColor(Color::DarkGrey),
         Print(play_action),
         SetForegroundColor(Color::Cyan),
-        Print("←/→"),
+        Print("m"),
         SetForegroundColor(Color::DarkGrey),
-        Print(":sek "),
-        SetForegroundColor(Color::Cyan),
-        Print("+/-"),
-        SetForegroundColor(Color::DarkGrey),
-        Print(":spd "),
-        SetForegroundColor(Color::Cyan),
-        Print("[/]"),
-        SetForegroundColor(Color::DarkGrey),
-        Print(":mkr "),
+        Print(":mrk "),
         SetForegroundColor(Color::Cyan),
         Print("v"),
         SetForegroundColor(Color::DarkGrey),
@@ -750,19 +732,18 @@ fn render_help(stdout: &mut io::Stdout, width: u16, height: u16) -> Result<()> {
         "  ║                                           ║",
         "  ║  Playback                                 ║",
         "  ║    Space      Pause / Resume              ║",
-        "  ║    ←/→        Seek backward / forward 5s  ║",
-        "  ║    Shift+←/→  Seek by 5% of duration      ║",
-        "  ║    +/-        Increase / Decrease speed   ║",
-        "  ║    Home       Go to start                 ║",
-        "  ║    End        Go to end                   ║",
+        "  ║    ←/→        Seek ±5s                    ║",
+        "  ║    Shift+←/→  Seek ±5%                    ║",
+        "  ║    +/-        Speed up / down             ║",
+        "  ║    Home/End   Go to start / end           ║",
         "  ║                                           ║",
         "  ║  Markers                                  ║",
-        "  ║    [          Jump to previous marker     ║",
-        "  ║    ]          Jump to next marker         ║",
+        "  ║    m          Jump to next marker         ║",
         "  ║                                           ║",
-        "  ║  Viewport (press v to toggle)             ║",
-        "  ║    ↑↓←→       Scroll viewport             ║",
-        "  ║    r          Resize to recording size   ║",
+        "  ║  Viewport                                 ║",
+        "  ║    v          Toggle viewport mode        ║",
+        "  ║    ↑↓←→       Scroll viewport (v mode)    ║",
+        "  ║    r          Resize to recording         ║",
         "  ║    Esc        Exit viewport mode          ║",
         "  ║                                           ║",
         "  ║  General                                  ║",
