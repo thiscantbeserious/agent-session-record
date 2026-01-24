@@ -694,74 +694,102 @@ fn render_status_bar(
     const RESET: &str = "\x1b[0m";
 
     let mut output = String::with_capacity(256);
-    output.push_str(&format!("\x1b[{};1H", row + 1)); // Move cursor
+    let mut visible_len: usize = 0; // Track visible width manually
+
+    output.push_str(&format!("\x1b[{};1H", row + 1));
 
     output.push_str(WHITE);
     output.push(' ');
+    visible_len += 1;
 
+    // State icon (▶ and ⏸ are double-width unicode)
     let state = if paused { "▶  " } else { "⏸  " };
     output.push_str(state);
+    visible_len += 4; // icon (2) + 2 spaces
 
     if viewport_mode {
         output.push_str(MAGENTA);
         output.push_str("[V] ");
+        visible_len += 4;
     }
 
     if free_mode {
         output.push_str(GREEN);
         output.push_str("[F] ");
+        visible_len += 4;
     }
 
     output.push_str(DARK_GREY);
     output.push_str("spd:");
+    visible_len += 4;
     output.push_str(WHITE);
-    output.push_str(&format!("{:.1}x ", speed));
+    let speed_str = format!("{:.1}x ", speed);
+    visible_len += speed_str.len();
+    output.push_str(&speed_str);
 
     if marker_count > 0 {
         output.push_str(YELLOW);
-        output.push_str(&format!("◆{} ", marker_count));
+        let marker_str = format!("◆{} ", marker_count);
+        visible_len += 1 + count_digits(marker_count) + 1; // ◆ + digits + space
+        output.push_str(&marker_str);
     }
 
     if rec_cols as usize > view_cols || rec_rows as usize > view_rows {
         output.push_str(DARK_GREY);
-        output.push_str(&format!("[{},{}] ", col_offset, row_offset));
+        let offset_str = format!("[{},{}] ", col_offset, row_offset);
+        visible_len += offset_str.len();
+        output.push_str(&offset_str);
     }
 
     let play_action = if paused { ":play " } else { ":pause " };
     output.push_str(DARK_GREY);
     output.push_str("│ ");
+    visible_len += 2;
     output.push_str(CYAN);
     output.push_str("space");
+    visible_len += 5;
     output.push_str(DARK_GREY);
     output.push_str(play_action);
+    visible_len += play_action.len();
     output.push_str(CYAN);
     output.push('m');
+    visible_len += 1;
     output.push_str(DARK_GREY);
     output.push_str(":mrk ");
+    visible_len += 5;
     output.push_str(CYAN);
     output.push('f');
+    visible_len += 1;
     output.push_str(DARK_GREY);
     output.push_str(":fre ");
+    visible_len += 5;
     output.push_str(CYAN);
     output.push('v');
+    visible_len += 1;
     output.push_str(DARK_GREY);
     output.push_str(":vpt ");
+    visible_len += 5;
     output.push_str(CYAN);
     output.push('r');
+    visible_len += 1;
     output.push_str(DARK_GREY);
     output.push_str(":rsz ");
+    visible_len += 5;
     output.push_str(CYAN);
     output.push('?');
+    visible_len += 1;
     output.push_str(DARK_GREY);
     output.push_str(":hlp ");
+    visible_len += 5;
     output.push_str(CYAN);
     output.push('q');
+    visible_len += 1;
     output.push_str(DARK_GREY);
     output.push_str(":quit");
+    visible_len += 5;
 
     // Pad to full width to overwrite any leftover content
-    let current_len = output.chars().filter(|c| !c.is_ascii_control()).count();
-    let padding = (width as usize).saturating_sub(current_len);
+    let padding = (width as usize).saturating_sub(visible_len);
     for _ in 0..padding {
         output.push(' ');
     }
@@ -770,6 +798,16 @@ fn render_status_bar(
     write!(stdout, "{}", output)?;
 
     Ok(())
+}
+
+/// Count digits in a number (for width calculation).
+#[inline]
+fn count_digits(n: usize) -> usize {
+    if n == 0 {
+        1
+    } else {
+        (n as f64).log10().floor() as usize + 1
+    }
 }
 
 /// Render the help overlay.
@@ -880,12 +918,8 @@ fn render_viewport(
                     if !is_highlighted && cell.style != current_style {
                         // Apply style using ANSI codes directly
                         output.push_str("\x1b[0m"); // Reset
-                        if let Some(fg) = style_to_ansi_fg(&cell.style) {
-                            output.push_str(&fg);
-                        }
-                        if let Some(bg) = style_to_ansi_bg(&cell.style) {
-                            output.push_str(&bg);
-                        }
+                        style_to_ansi_fg(&cell.style, &mut output);
+                        style_to_ansi_bg(&cell.style, &mut output);
                         current_style = cell.style;
                         in_highlight_style = false;
                     } else if is_highlighted && !in_highlight_style {
@@ -934,52 +968,178 @@ fn render_viewport(
 }
 
 /// Convert cell style foreground to ANSI escape code.
-fn style_to_ansi_fg(style: &CellStyle) -> Option<String> {
+/// Returns static string for basic colors to avoid allocation.
+fn style_to_ansi_fg(style: &CellStyle, buf: &mut String) -> bool {
     match &style.fg {
-        TermColor::Default => None,
-        TermColor::Black => Some("\x1b[30m".to_string()),
-        TermColor::Red => Some("\x1b[31m".to_string()),
-        TermColor::Green => Some("\x1b[32m".to_string()),
-        TermColor::Yellow => Some("\x1b[33m".to_string()),
-        TermColor::Blue => Some("\x1b[34m".to_string()),
-        TermColor::Magenta => Some("\x1b[35m".to_string()),
-        TermColor::Cyan => Some("\x1b[36m".to_string()),
-        TermColor::White => Some("\x1b[37m".to_string()),
-        TermColor::BrightBlack => Some("\x1b[90m".to_string()),
-        TermColor::BrightRed => Some("\x1b[91m".to_string()),
-        TermColor::BrightGreen => Some("\x1b[92m".to_string()),
-        TermColor::BrightYellow => Some("\x1b[93m".to_string()),
-        TermColor::BrightBlue => Some("\x1b[94m".to_string()),
-        TermColor::BrightMagenta => Some("\x1b[95m".to_string()),
-        TermColor::BrightCyan => Some("\x1b[96m".to_string()),
-        TermColor::BrightWhite => Some("\x1b[97m".to_string()),
-        TermColor::Indexed(n) => Some(format!("\x1b[38;5;{}m", n)),
-        TermColor::Rgb(r, g, b) => Some(format!("\x1b[38;2;{};{};{}m", r, g, b)),
+        TermColor::Default => false,
+        TermColor::Black => {
+            buf.push_str("\x1b[30m");
+            true
+        }
+        TermColor::Red => {
+            buf.push_str("\x1b[31m");
+            true
+        }
+        TermColor::Green => {
+            buf.push_str("\x1b[32m");
+            true
+        }
+        TermColor::Yellow => {
+            buf.push_str("\x1b[33m");
+            true
+        }
+        TermColor::Blue => {
+            buf.push_str("\x1b[34m");
+            true
+        }
+        TermColor::Magenta => {
+            buf.push_str("\x1b[35m");
+            true
+        }
+        TermColor::Cyan => {
+            buf.push_str("\x1b[36m");
+            true
+        }
+        TermColor::White => {
+            buf.push_str("\x1b[37m");
+            true
+        }
+        TermColor::BrightBlack => {
+            buf.push_str("\x1b[90m");
+            true
+        }
+        TermColor::BrightRed => {
+            buf.push_str("\x1b[91m");
+            true
+        }
+        TermColor::BrightGreen => {
+            buf.push_str("\x1b[92m");
+            true
+        }
+        TermColor::BrightYellow => {
+            buf.push_str("\x1b[93m");
+            true
+        }
+        TermColor::BrightBlue => {
+            buf.push_str("\x1b[94m");
+            true
+        }
+        TermColor::BrightMagenta => {
+            buf.push_str("\x1b[95m");
+            true
+        }
+        TermColor::BrightCyan => {
+            buf.push_str("\x1b[96m");
+            true
+        }
+        TermColor::BrightWhite => {
+            buf.push_str("\x1b[97m");
+            true
+        }
+        TermColor::Indexed(n) => {
+            buf.push_str("\x1b[38;5;");
+            buf.push_str(&n.to_string());
+            buf.push('m');
+            true
+        }
+        TermColor::Rgb(r, g, b) => {
+            buf.push_str("\x1b[38;2;");
+            buf.push_str(&r.to_string());
+            buf.push(';');
+            buf.push_str(&g.to_string());
+            buf.push(';');
+            buf.push_str(&b.to_string());
+            buf.push('m');
+            true
+        }
     }
 }
 
 /// Convert cell style background to ANSI escape code.
-fn style_to_ansi_bg(style: &CellStyle) -> Option<String> {
+/// Returns static string for basic colors to avoid allocation.
+fn style_to_ansi_bg(style: &CellStyle, buf: &mut String) -> bool {
     match &style.bg {
-        TermColor::Default => None,
-        TermColor::Black => Some("\x1b[40m".to_string()),
-        TermColor::Red => Some("\x1b[41m".to_string()),
-        TermColor::Green => Some("\x1b[42m".to_string()),
-        TermColor::Yellow => Some("\x1b[43m".to_string()),
-        TermColor::Blue => Some("\x1b[44m".to_string()),
-        TermColor::Magenta => Some("\x1b[45m".to_string()),
-        TermColor::Cyan => Some("\x1b[46m".to_string()),
-        TermColor::White => Some("\x1b[47m".to_string()),
-        TermColor::BrightBlack => Some("\x1b[100m".to_string()),
-        TermColor::BrightRed => Some("\x1b[101m".to_string()),
-        TermColor::BrightGreen => Some("\x1b[102m".to_string()),
-        TermColor::BrightYellow => Some("\x1b[103m".to_string()),
-        TermColor::BrightBlue => Some("\x1b[104m".to_string()),
-        TermColor::BrightMagenta => Some("\x1b[105m".to_string()),
-        TermColor::BrightCyan => Some("\x1b[106m".to_string()),
-        TermColor::BrightWhite => Some("\x1b[107m".to_string()),
-        TermColor::Indexed(n) => Some(format!("\x1b[48;5;{}m", n)),
-        TermColor::Rgb(r, g, b) => Some(format!("\x1b[48;2;{};{};{}m", r, g, b)),
+        TermColor::Default => false,
+        TermColor::Black => {
+            buf.push_str("\x1b[40m");
+            true
+        }
+        TermColor::Red => {
+            buf.push_str("\x1b[41m");
+            true
+        }
+        TermColor::Green => {
+            buf.push_str("\x1b[42m");
+            true
+        }
+        TermColor::Yellow => {
+            buf.push_str("\x1b[43m");
+            true
+        }
+        TermColor::Blue => {
+            buf.push_str("\x1b[44m");
+            true
+        }
+        TermColor::Magenta => {
+            buf.push_str("\x1b[45m");
+            true
+        }
+        TermColor::Cyan => {
+            buf.push_str("\x1b[46m");
+            true
+        }
+        TermColor::White => {
+            buf.push_str("\x1b[47m");
+            true
+        }
+        TermColor::BrightBlack => {
+            buf.push_str("\x1b[100m");
+            true
+        }
+        TermColor::BrightRed => {
+            buf.push_str("\x1b[101m");
+            true
+        }
+        TermColor::BrightGreen => {
+            buf.push_str("\x1b[102m");
+            true
+        }
+        TermColor::BrightYellow => {
+            buf.push_str("\x1b[103m");
+            true
+        }
+        TermColor::BrightBlue => {
+            buf.push_str("\x1b[104m");
+            true
+        }
+        TermColor::BrightMagenta => {
+            buf.push_str("\x1b[105m");
+            true
+        }
+        TermColor::BrightCyan => {
+            buf.push_str("\x1b[106m");
+            true
+        }
+        TermColor::BrightWhite => {
+            buf.push_str("\x1b[107m");
+            true
+        }
+        TermColor::Indexed(n) => {
+            buf.push_str("\x1b[48;5;");
+            buf.push_str(&n.to_string());
+            buf.push('m');
+            true
+        }
+        TermColor::Rgb(r, g, b) => {
+            buf.push_str("\x1b[48;2;");
+            buf.push_str(&r.to_string());
+            buf.push(';');
+            buf.push_str(&g.to_string());
+            buf.push(';');
+            buf.push_str(&b.to_string());
+            buf.push('m');
+            true
+        }
     }
 }
 
@@ -1013,15 +1173,31 @@ mod tests {
     }
 
     #[test]
-    fn convert_color_default_is_none() {
-        assert!(convert_color(&TermColor::Default).is_none());
+    fn style_to_ansi_fg_default_returns_false() {
+        let style = CellStyle::default();
+        let mut buf = String::new();
+        assert!(!style_to_ansi_fg(&style, &mut buf));
+        assert!(buf.is_empty());
     }
 
     #[test]
-    fn convert_color_basic_colors() {
-        assert!(matches!(
-            convert_color(&TermColor::Red),
-            Some(Color::DarkRed)
-        ));
+    fn style_to_ansi_fg_red_appends_code() {
+        let style = CellStyle {
+            fg: TermColor::Red,
+            ..Default::default()
+        };
+        let mut buf = String::new();
+        assert!(style_to_ansi_fg(&style, &mut buf));
+        assert_eq!(buf, "\x1b[31m");
+    }
+
+    #[test]
+    fn count_digits_works() {
+        assert_eq!(count_digits(0), 1);
+        assert_eq!(count_digits(1), 1);
+        assert_eq!(count_digits(9), 1);
+        assert_eq!(count_digits(10), 2);
+        assert_eq!(count_digits(99), 2);
+        assert_eq!(count_digits(100), 3);
     }
 }
