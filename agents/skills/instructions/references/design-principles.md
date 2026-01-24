@@ -2,46 +2,47 @@
 
 How to evaluate approaches and choose solutions that scale.
 
-**Mindset:** Be skeptical and pragmatic. Propose alternatives with reasoning, not top-down decisions. Scope follow-ups for what doesn't fit the current iteration.
+## Mindset
 
-This guide covers:
-- **SOLID** - Foundational principles for maintainable systems
-- **Clean Code** - Pragmatic philosophy for sustainable code
-- **Problem Decomposition** - Breaking work into focused pieces
-- **Trade-off Evaluation** - Choosing between approaches
+Be skeptical and pragmatic. Propose alternatives with reasoning, not top-down decisions. Scope follow-ups for what doesn't fit the current iteration.
 
-**Goal:** Propose the best plan - one that solves the problem today and scales for tomorrow.
+## Goal
+
+Propose the best plan - one that solves the problem today and scales for tomorrow.
 
 ## SOLID Principles
 
 Adapted for Rust - not all apply directly.
 
-**Single Responsibility**
+### Single Responsibility
 One module, one reason to change. If describing what a module does requires "and", split it.
 
-**Open/Closed**
+### Open/Closed
 Extend behavior through composition and new types, not modifying existing code. Add new match arms, don't change existing ones.
 
-**Dependency Inversion**
+### Dependency Inversion
 Depend on abstractions at system boundaries (traits for external services, configs for behavior). Internal code can be concrete.
 
 ## Clean Code Philosophy
 
-**KISS** - Simplest solution that works. Complexity must justify itself with concrete benefits.
+### KISS
+Simplest solution that works. Complexity must justify itself with concrete benefits.
 
-**YAGNI** - Don't build for hypothetical futures. Solve today's problem.
+### YAGNI
+Don't build for hypothetical futures. Solve today's problem.
 
-**DRY** - Avoid repetition, but don't over-abstract. Duplication is better than the wrong abstraction.
+### DRY
+Avoid repetition, but don't over-abstract. Duplication is better than the wrong abstraction.
 
 ## Problem Decomposition
 
-**One thing at a time**
+### One thing at a time
 Each PR/branch addresses one concern. Mixed concerns get split.
 
-**Domain grouping**
+### Domain grouping
 Related changes stay together. A "user auth" change doesn't include "logging refactor".
 
-**Small iterations**
+### Small iterations
 Prefer many small cycles over one big-bang change. Each iteration is independently shippable.
 
 ## Trade-off Evaluation
@@ -55,7 +56,7 @@ When comparing approaches:
 | Testability | Which is easier to test in isolation? |
 | Consistency | Which fits existing patterns? |
 
-**Priority:** Simplicity > Maintainability > Testability > Consistency
+Priority: Simplicity > Maintainability > Testability > Consistency
 
 Performance rarely matters at design time. Optimize later when you have data.
 
