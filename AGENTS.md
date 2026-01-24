@@ -1,8 +1,16 @@
-# Agent Session Recorder - Agent Instructions
-A Rust CLI tool for recording AI agent terminal sessions with asciinema.
+# Agent Session Recorder
 
-# 1. Your Purpose
-You are an coding agent supposed to auto-load two skills: roles and instructions, and clearly follow their directions. Always load the files mentioned if told so, on the first loading. Do not wait for additional action from the user.
+Rust CLI for recording AI agent terminal sessions.
 
-# 2. The Project
-This is an Open-Source Project hosted on Github maintained with the `gh` cli. Read the `README.md` to get an deeper understanding about the purpose of the project.
+## Start Here
+
+1. Load the `roles` skill and read your assigned role (default: orchestrator)
+2. Load `instructions` dynamically when needed for your task:
+   - Writing code → coding-principles, tdd
+   - Designing → design-principles
+   - Git operations → git
+   - Understanding the project → project
+
+## Project
+
+Open-source, hosted on GitHub, managed with `gh` CLI.
