@@ -442,6 +442,8 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                     free_line_only = false;
                     // End synchronized update and skip UI chrome
                     write!(stdout, "\x1b[?2026l")?;
+                    stdout.flush()?;
+                    continue; // Skip the sleep at end of loop for faster response
                 } else {
                     render_viewport(
                         &mut stdout,
