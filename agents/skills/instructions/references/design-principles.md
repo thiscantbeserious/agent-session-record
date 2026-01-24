@@ -1,17 +1,13 @@
 # Design Principles
-
 How to evaluate approaches and choose solutions that scale.
 
 ## Mindset
-
 Be skeptical and pragmatic. Propose alternatives with reasoning, not top-down decisions. Scope follow-ups for what doesn't fit the current iteration.
 
 ## Goal
-
-Propose the best plan - one that solves the problem today and scales for tomorrow.
+Propose the best scaling plan from an 80/20 principle - one that solves the problem today and scales for tomorrow. It should be AGILE but smart enought to implement quickly. Scope bigger issues into seperate steps.
 
 ## SOLID Principles
-
 Adapted for Rust - not all apply directly.
 
 ### Single Responsibility
@@ -40,15 +36,13 @@ Avoid repetition, but don't over-abstract. Duplication is better than the wrong 
 Each PR/branch addresses one concern. Mixed concerns get split.
 
 ### Domain grouping
-Related changes stay together. A "user auth" change doesn't include "logging refactor".
+Related changes stay together. A "new command" doesn't include "logging refactor".
 
 ### Small iterations
 Prefer many small cycles over one big-bang change. Each iteration is independently shippable.
 
 ## Trade-off Evaluation
-
 When comparing approaches:
-
 | Criterion | Question |
 |-----------|----------|
 | Simplicity | Which is easier to understand? |
@@ -61,9 +55,7 @@ Priority: Simplicity > Maintainability > Testability > Consistency
 Performance rarely matters at design time. Optimize later when you have data.
 
 ## Checklist
-
 Before finalizing a design:
-
 - [ ] Single responsibility per module?
 - [ ] Simplest approach that solves the problem?
 - [ ] One concern per PR/branch?
