@@ -1,6 +1,10 @@
 # Design Principles
 
-Strategic guidelines for architectural decisions. See SDLC for workflow integration.
+How to think about architectural decisions before writing code.
+
+The SDLC workflow moves work through phases (Design → Code → Test → Feedback → Deploy). This document guides the Design phase - breaking problems into small, focused pieces that can iterate through the cycle independently.
+
+**Goal:** Each iteration delivers working, tested, reviewable code. No big-bang changes.
 
 ## SOLID Principles
 
