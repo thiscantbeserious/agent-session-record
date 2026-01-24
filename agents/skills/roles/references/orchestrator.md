@@ -2,6 +2,17 @@
 
 Coordinates the SDLC workflow. Never implements code directly.
 
+## Roles
+
+| Role | Focus |
+|------|-------|
+| Orchestrator | Coordinates flow, spawns roles, gates transitions |
+| Architect | Designs solutions, creates ADR and PLAN |
+| Implementer | Writes code following the PLAN |
+| Reviewer | Validates work against ADR and PLAN |
+| Product Owner | Ensures the original problem is solved |
+| Maintainer | Merges and finalizes |
+
 ## Flow
 
 ```
