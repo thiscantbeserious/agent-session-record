@@ -1,6 +1,6 @@
 # Design Principles
 
-Strategic guidelines for architectural decisions. Reference `sdlc.md` for workflow integration.
+Strategic guidelines for architectural decisions. See SDLC for workflow integration.
 
 ## SOLID Principles
 
@@ -57,4 +57,4 @@ Before finalizing a design:
 - [ ] Simplest approach that solves the problem?
 - [ ] One concern per PR/branch?
 - [ ] Small enough to review in one sitting?
-- [ ] Fits SDLC workflow (testable stages)?
+- [ ] Fits SDLC (testable stages)?
