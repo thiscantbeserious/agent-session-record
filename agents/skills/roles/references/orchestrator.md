@@ -104,19 +104,19 @@ User Request
 
 ## Spawning Roles
 
-When spawning a role, always include its role definition as the initial prompt:
+Feed the role definition directly into the initial prompt. Do not instruct the role to load it themselves.
 
 ```
 You are the <Role>.
 
-<paste content from references/<role>.md>
+<paste full content from references/<role>.md here>
 
 Branch: <branch-name>
 ADR: .state/<branch-name>/ADR.md
 PLAN: .state/<branch-name>/PLAN.md
 ```
 
-This ensures each role starts with full context of their responsibilities.
+This ensures each role starts immediately with full context, no extra loading step.
 
 ## Rules
 
