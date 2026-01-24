@@ -848,115 +848,122 @@ fn render_viewport(
     view_cols: usize,
     highlight_line: Option<usize>,
 ) -> Result<()> {
-    let styled_lines = buffer.styled_lines();
+    // Build output string to minimize syscalls
+    let mut output = String::with_capacity(view_rows * view_cols * 2);
 
     for view_row in 0..view_rows {
         let buf_row = view_row + row_offset;
         let is_highlighted = highlight_line == Some(buf_row);
 
-        execute!(
-            stdout,
-            MoveTo(0, view_row as u16),
-            Clear(ClearType::CurrentLine)
-        )?;
+        // Move cursor and clear line
+        output.push_str(&format!("\x1b[{};1H\x1b[2K", view_row + 1));
 
-        // Set green background for highlighted line
+        // Set highlight style if needed
         if is_highlighted {
-            execute!(stdout, SetBackgroundColor(Color::DarkGreen))?;
+            output.push_str("\x1b[97;42m"); // White text on green background
         }
 
-        if buf_row < styled_lines.len() {
-            let line = &styled_lines[buf_row];
+        if let Some(row) = buffer.row(buf_row) {
             let mut current_style = CellStyle::default();
+            let mut in_highlight_style = is_highlighted;
 
             for view_col in 0..view_cols {
                 let buf_col = view_col + col_offset;
 
-                if buf_col < line.cells.len() {
-                    let cell = &line.cells[buf_col];
+                if buf_col < row.len() {
+                    let cell = &row[buf_col];
 
-                    if cell.style != current_style {
-                        apply_style_with_highlight(stdout, &cell.style, is_highlighted)?;
+                    if !is_highlighted && cell.style != current_style {
+                        // Apply style using ANSI codes directly
+                        output.push_str("\x1b[0m"); // Reset
+                        if let Some(fg) = style_to_ansi_fg(&cell.style) {
+                            output.push_str(&fg);
+                        }
+                        if let Some(bg) = style_to_ansi_bg(&cell.style) {
+                            output.push_str(&bg);
+                        }
                         current_style = cell.style;
+                        in_highlight_style = false;
+                    } else if is_highlighted && !in_highlight_style {
+                        output.push_str("\x1b[97;42m");
+                        in_highlight_style = true;
                     }
 
-                    write!(stdout, "{}", cell.char)?;
+                    output.push(cell.char);
                 } else {
-                    if current_style != CellStyle::default() {
-                        if is_highlighted {
-                            execute!(stdout, ResetColor, SetBackgroundColor(Color::DarkGreen))?;
-                        } else {
-                            execute!(stdout, ResetColor)?;
-                        }
+                    // Past end of row content
+                    if !is_highlighted && current_style != CellStyle::default() {
+                        output.push_str("\x1b[0m");
                         current_style = CellStyle::default();
                     }
-                    write!(stdout, " ")?;
+                    output.push(' ');
                 }
             }
 
+            // Reset at end of line
             if current_style != CellStyle::default() || is_highlighted {
-                execute!(stdout, ResetColor)?;
+                output.push_str("\x1b[0m");
             }
         } else if is_highlighted {
-            // Fill empty highlighted line with spaces
+            // Fill empty highlighted line
             for _ in 0..view_cols {
-                write!(stdout, " ")?;
+                output.push(' ');
             }
-            execute!(stdout, ResetColor)?;
+            output.push_str("\x1b[0m");
         }
     }
 
+    write!(stdout, "{}", output)?;
     Ok(())
 }
 
-/// Apply a cell style, preserving green background if highlighted.
-fn apply_style_with_highlight(
-    stdout: &mut io::Stdout,
-    style: &CellStyle,
-    is_highlighted: bool,
-) -> Result<()> {
-    execute!(stdout, ResetColor)?;
-
-    if let Some(color) = convert_color(&style.fg) {
-        execute!(stdout, SetForegroundColor(color))?;
-    }
-
-    if is_highlighted {
-        // Always use green background for highlighted lines
-        execute!(stdout, SetBackgroundColor(Color::DarkGreen))?;
-    } else if let Some(color) = convert_color(&style.bg) {
-        execute!(stdout, SetBackgroundColor(color))?;
-    }
-
-    Ok(())
-}
-
-/// Convert our color enum to crossterm Color.
-fn convert_color(color: &TermColor) -> Option<Color> {
-    match color {
+/// Convert cell style foreground to ANSI escape code.
+fn style_to_ansi_fg(style: &CellStyle) -> Option<String> {
+    match &style.fg {
         TermColor::Default => None,
-        TermColor::Black => Some(Color::Black),
-        TermColor::Red => Some(Color::DarkRed),
-        TermColor::Green => Some(Color::DarkGreen),
-        TermColor::Yellow => Some(Color::DarkYellow),
-        TermColor::Blue => Some(Color::DarkBlue),
-        TermColor::Magenta => Some(Color::DarkMagenta),
-        TermColor::Cyan => Some(Color::DarkCyan),
-        TermColor::White => Some(Color::Grey),
-        TermColor::BrightBlack => Some(Color::DarkGrey),
-        TermColor::BrightRed => Some(Color::Red),
-        TermColor::BrightGreen => Some(Color::Green),
-        TermColor::BrightYellow => Some(Color::Yellow),
-        TermColor::BrightBlue => Some(Color::Blue),
-        TermColor::BrightMagenta => Some(Color::Magenta),
-        TermColor::BrightCyan => Some(Color::Cyan),
-        TermColor::BrightWhite => Some(Color::White),
-        TermColor::Indexed(idx) => Some(Color::AnsiValue(*idx)),
-        TermColor::Rgb(r, g, b) => Some(Color::Rgb {
-            r: *r,
-            g: *g,
-            b: *b,
-        }),
+        TermColor::Black => Some("\x1b[30m".to_string()),
+        TermColor::Red => Some("\x1b[31m".to_string()),
+        TermColor::Green => Some("\x1b[32m".to_string()),
+        TermColor::Yellow => Some("\x1b[33m".to_string()),
+        TermColor::Blue => Some("\x1b[34m".to_string()),
+        TermColor::Magenta => Some("\x1b[35m".to_string()),
+        TermColor::Cyan => Some("\x1b[36m".to_string()),
+        TermColor::White => Some("\x1b[37m".to_string()),
+        TermColor::BrightBlack => Some("\x1b[90m".to_string()),
+        TermColor::BrightRed => Some("\x1b[91m".to_string()),
+        TermColor::BrightGreen => Some("\x1b[92m".to_string()),
+        TermColor::BrightYellow => Some("\x1b[93m".to_string()),
+        TermColor::BrightBlue => Some("\x1b[94m".to_string()),
+        TermColor::BrightMagenta => Some("\x1b[95m".to_string()),
+        TermColor::BrightCyan => Some("\x1b[96m".to_string()),
+        TermColor::BrightWhite => Some("\x1b[97m".to_string()),
+        TermColor::Indexed(n) => Some(format!("\x1b[38;5;{}m", n)),
+        TermColor::Rgb(r, g, b) => Some(format!("\x1b[38;2;{};{};{}m", r, g, b)),
+    }
+}
+
+/// Convert cell style background to ANSI escape code.
+fn style_to_ansi_bg(style: &CellStyle) -> Option<String> {
+    match &style.bg {
+        TermColor::Default => None,
+        TermColor::Black => Some("\x1b[40m".to_string()),
+        TermColor::Red => Some("\x1b[41m".to_string()),
+        TermColor::Green => Some("\x1b[42m".to_string()),
+        TermColor::Yellow => Some("\x1b[43m".to_string()),
+        TermColor::Blue => Some("\x1b[44m".to_string()),
+        TermColor::Magenta => Some("\x1b[45m".to_string()),
+        TermColor::Cyan => Some("\x1b[46m".to_string()),
+        TermColor::White => Some("\x1b[47m".to_string()),
+        TermColor::BrightBlack => Some("\x1b[100m".to_string()),
+        TermColor::BrightRed => Some("\x1b[101m".to_string()),
+        TermColor::BrightGreen => Some("\x1b[102m".to_string()),
+        TermColor::BrightYellow => Some("\x1b[103m".to_string()),
+        TermColor::BrightBlue => Some("\x1b[104m".to_string()),
+        TermColor::BrightMagenta => Some("\x1b[105m".to_string()),
+        TermColor::BrightCyan => Some("\x1b[106m".to_string()),
+        TermColor::BrightWhite => Some("\x1b[107m".to_string()),
+        TermColor::Indexed(n) => Some(format!("\x1b[48;5;{}m", n)),
+        TermColor::Rgb(r, g, b) => Some(format!("\x1b[48;2;{};{};{}m", r, g, b)),
     }
 }
 

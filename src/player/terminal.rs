@@ -153,6 +153,11 @@ impl TerminalBuffer {
             })
             .collect()
     }
+
+    /// Get a reference to a specific row's cells (no cloning).
+    pub fn row(&self, row_idx: usize) -> Option<&[Cell]> {
+        self.buffer.get(row_idx).map(|r| r.as_slice())
+    }
 }
 
 impl fmt::Display for TerminalBuffer {
