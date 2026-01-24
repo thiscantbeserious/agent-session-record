@@ -25,6 +25,13 @@ Which option and why. What trade-offs are we accepting?
 - What becomes harder
 - Follow-ups to scope for later
 
+## History
+
+Decisions made during design (numbered, 1-2 sentences each):
+
+1. ...
+2. ...
+
 ## Execution Stages
 
 ### Stage 1: <name>
