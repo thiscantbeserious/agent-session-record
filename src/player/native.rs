@@ -143,8 +143,10 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
 
         loop {
             // Handle all pending input events before rendering
-            // This prevents lag when keys are pressed faster than we can render
-            while event::poll(Duration::ZERO)? {
+            // First poll waits up to 16ms, then drain any queued events with zero timeout
+            let mut first_poll = true;
+            while event::poll(if first_poll { Duration::from_millis(16) } else { Duration::ZERO })? {
+                first_poll = false;
                 match event::read()? {
                     Event::Resize(new_cols, new_rows) => {
                         // Terminal was resized - update view dimensions
