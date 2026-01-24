@@ -143,7 +143,20 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
         loop {
             // Handle input
             if event::poll(Duration::from_millis(16))? {
-                if let Event::Key(key) = event::read()? {
+                match event::read()? {
+                    Event::Resize(new_cols, new_rows) => {
+                        // Terminal was resized - update view dimensions
+                        term_cols = new_cols;
+                        term_rows = new_rows;
+                        view_rows = (new_rows.saturating_sub(status_lines)) as usize;
+                        view_cols = new_cols as usize;
+                        // Clamp viewport offset to valid range
+                        let max_row_offset = (rec_rows as usize).saturating_sub(view_rows);
+                        let max_col_offset = (rec_cols as usize).saturating_sub(view_cols);
+                        view_row_offset = view_row_offset.min(max_row_offset);
+                        view_col_offset = view_col_offset.min(max_col_offset);
+                    }
+                    Event::Key(key) => {
                     if show_help {
                         show_help = false;
                         continue;
@@ -340,6 +353,8 @@ pub fn play_session_native(path: &Path) -> Result<PlaybackResult> {
                         }
                         _ => {}
                     }
+                    }
+                    _ => {} // Ignore other events (mouse, focus, etc.)
                 }
             }
 
