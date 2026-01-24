@@ -130,6 +130,11 @@ impl TerminalBuffer {
         self.height
     }
 
+    /// Get the current cursor row (0-indexed).
+    pub fn cursor_row(&self) -> usize {
+        self.cursor_row
+    }
+
     /// Get styled lines for rendering with color support.
     pub fn styled_lines(&self) -> Vec<StyledLine> {
         self.buffer
