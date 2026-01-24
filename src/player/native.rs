@@ -849,19 +849,23 @@ fn render_viewport(
     highlight_line: Option<usize>,
 ) -> Result<()> {
     // Build output string to minimize syscalls
-    let mut output = String::with_capacity(view_rows * view_cols * 2);
+    // Use synchronized update to prevent flicker (DEC private mode 2026)
+    let mut output = String::with_capacity(view_rows * view_cols * 2 + 32);
+    output.push_str("\x1b[?2026h"); // Begin synchronized update
 
     for view_row in 0..view_rows {
         let buf_row = view_row + row_offset;
         let is_highlighted = highlight_line == Some(buf_row);
 
-        // Move cursor and clear line
-        output.push_str(&format!("\x1b[{};1H\x1b[2K", view_row + 1));
+        // Move cursor to start of line (no clear - we'll overwrite)
+        output.push_str(&format!("\x1b[{};1H", view_row + 1));
 
         // Set highlight style if needed
         if is_highlighted {
             output.push_str("\x1b[97;42m"); // White text on green background
         }
+
+        let mut chars_written = 0;
 
         if let Some(row) = buffer.row(buf_row) {
             let mut current_style = CellStyle::default();
@@ -890,13 +894,15 @@ fn render_viewport(
                     }
 
                     output.push(cell.char);
+                    chars_written += 1;
                 } else {
-                    // Past end of row content
+                    // Past end of row content - fill with spaces
                     if !is_highlighted && current_style != CellStyle::default() {
                         output.push_str("\x1b[0m");
                         current_style = CellStyle::default();
                     }
                     output.push(' ');
+                    chars_written += 1;
                 }
             }
 
@@ -904,15 +910,26 @@ fn render_viewport(
             if current_style != CellStyle::default() || is_highlighted {
                 output.push_str("\x1b[0m");
             }
-        } else if is_highlighted {
-            // Fill empty highlighted line
-            for _ in 0..view_cols {
-                output.push(' ');
+        } else {
+            // Empty row - fill with spaces
+            if is_highlighted {
+                for _ in 0..view_cols {
+                    output.push(' ');
+                }
+                output.push_str("\x1b[0m");
+            } else {
+                for _ in 0..view_cols {
+                    output.push(' ');
+                }
             }
-            output.push_str("\x1b[0m");
+            chars_written = view_cols;
         }
+
+        // Ensure we've written the full width (clear any trailing content)
+        let _ = chars_written; // Already writing full width above
     }
 
+    output.push_str("\x1b[?2026l"); // End synchronized update
     write!(stdout, "{}", output)?;
     Ok(())
 }
