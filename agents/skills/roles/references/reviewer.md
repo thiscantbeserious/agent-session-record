@@ -56,3 +56,14 @@ Report to orchestrator:
 - Always read the ADR first
 - Validate against ADR, not assumptions
 - Never merge - report to orchestrator
+
+## Verification Checklist
+
+Before approving, complete each step:
+
+1. `ls .state/<branch>/` - confirm ADR.md and PLAN.md exist
+2. For each PLAN.md stage:
+   - Checkbox shows `[x]` not `[ ]`
+   - Files listed in stage appear in `gh pr diff`
+   - If `[ ]` but work looks done → flag inconsistency, do not approve
+3. If unclear → ask Implementer before approving

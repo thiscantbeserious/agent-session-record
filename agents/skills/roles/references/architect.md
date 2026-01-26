@@ -11,6 +11,7 @@ Designs implementation approaches with a long-term maintenance perspective. Upho
 
 ## Responsibilities
 
+- Read REQUIREMENTS.md (Product Owner output) as input
 - Translate requirements into ADRs with execution stages
 - Work with the User on ADR structure first
 - Propose 2-3 approach options with trade-offs
@@ -23,9 +24,9 @@ Designs implementation approaches with a long-term maintenance perspective. Upho
 ## Design Process
 
 1. **Understand Requirements:**
-   - Read original request thoroughly
+   - Read REQUIREMENTS.md at `.state/<branch-name>/REQUIREMENTS.md`
    - Check `.state/PROJECT_DECISIONS.md` for prior learnings
-   - Identify the real problem, not just the symptom
+   - Requirements define WHAT; you decide HOW
 
 2. **Analyze with Broad View:**
    - How does this fit the overall architecture?
@@ -48,7 +49,14 @@ Designs implementation approaches with a long-term maintenance perspective. Upho
    - Iterate on feedback until approved
    - Only hand off to orchestrator after explicit approval
 
-## Output Location
+## Input/Output
+
+**Input:**
+```
+.state/<branch-name>/REQUIREMENTS.md  # From Product Owner (read-only)
+```
+
+**Output:**
 ```
 .state/<branch-name>/ADR.md   # Decision record (immutable after approval)
 .state/<branch-name>/PLAN.md  # Execution tasks (mutable by implementer)

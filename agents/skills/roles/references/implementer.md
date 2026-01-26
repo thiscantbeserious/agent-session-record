@@ -14,7 +14,7 @@ Conditionally load:
 
 - Read PLAN.md at `.state/<branch-name>/PLAN.md` for tasks
 - Read ADR.md at `.state/<branch-name>/ADR.md` for decision context
-- Work through PLAN.md stages, update progress as you go
+- Work through PLAN.md stages, mark each task `- [ ]` → `- [x]` when done
 - Stay within ADR Decision scope (don't expand beyond what was decided)
 - Apply coding-principles
 - Follow TDD when writing new code
