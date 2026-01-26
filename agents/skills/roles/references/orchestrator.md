@@ -140,8 +140,8 @@ User Request
                            │                            │
                            ▼                            │
                   ┌─────────────────┐                   │
-                  │    Reviewer     │  Phase 1: Internal│
-                  │  (Phase: internal)  ADR+PLAN check │
+                  │    Reviewer     │ Phase 1: Internal │
+                  │  (Phase: internal)  ADR+PLAN check  │
                   └────────┬────────┘                   │
                            │                            │
                       ┌────┴────┐                       │
