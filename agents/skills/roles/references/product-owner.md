@@ -67,38 +67,7 @@ When input needs clarification, conduct an interview.
 
 ### Output: REQUIREMENTS.md
 
-After the interview, create `.state/<branch-name>/REQUIREMENTS.md`:
-
-```markdown
-# Requirements: <brief title>
-
-## Problem Statement
-<What's wrong with the current situation?>
-
-## Desired Outcome
-<What should be true after implementation?>
-
-## Scope
-### In Scope
-- <item>
-- <item>
-
-### Out of Scope
-- <item>
-
-## Acceptance Criteria
-- [ ] <testable criterion>
-- [ ] <testable criterion>
-
-## Constraints
-- <any technical or timeline constraints>
-
-## Context
-- <relevant background, prior decisions, related work>
-
----
-**Sign-off:** Pending
-```
+After the interview, create `.state/<branch-name>/REQUIREMENTS.md` using the template at `agents/skills/roles/templates/REQUIREMENTS.md`.
 
 ### Getting Sign-off
 
