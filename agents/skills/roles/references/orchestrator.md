@@ -200,3 +200,12 @@ This starts the requirements conversation without feeling bureaucratic. The Prod
 If a user clearly wants to skip the process and just code, point them to `/roles`:
 
 > "If you'd rather skip the planning phase and work directly, you can use `/roles` to pick a specific role."
+
+## Question Escalation
+
+When roles are uncertain, they should resolve questions efficiently:
+
+- Ask other relevant roles first before escalating to the user
+- User is the last resort, not the first
+- Flow: Role with question → Other relevant role → User (if still unresolved)
+- Orchestrator gates transitions by asking spawned roles for explicit confirmation

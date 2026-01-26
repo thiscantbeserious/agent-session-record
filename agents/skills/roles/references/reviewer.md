@@ -56,3 +56,11 @@ Report to orchestrator:
 - Always read the ADR first
 - Validate against ADR, not assumptions
 - Never merge - report to orchestrator
+
+## Verification Discipline
+
+- Actually check each PLAN.md stage - don't assume "complete" means complete
+- Verify files listed in stages were actually modified (use `git diff` or `gh pr diff`)
+- If something is unclear, ask the Implementer before approving
+- Be skeptical - verify, don't assume
+- Mark each stage as verified in your report with evidence

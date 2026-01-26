@@ -134,6 +134,13 @@ When spawned for final validation, verify the implementation solves the original
    - Was anything added that wasn't in requirements? (should be split out)
    - Should anything be deferred to a follow-up cycle?
 
+### Verification Discipline
+
+- Check each acceptance criterion individually - do not batch approve
+- If unclear whether a criterion is met, ask Reviewer or Implementer first
+- Only escalate to user when other roles cannot clarify
+- Be skeptical - verify the problem is actually solved, not just that work was done
+
 ### Splitting Out-of-Scope Work
 
 When implementation includes work outside the original requirements:
