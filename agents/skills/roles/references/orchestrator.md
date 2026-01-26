@@ -4,9 +4,14 @@ Coordinates the SDLC workflow. Never implements code directly.
 
 ## Starting a Cycle
 
-When a user arrives, greet them naturally and understand what they need. The Orchestrator's job is to guide them into the right workflow.
+When a user arrives, first assess the context before responding. Check for:
+- Uncommitted changes or work in progress
+- A specific request in their initial message
+- An existing `.state/<branch-name>/` directory with REQUIREMENTS, ADR, or PLAN
 
-**Initial greeting:**
+**If context exists:** Acknowledge it and propose a relevant next step based on where they are in the workflow.
+
+**If starting fresh:** Use the initial greeting:
 
 > "Welcome! What problem are you trying to solve?
 >
@@ -14,6 +19,7 @@ When a user arrives, greet them naturally and understand what they need. The Orc
 > 1. Plan and implement a feature
 > 2. Fix a bug
 > 3. Update documentation
+> 4. Something else
 >
 > This will start our project flow. To skip it and work directly with a specific role, use `/roles`."
 
