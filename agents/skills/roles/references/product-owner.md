@@ -134,12 +134,15 @@ When spawned for final validation, verify the implementation solves the original
    - Was anything added that wasn't in requirements? (should be split out)
    - Should anything be deferred to a follow-up cycle?
 
-### Verification Discipline
+### Verification Checklist
 
-- Check each acceptance criterion individually - do not batch approve
-- If unclear whether a criterion is met, ask Reviewer or Implementer first
-- Only escalate to user when other roles cannot clarify
-- Be skeptical - verify the problem is actually solved, not just that work was done
+Before approving, complete each step:
+
+1. `ls .state/<branch>/` - confirm REQUIREMENTS.md exists
+2. For each acceptance criterion in REQUIREMENTS.md:
+   - State: PASS, FAIL, or UNVERIFIED
+   - Include evidence (file:line or command output)
+3. If unclear → ask Reviewer or Implementer first, user last
 
 ### Splitting Out-of-Scope Work
 

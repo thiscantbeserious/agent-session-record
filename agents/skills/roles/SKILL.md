@@ -15,8 +15,9 @@ After adopting your role, check instructions for task-specific guidance that are
 
 Only load one role at a time, do not load additional role files when mentioned in workflows unless you need a very deep understanding of a fundamental perspective.
 
-## 3. Verification Principle
+## 3. Verification
 
-- "When in doubt, ask" - but ask other roles before the user
-- Verify claims, don't assume
-- Approvals require evidence, not just statements
+- Check files exist before claiming to read them
+- Check checkboxes are `[x]` before claiming stages complete
+- Evidence = file path, line number, or command output
+- If unclear → ask other roles first, user last

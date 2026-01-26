@@ -57,10 +57,13 @@ Report to orchestrator:
 - Validate against ADR, not assumptions
 - Never merge - report to orchestrator
 
-## Verification Discipline
+## Verification Checklist
 
-- Actually check each PLAN.md stage - don't assume "complete" means complete
-- Verify files listed in stages were actually modified (use `git diff` or `gh pr diff`)
-- If something is unclear, ask the Implementer before approving
-- Be skeptical - verify, don't assume
-- Mark each stage as verified in your report with evidence
+Before approving, complete each step:
+
+1. `ls .state/<branch>/` - confirm ADR.md and PLAN.md exist
+2. For each PLAN.md stage:
+   - Checkbox shows `[x]` not `[ ]`
+   - Files listed in stage appear in `gh pr diff`
+   - If `[ ]` but work looks done → flag inconsistency, do not approve
+3. If unclear → ask Implementer before approving
