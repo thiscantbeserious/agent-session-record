@@ -139,7 +139,9 @@ When spawned for final validation, verify the implementation solves the original
 Before approving, complete each step:
 
 1. `ls .state/<branch>/` - confirm REQUIREMENTS.md exists
-2. For each acceptance criterion in REQUIREMENTS.md:
+   - If missing → stop and ask: "REQUIREMENTS.md not found. Use ADR Context instead?"
+   - Do not silently fall back
+2. For each acceptance criterion:
    - State: PASS, FAIL, or UNVERIFIED
    - Include evidence (file:line or command output)
 3. If unclear → ask Reviewer or Implementer first, user last
