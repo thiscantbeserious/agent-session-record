@@ -843,12 +843,13 @@ impl Widget for FileExplorerWidget<'_> {
                     let checkbox = if *is_checked { "[x] " } else { "[ ] " };
                     spans.push(Span::styled(checkbox, theme.text_secondary_style()));
                 }
-                spans.push(Span::styled(name.as_str(), theme.text_style()));
 
-                // Add [opt] indicator if backup exists
+                // Add [opt] indicator prefix if backup exists
                 if *has_bak {
-                    spans.push(Span::styled(" [opt]", theme.accent_style()));
+                    spans.push(Span::styled("[opt] ", theme.accent_style()));
                 }
+
+                spans.push(Span::styled(name.as_str(), theme.text_style()));
 
                 spans.push(Span::raw("  "));
                 spans.push(Span::styled(
