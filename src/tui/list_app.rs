@@ -368,7 +368,18 @@ impl ListApp {
                     self.mode = Mode::ConfirmDelete;
                 }
             }
-            KeyCode::Char('r') => self.restore_session()?,
+            KeyCode::Char('r') => {
+                // Guard: check if backup exists before restoring
+                if let Some(item) = self.explorer.selected_item() {
+                    let path = std::path::Path::new(&item.path);
+                    if !has_backup(path) {
+                        self.status_message =
+                            Some(format!("No backup exists for: {}", item.name.clone()));
+                    } else {
+                        self.restore_session()?;
+                    }
+                }
+            }
             KeyCode::Char('m') => self.add_marker()?,
             KeyCode::Char('?') => self.mode = Mode::Help,
 
