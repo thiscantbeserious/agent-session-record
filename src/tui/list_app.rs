@@ -500,6 +500,43 @@ impl ListApp {
                 self.execute_context_menu_action()?;
             }
 
+            // Shortcut keys for menu items
+            KeyCode::Char('p') => {
+                self.context_menu_idx = ContextMenuItem::ALL
+                    .iter()
+                    .position(|i| matches!(i, ContextMenuItem::Play))
+                    .unwrap_or(0);
+                self.execute_context_menu_action()?;
+            }
+            KeyCode::Char('t') => {
+                self.context_menu_idx = ContextMenuItem::ALL
+                    .iter()
+                    .position(|i| matches!(i, ContextMenuItem::Optimize))
+                    .unwrap_or(0);
+                self.execute_context_menu_action()?;
+            }
+            KeyCode::Char('r') => {
+                self.context_menu_idx = ContextMenuItem::ALL
+                    .iter()
+                    .position(|i| matches!(i, ContextMenuItem::Restore))
+                    .unwrap_or(0);
+                self.execute_context_menu_action()?;
+            }
+            KeyCode::Char('d') => {
+                self.context_menu_idx = ContextMenuItem::ALL
+                    .iter()
+                    .position(|i| matches!(i, ContextMenuItem::Delete))
+                    .unwrap_or(0);
+                self.execute_context_menu_action()?;
+            }
+            KeyCode::Char('m') => {
+                self.context_menu_idx = ContextMenuItem::ALL
+                    .iter()
+                    .position(|i| matches!(i, ContextMenuItem::AddMarker))
+                    .unwrap_or(0);
+                self.execute_context_menu_action()?;
+            }
+
             // Close menu
             KeyCode::Esc => {
                 self.mode = Mode::Normal;

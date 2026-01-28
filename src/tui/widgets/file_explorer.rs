@@ -38,6 +38,8 @@ pub struct FileItem {
     pub size: u64,
     /// Last modified time
     pub modified: DateTime<Local>,
+    /// Whether a backup file exists for this item (cached)
+    pub has_backup: bool,
 }
 
 impl FileItem {
@@ -49,24 +51,30 @@ impl FileItem {
         size: u64,
         modified: DateTime<Local>,
     ) -> Self {
+        let path_str = path.into();
+        let has_backup = has_backup(std::path::Path::new(&path_str));
         Self {
-            path: path.into(),
+            path: path_str,
             name: name.into(),
             agent: agent.into(),
             size,
             modified,
+            has_backup,
         }
     }
 }
 
 impl From<SessionInfo> for FileItem {
     fn from(session: SessionInfo) -> Self {
+        let path_str = session.path.to_string_lossy().to_string();
+        let has_backup = has_backup(std::path::Path::new(&path_str));
         Self {
-            path: session.path.to_string_lossy().to_string(),
+            path: path_str,
             name: session.filename,
             agent: session.agent,
             size: session.size,
             modified: session.modified,
+            has_backup,
         }
     }
 }
@@ -723,6 +731,8 @@ impl FileExplorer {
             // Reload metadata from disk
             if let Ok(metadata) = std::fs::metadata(path) {
                 self.items[idx].size = metadata.len();
+                // Also update cached has_backup status
+                self.items[idx].has_backup = has_backup(std::path::Path::new(path));
                 return true;
             }
         }
@@ -809,17 +819,17 @@ impl Widget for FileExplorerWidget<'_> {
         };
 
         // Build list items (collect data first to avoid borrow issues)
+        // Note: has_backup is cached in FileItem to avoid filesystem calls on every render
         let item_data: Vec<(String, String, String, bool, bool)> = self
             .explorer
             .visible_items()
             .map(|(_, item, is_checked)| {
-                let has_bak = has_backup(std::path::Path::new(&item.path));
                 (
                     item.name.clone(),
                     item.agent.clone(),
                     format_size(item.size),
                     is_checked,
-                    has_bak,
+                    item.has_backup,
                 )
             })
             .collect();
@@ -933,7 +943,6 @@ impl Widget for FileExplorerWidget<'_> {
                                     .fg(theme.success)
                                     .add_modifier(Modifier::BOLD),
                             ),
-                            Span::styled(" (r to restore)", theme.text_secondary_style()),
                         ]));
                     }
                     lines.push(Line::from(vec![
