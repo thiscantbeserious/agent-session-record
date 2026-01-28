@@ -30,7 +30,7 @@ fn transform_large_file_via_cli_completes() {
 
     let start = std::time::Instant::now();
     let (stdout, stderr, exit_code) =
-        run_agr(&["transform", "--remove-silence", cast_path.to_str().unwrap()]);
+        run_agr(&["optimize", "--remove-silence", cast_path.to_str().unwrap()]);
     let duration = start.elapsed();
 
     assert_eq!(
@@ -70,7 +70,7 @@ fn transform_large_file_output_is_valid_and_playable() {
     let cast_path = create_cast_file(&temp_dir, "large_valid.cast", &large_content);
 
     let (_, stderr, exit_code) =
-        run_agr(&["transform", "--remove-silence", cast_path.to_str().unwrap()]);
+        run_agr(&["optimize", "--remove-silence", cast_path.to_str().unwrap()]);
 
     assert_eq!(
         exit_code, 0,

@@ -319,7 +319,7 @@ fn main() -> Result<()> {
             ShellCommands::Install => commands::shell::handle_install(),
             ShellCommands::Uninstall => commands::shell::handle_uninstall(),
         },
-        Commands::Transform {
+        Commands::Optimize {
             remove_silence,
             output,
             file,
@@ -337,7 +337,7 @@ fn main() -> Result<()> {
 
             // Currently only silence removal is supported
             if remove_silence.is_none() {
-                anyhow::bail!("No transform specified. Use --remove-silence to remove silence.");
+                anyhow::bail!("No optimization specified. Use --remove-silence to remove silence.");
             }
 
             commands::transform::handle_remove_silence(&file, threshold, output.as_deref())
