@@ -105,9 +105,14 @@ pub fn apply_transforms(path: &Path) -> Result<TransformResult> {
 
     let new_duration = cast.duration();
 
-    // Write the transformed file back
-    cast.write(path)
-        .with_context(|| format!("Failed to write transformed file: {}", path.display()))?;
+    // Write to temp file first, then atomically rename to prevent data corruption
+    // if write fails mid-operation (disk full, permissions issue, crash)
+    let temp_path = path.with_extension("cast.tmp");
+    cast.write(&temp_path)
+        .with_context(|| format!("Failed to write transformed file: {}", temp_path.display()))?;
+
+    fs::rename(&temp_path, path)
+        .with_context(|| format!("Failed to replace original file: {}", path.display()))?;
 
     Ok(TransformResult {
         original_duration,
