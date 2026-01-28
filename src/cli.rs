@@ -236,11 +236,11 @@ After installing, restart your shell or run: source ~/.zshrc"
     )]
     Shell(ShellCommands),
 
-    /// Transform asciicast recordings
-    #[command(long_about = "Apply transformations to asciicast recording files.
+    /// Optimize asciicast recordings (removes silence)
+    #[command(long_about = "Optimize asciicast recording files by removing silence.
 
-Transforms modify the timing or content of recordings. Currently supports
-silence removal, which caps long pauses at a configurable threshold.
+Optimization modifies the timing of recordings by capping long pauses
+at a configurable threshold.
 
 THRESHOLD RESOLUTION:
     1. CLI argument (explicit user intent)
@@ -248,15 +248,15 @@ THRESHOLD RESOLUTION:
     3. Default: 2.0 seconds
 
 EXAMPLES:
-    agr transform --remove-silence session.cast
+    agr optimize --remove-silence session.cast
         Use header's idle_time_limit or default 2.0s threshold
 
-    agr transform --remove-silence=1.5 session.cast
+    agr optimize --remove-silence=1.5 session.cast
         Use explicit 1.5s threshold (note: requires = for value)
 
-    agr transform --remove-silence --output fast.cast session.cast
+    agr optimize --remove-silence --output fast.cast session.cast
         Write to separate file, preserving original")]
-    Transform {
+    Optimize {
         /// Remove silence by capping intervals at threshold
         #[arg(
             long = "remove-silence",
@@ -272,7 +272,7 @@ EXAMPLES:
         #[arg(long, short, value_name = "FILE", help = "Output file path")]
         output: Option<String>,
 
-        /// Path to the .cast file to transform
+        /// Path to the .cast file to optimize
         #[arg(help = "Path to the .cast recording file")]
         file: String,
     },

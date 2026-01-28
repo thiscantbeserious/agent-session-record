@@ -80,7 +80,7 @@ fn transform_inplace_modification_works() {
 
     // Run transform without --output (in-place)
     let (stdout, stderr, exit_code) =
-        run_agr(&["transform", "--remove-silence", cast_path.to_str().unwrap()]);
+        run_agr(&["optimize", "--remove-silence", cast_path.to_str().unwrap()]);
 
     assert_eq!(exit_code, 0, "Exit code should be 0. stderr: {}", stderr);
     assert!(
@@ -108,7 +108,7 @@ fn transform_output_preserves_original_file() {
 
     // Run transform with --output
     let (_, stderr, exit_code) = run_agr(&[
-        "transform",
+        "optimize",
         "--remove-silence",
         "--output",
         output_path.to_str().unwrap(),
@@ -142,7 +142,7 @@ fn transform_output_creates_new_file() {
     assert!(!output_path.exists(), "Output file should not exist yet");
 
     let (_, stderr, exit_code) = run_agr(&[
-        "transform",
+        "optimize",
         "--remove-silence",
         "--output",
         output_path.to_str().unwrap(),
@@ -164,7 +164,7 @@ fn transform_output_to_same_path_as_input_works() {
 
     // Using --output with same path as input should work (effectively in-place)
     let (_, stderr, exit_code) = run_agr(&[
-        "transform",
+        "optimize",
         "--remove-silence",
         "--output",
         path_str,
@@ -190,7 +190,7 @@ fn transform_corrupt_json_file_clear_error() {
     let cast_path = create_cast_file(&temp_dir, "corrupt.cast", "{ not valid json at all");
 
     let (stdout, stderr, exit_code) =
-        run_agr(&["transform", "--remove-silence", cast_path.to_str().unwrap()]);
+        run_agr(&["optimize", "--remove-silence", cast_path.to_str().unwrap()]);
 
     assert_ne!(
         exit_code, 0,
@@ -218,7 +218,7 @@ fn transform_truncated_file_clear_error() {
     );
 
     let (stdout, stderr, exit_code) = run_agr(&[
-        "transform",
+        "optimize",
         "--remove-silence",
         truncated_path.to_str().unwrap(),
     ]);
@@ -257,7 +257,7 @@ fn transform_missing_header_clear_error() {
     );
 
     let (stdout, stderr, exit_code) =
-        run_agr(&["transform", "--remove-silence", cast_path.to_str().unwrap()]);
+        run_agr(&["optimize", "--remove-silence", cast_path.to_str().unwrap()]);
 
     assert_ne!(
         exit_code, 0,
@@ -276,7 +276,7 @@ fn transform_missing_header_clear_error() {
 #[test]
 fn transform_file_not_found_clear_error() {
     let (stdout, stderr, exit_code) = run_agr(&[
-        "transform",
+        "optimize",
         "--remove-silence",
         "/nonexistent/path/to/file.cast",
     ]);
@@ -307,7 +307,7 @@ fn transform_permission_denied_clear_error() {
     fs::set_permissions(&cast_path, perms).unwrap();
 
     let (stdout, stderr, exit_code) =
-        run_agr(&["transform", "--remove-silence", cast_path.to_str().unwrap()]);
+        run_agr(&["optimize", "--remove-silence", cast_path.to_str().unwrap()]);
 
     // Restore permissions for cleanup
     let mut perms = fs::metadata(&cast_path).unwrap().permissions();
@@ -337,7 +337,7 @@ fn transform_invalid_threshold_clear_error_before_file_ops() {
 
     // Test with negative threshold
     let (stdout, stderr, exit_code) = run_agr(&[
-        "transform",
+        "optimize",
         "--remove-silence=-1.0",
         cast_path.to_str().unwrap(),
     ]);
@@ -369,7 +369,7 @@ fn transform_invalid_threshold_zero() {
     let cast_path = create_cast_file(&temp_dir, "test.cast", sample_cast_with_long_pauses());
 
     let (stdout, stderr, exit_code) = run_agr(&[
-        "transform",
+        "optimize",
         "--remove-silence=0",
         cast_path.to_str().unwrap(),
     ]);
@@ -392,7 +392,7 @@ fn transform_invalid_threshold_nan() {
     let cast_path = create_cast_file(&temp_dir, "test.cast", sample_cast_with_long_pauses());
 
     let (stdout, stderr, exit_code) = run_agr(&[
-        "transform",
+        "optimize",
         "--remove-silence=notanumber",
         cast_path.to_str().unwrap(),
     ]);
@@ -421,7 +421,7 @@ fn transform_then_parse_produces_valid_asciicast() {
     let cast_path = create_cast_file(&temp_dir, "roundtrip.cast", sample_cast_with_long_pauses());
 
     let (_, stderr, exit_code) =
-        run_agr(&["transform", "--remove-silence", cast_path.to_str().unwrap()]);
+        run_agr(&["optimize", "--remove-silence", cast_path.to_str().unwrap()]);
 
     assert_eq!(exit_code, 0, "Transform should succeed. stderr: {}", stderr);
 
@@ -447,7 +447,7 @@ fn transform_preserves_header_fields() {
     let original = AsciicastFile::parse(&cast_path).unwrap();
 
     let (_, stderr, exit_code) =
-        run_agr(&["transform", "--remove-silence", cast_path.to_str().unwrap()]);
+        run_agr(&["optimize", "--remove-silence", cast_path.to_str().unwrap()]);
 
     assert_eq!(exit_code, 0, "Transform should succeed. stderr: {}", stderr);
 
@@ -476,7 +476,7 @@ fn transform_preserves_all_event_data_fields() {
     let original_types: Vec<_> = original.events.iter().map(|e| e.event_type).collect();
 
     let (_, stderr, exit_code) =
-        run_agr(&["transform", "--remove-silence", cast_path.to_str().unwrap()]);
+        run_agr(&["optimize", "--remove-silence", cast_path.to_str().unwrap()]);
 
     assert_eq!(exit_code, 0, "Transform should succeed. stderr: {}", stderr);
 
@@ -515,7 +515,7 @@ fn transform_preserves_unicode_content() {
     let original_data: Vec<_> = original.events.iter().map(|e| e.data.clone()).collect();
 
     let (_, stderr, exit_code) =
-        run_agr(&["transform", "--remove-silence", cast_path.to_str().unwrap()]);
+        run_agr(&["optimize", "--remove-silence", cast_path.to_str().unwrap()]);
 
     assert_eq!(exit_code, 0, "Transform should succeed. stderr: {}", stderr);
 
@@ -544,7 +544,7 @@ fn transform_multiple_times_cumulative_effect() {
 
     // First transform with 10s threshold
     let (_, stderr, exit_code) = run_agr(&[
-        "transform",
+        "optimize",
         "--remove-silence=10.0",
         cast_path.to_str().unwrap(),
     ]);
@@ -561,7 +561,7 @@ fn transform_multiple_times_cumulative_effect() {
 
     // Second transform with 2s threshold
     let (_, stderr, exit_code) = run_agr(&[
-        "transform",
+        "optimize",
         "--remove-silence=2.0",
         cast_path.to_str().unwrap(),
     ]);
@@ -601,7 +601,7 @@ fn transform_uses_header_idle_time_limit_when_no_cli_threshold() {
     );
 
     let (stdout, stderr, exit_code) =
-        run_agr(&["transform", "--remove-silence", cast_path.to_str().unwrap()]);
+        run_agr(&["optimize", "--remove-silence", cast_path.to_str().unwrap()]);
 
     assert_eq!(exit_code, 0, "Transform should succeed. stderr: {}", stderr);
     assert!(
@@ -629,7 +629,7 @@ fn transform_cli_threshold_overrides_header() {
     );
 
     let (stdout, stderr, exit_code) = run_agr(&[
-        "transform",
+        "optimize",
         "--remove-silence=3.0",
         cast_path.to_str().unwrap(),
     ]);
@@ -656,7 +656,7 @@ fn transform_cli_threshold_overrides_header() {
 
 #[test]
 fn transform_help_shows_remove_silence_option() {
-    let (stdout, stderr, exit_code) = run_agr(&["transform", "--help"]);
+    let (stdout, stderr, exit_code) = run_agr(&["optimize", "--help"]);
 
     assert_eq!(exit_code, 0, "Help should succeed. stderr: {}", stderr);
     assert!(
@@ -677,13 +677,13 @@ fn transform_requires_transform_flag() {
     let cast_path = create_cast_file(&temp_dir, "test.cast", sample_cast_with_long_pauses());
 
     // Run transform without any transform flag
-    let (stdout, stderr, exit_code) = run_agr(&["transform", cast_path.to_str().unwrap()]);
+    let (stdout, stderr, exit_code) = run_agr(&["optimize", cast_path.to_str().unwrap()]);
 
-    assert_ne!(exit_code, 0, "Should fail without transform flag");
+    assert_ne!(exit_code, 0, "Should fail without optimization flag");
     let combined = format!("{}{}", stdout, stderr);
     assert!(
-        combined.contains("remove-silence") || combined.contains("No transform"),
-        "Should indicate need for transform flag. Output: {}",
+        combined.contains("remove-silence") || combined.contains("No optimization"),
+        "Should indicate need for optimization flag. Output: {}",
         combined
     );
 }
