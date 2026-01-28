@@ -21,7 +21,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Widget},
 };
 
-use crate::asciicast::EventType;
+use crate::asciicast::{has_backup, EventType};
 use crate::storage::SessionInfo;
 use crate::tui::current_theme;
 
@@ -38,6 +38,8 @@ pub struct FileItem {
     pub size: u64,
     /// Last modified time
     pub modified: DateTime<Local>,
+    /// Whether a backup file exists for this item (cached)
+    pub has_backup: bool,
 }
 
 impl FileItem {
@@ -49,24 +51,30 @@ impl FileItem {
         size: u64,
         modified: DateTime<Local>,
     ) -> Self {
+        let path_str = path.into();
+        let has_backup = has_backup(std::path::Path::new(&path_str));
         Self {
-            path: path.into(),
+            path: path_str,
             name: name.into(),
             agent: agent.into(),
             size,
             modified,
+            has_backup,
         }
     }
 }
 
 impl From<SessionInfo> for FileItem {
     fn from(session: SessionInfo) -> Self {
+        let path_str = session.path.to_string_lossy().to_string();
+        let has_backup = has_backup(std::path::Path::new(&path_str));
         Self {
-            path: session.path.to_string_lossy().to_string(),
+            path: path_str,
             name: session.filename,
             agent: session.agent,
             size: session.size,
             modified: session.modified,
+            has_backup,
         }
     }
 }
@@ -716,6 +724,21 @@ impl FileExplorer {
         agents
     }
 
+    /// Update metadata for an item by reloading from disk.
+    /// Returns true if item was found and updated.
+    pub fn update_item_metadata(&mut self, path: &str) -> bool {
+        if let Some(idx) = self.items.iter().position(|item| item.path == path) {
+            // Reload metadata from disk
+            if let Ok(metadata) = std::fs::metadata(path) {
+                self.items[idx].size = metadata.len();
+                // Also update cached has_backup status
+                self.items[idx].has_backup = has_backup(std::path::Path::new(path));
+                return true;
+            }
+        }
+        false
+    }
+
     // === Rendering helpers ===
 
     /// Get the list state for ratatui
@@ -796,7 +819,8 @@ impl Widget for FileExplorerWidget<'_> {
         };
 
         // Build list items (collect data first to avoid borrow issues)
-        let item_data: Vec<(String, String, String, bool)> = self
+        // Note: has_backup is cached in FileItem to avoid filesystem calls on every render
+        let item_data: Vec<(String, String, String, bool, bool)> = self
             .explorer
             .visible_items()
             .map(|(_, item, is_checked)| {
@@ -805,6 +829,7 @@ impl Widget for FileExplorerWidget<'_> {
                     item.agent.clone(),
                     format_size(item.size),
                     is_checked,
+                    item.has_backup,
                 )
             })
             .collect();
@@ -812,13 +837,19 @@ impl Widget for FileExplorerWidget<'_> {
         let show_checkboxes = self.show_checkboxes;
         let items: Vec<ListItem> = item_data
             .iter()
-            .map(|(name, agent, size_str, is_checked)| {
+            .map(|(name, agent, size_str, is_checked, has_bak)| {
                 let mut spans = vec![];
                 if show_checkboxes {
                     let checkbox = if *is_checked { "[x] " } else { "[ ] " };
                     spans.push(Span::styled(checkbox, theme.text_secondary_style()));
                 }
                 spans.push(Span::styled(name.as_str(), theme.text_style()));
+
+                // Add [opt] indicator if backup exists
+                if *has_bak {
+                    spans.push(Span::styled(" [opt]", theme.accent_style()));
+                }
+
                 spans.push(Span::raw("  "));
                 spans.push(Span::styled(
                     format!("({}, {})", agent, size_str),
@@ -912,7 +943,6 @@ impl Widget for FileExplorerWidget<'_> {
                                     .fg(theme.success)
                                     .add_modifier(Modifier::BOLD),
                             ),
-                            Span::styled(" (r to restore)", theme.text_secondary_style()),
                         ]));
                     }
                     lines.push(Line::from(vec![
