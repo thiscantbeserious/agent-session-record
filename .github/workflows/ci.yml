@@ -125,7 +125,8 @@ jobs:
         run: cargo build --release
 
       - name: Generate coverage
-        run: cargo tarpaulin --out xml --output-dir coverage
+        # Exclude performance tests - tarpaulin instrumentation overhead causes timing assertions to fail
+        run: cargo tarpaulin --out xml --output-dir coverage --test integration
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
