@@ -66,7 +66,7 @@ pub fn default_filename_template() -> String {
 }
 
 pub fn default_directory_max_length() -> usize {
-    50
+    14
 }
 
 impl Default for RecordingConfig {
