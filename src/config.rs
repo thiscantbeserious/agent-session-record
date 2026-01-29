@@ -51,10 +51,24 @@ pub struct RecordingConfig {
     /// Which agent to use for analysis ("claude", "codex", "gemini")
     #[serde(default = "default_analysis_agent")]
     pub analysis_agent: String,
+    /// Filename template using tags like {directory}, {date}, {time}
+    #[serde(default = "default_filename_template")]
+    pub filename_template: String,
+    /// Maximum length for directory component in filename (default: 50)
+    #[serde(default = "default_directory_max_length")]
+    pub directory_max_length: usize,
 }
 
 fn default_analysis_agent() -> String {
     "claude".to_string()
+}
+
+fn default_filename_template() -> String {
+    "{directory}_{date}_{time}".to_string()
+}
+
+fn default_directory_max_length() -> usize {
+    50
 }
 
 impl Default for RecordingConfig {
@@ -62,6 +76,8 @@ impl Default for RecordingConfig {
         Self {
             auto_analyze: false,
             analysis_agent: default_analysis_agent(),
+            filename_template: default_filename_template(),
+            directory_max_length: default_directory_max_length(),
         }
     }
 }

@@ -15,6 +15,9 @@ mod branding_test;
 #[path = "integration/config_test.rs"]
 mod config_test;
 
+#[path = "integration/filename_test.rs"]
+mod filename_test;
+
 #[path = "integration/markers_test.rs"]
 mod markers_test;
 

@@ -6,7 +6,7 @@
 //! 3. It is thoroughly tested via e2e tests in tests/e2e_test.sh
 
 use anyhow::{bail, Context, Result};
-use chrono::Local;
+use std::env;
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -16,6 +16,7 @@ use std::sync::Arc;
 use crate::analyzer::Analyzer;
 use crate::branding;
 use crate::config::Config;
+use crate::files::filename;
 use crate::storage::StorageManager;
 
 /// Session recorder that wraps asciinema
@@ -37,10 +38,34 @@ impl Recorder {
         }
     }
 
-    /// Generate a timestamp-based filename
-    pub fn generate_filename() -> String {
-        let now = Local::now();
-        format!("{}.cast", now.format("%Y%m%d-%H%M%S-%3f"))
+    /// Generate a filename using the configured template.
+    ///
+    /// Uses the `filename_template` from config with tags like `{directory}`, `{date}`, `{time}`.
+    /// Falls back to a timestamp-based name if template generation fails.
+    pub fn generate_filename(&self) -> String {
+        // Get current working directory name
+        let dir_name = env::current_dir()
+            .ok()
+            .and_then(|p| p.file_name().map(|s| s.to_string_lossy().to_string()))
+            .unwrap_or_else(|| "recording".to_string());
+
+        // Build filename config from recording config
+        let filename_config = filename::Config {
+            directory_max_length: self.config.recording.directory_max_length,
+        };
+
+        // Generate using template, fallback to simple timestamp on error
+        filename::generate(
+            &dir_name,
+            &self.config.recording.filename_template,
+            &filename_config,
+        )
+        .unwrap_or_else(|_| {
+            // Fallback: use directory + timestamp
+            let sanitized_dir = filename::sanitize_directory(&dir_name, &filename_config);
+            let now = chrono::Local::now();
+            format!("{}_{}.cast", sanitized_dir, now.format("%y%m%d_%H%M"))
+        })
     }
 
     /// Sanitize a user-provided filename
@@ -92,10 +117,10 @@ impl Recorder {
         // Ensure agent directory exists
         let agent_dir = self.storage.ensure_agent_dir(agent)?;
 
-        // Generate filename - use provided name or timestamp-based
+        // Generate filename - use provided name or template-based
         let filename = match session_name {
             Some(name) => Self::sanitize_filename(name),
-            None => Self::generate_filename(),
+            None => self.generate_filename(),
         };
         let filepath = agent_dir.join(&filename);
 
