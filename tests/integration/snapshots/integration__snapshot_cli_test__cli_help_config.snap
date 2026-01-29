@@ -1,6 +1,5 @@
 ---
-source: tests/integration/cli_test.rs
-assertion_line: 99
+source: tests/integration/snapshot_cli_test.rs
 expression: output
 ---
 === agr config --help ===
@@ -19,9 +18,10 @@ EXAMPLES:
 Usage: agr config <COMMAND>
 
 Commands:
-  show  [37mShow current configuration as TOML[0m
-  edit  [37mOpen configuration file in your default editor[0m
-  help  [37mPrint this message or the help of the given subcommand(s)[0m
+  show     [37mShow current configuration as TOML[0m
+  edit     [37mOpen configuration file in your default editor[0m
+  migrate  [37mAdd missing fields to config file[0m
+  help     [37mPrint this message or the help of the given subcommand(s)[0m
 
 Options:
   -h, --help

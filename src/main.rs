@@ -314,6 +314,7 @@ fn main() -> Result<()> {
         Commands::Config(cmd) => match cmd {
             ConfigCommands::Show => commands::config::handle_show(),
             ConfigCommands::Edit => commands::config::handle_edit(),
+            ConfigCommands::Migrate { yes } => commands::config::handle_migrate(yes),
         },
         Commands::Shell(cmd) => match cmd {
             ShellCommands::Status => commands::shell::handle_status(),
@@ -700,6 +701,39 @@ mod tests {
         match cli.command {
             Commands::Config(ConfigCommands::Edit) => {}
             _ => panic!("Expected Config Edit command"),
+        }
+    }
+
+    #[test]
+    fn cli_config_migrate_parses() {
+        let cli = Cli::try_parse_from(["agr", "config", "migrate"]).unwrap();
+        match cli.command {
+            Commands::Config(ConfigCommands::Migrate { yes }) => {
+                assert!(!yes);
+            }
+            _ => panic!("Expected Config Migrate command"),
+        }
+    }
+
+    #[test]
+    fn cli_config_migrate_parses_with_yes_flag() {
+        let cli = Cli::try_parse_from(["agr", "config", "migrate", "--yes"]).unwrap();
+        match cli.command {
+            Commands::Config(ConfigCommands::Migrate { yes }) => {
+                assert!(yes);
+            }
+            _ => panic!("Expected Config Migrate command"),
+        }
+    }
+
+    #[test]
+    fn cli_config_migrate_parses_with_short_yes_flag() {
+        let cli = Cli::try_parse_from(["agr", "config", "migrate", "-y"]).unwrap();
+        match cli.command {
+            Commands::Config(ConfigCommands::Migrate { yes }) => {
+                assert!(yes);
+            }
+            _ => panic!("Expected Config Migrate command"),
         }
     }
 
