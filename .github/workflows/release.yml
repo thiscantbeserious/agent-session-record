@@ -13,8 +13,29 @@ permissions:
   contents: write
 
 jobs:
+  # Validate tag matches Cargo.toml version
+  validate-version:
+    name: Validate Version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check tag matches Cargo.toml version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CARGO_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "Tag version: $TAG_VERSION"
+          echo "Cargo.toml version: $CARGO_VERSION"
+          if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
+            echo "::error::Version mismatch! Tag ($TAG_VERSION) doesn't match Cargo.toml ($CARGO_VERSION)"
+            echo "Update Cargo.toml version to $TAG_VERSION before tagging."
+            exit 1
+          fi
+          echo "Versions match!"
+
   # Build release binaries for all platforms
   build:
+    needs: validate-version
     name: Build (${{ matrix.artifact }})
     runs-on: ${{ matrix.os }}
     strategy:
