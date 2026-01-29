@@ -16,17 +16,17 @@ This plan breaks the ADR into small, independently testable stages. Each stage s
 - [x] Stage 2: Extract types.rs
 - [x] Stage 3: Move TerminalBuffer to mod.rs
 - [x] Stage 4: Move TerminalPerformer to performer.rs
-- [ ] Stage 5: Extract cursor handlers (deferred - refactoring)
-- [ ] Stage 6: Extract editing handlers (deferred - refactoring)
-- [ ] Stage 7: Extract style handler (deferred - refactoring)
-- [ ] Stage 8: Add observability for unhandled sequences (deferred - refactoring)
+- [x] Stage 5: Extract cursor handlers
+- [x] Stage 6: Extract editing handlers
+- [x] Stage 7: Extract style handler
+- [x] Stage 8: Add observability for unhandled sequences
 - [x] Stage 9: Add scroll region state
 - [x] Stage 10: Implement scroll_up and scroll_down helpers
 - [x] Stage 11: Implement CSI r handler (DECSTBM)
 - [x] Stage 12: Implement CSI S and CSI T handlers
 - [x] Stage 13: Update line_feed and reverse_index
-- [ ] Stage 14: Migrate tests to separate files (deferred - refactoring)
-- [ ] Stage 15: Create scroll region test fixture (deferred)
+- [x] Stage 14: Migrate tests to separate files
+- [x] Stage 15: Create scroll region test fixture
 
 ---
 
@@ -353,14 +353,14 @@ This plan breaks the ADR into small, independently testable stages. Each stage s
 
 After all stages complete:
 
-- [ ] `cargo check` passes
-- [ ] `cargo test` passes (all tests)
-- [ ] `cargo clippy` passes
-- [ ] `cargo fmt --check` passes
-- [ ] Visual comparison test with fixture passes
-- [ ] No personal paths in codebase
-- [ ] Public API unchanged (backward compatible)
-- [ ] Unhandled sequences produce debug logs
+- [x] `cargo check` passes
+- [x] `cargo test` passes (all tests)
+- [x] `cargo clippy` passes
+- [x] `cargo fmt --check` passes
+- [x] Visual comparison test with fixture passes
+- [x] No personal paths in codebase
+- [x] Public API unchanged (backward compatible)
+- [x] Unhandled sequences produce debug logs
 
 ---
 
