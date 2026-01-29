@@ -13,8 +13,54 @@ permissions:
   contents: write
 
 jobs:
+  # Validate tag matches Cargo.toml version
+  validate-version:
+    name: Validate Version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check tag matches Cargo.toml version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CARGO_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "Tag version: $TAG_VERSION"
+          echo "Cargo.toml version: $CARGO_VERSION"
+          if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
+            echo "::error::Version mismatch! Tag ($TAG_VERSION) doesn't match Cargo.toml ($CARGO_VERSION)"
+            echo "Update Cargo.toml version to $TAG_VERSION before tagging."
+            exit 1
+          fi
+          echo "Versions match!"
+
+      - name: Check version is newer than latest release
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          # Get latest release tag excluding current tag (empty if no releases yet)
+          LATEST=$(git tag -l 'v*' --sort=-v:refname | grep -v "^v${TAG_VERSION}$" | head -1 | sed 's/^v//')
+          if [ -z "$LATEST" ]; then
+            echo "No previous releases found. First release!"
+            exit 0
+          fi
+          echo "New version: $TAG_VERSION"
+          echo "Latest release: $LATEST"
+          # Compare versions using sort -V
+          HIGHER=$(printf '%s\n%s' "$LATEST" "$TAG_VERSION" | sort -V | tail -1)
+          if [ "$HIGHER" = "$LATEST" ]; then
+            echo "::error::Version $TAG_VERSION is not newer than latest release $LATEST"
+            exit 1
+          fi
+          if [ "$TAG_VERSION" = "$LATEST" ]; then
+            echo "::error::Version $TAG_VERSION already released"
+            exit 1
+          fi
+          echo "Version $TAG_VERSION is newer than $LATEST"
+
   # Build release binaries for all platforms
   build:
+    needs: validate-version
     name: Build (${{ matrix.artifact }})
     runs-on: ${{ matrix.os }}
     strategy:
