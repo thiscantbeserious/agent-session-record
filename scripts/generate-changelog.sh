@@ -9,12 +9,37 @@ set -e
 MODE="${1:---unreleased}"
 TAG="${2:-}"
 
-# Modules from src/ directory structure (order matters for tie-breaking)
+# Module groups for changelog (consolidated for readability)
+# Maps individual modules to display groups
+declare_module_group() {
+    case "$1" in
+        tui) echo "tui" ;;
+        player|terminal) echo "player" ;;
+        asciicast) echo "asciicast" ;;
+        cli|commands|shell) echo "cli" ;;
+        analyzer|branding|config|recording|storage|lib|main) echo "core" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+# All src modules to check (for file detection)
 MODULES="tui player terminal asciicast commands analyzer branding cli config recording shell storage"
 
-# Capitalize first letter
-capitalize() {
-    echo "$1" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}'
+# Display groups in order
+DISPLAY_GROUPS="tui player asciicast cli core"
+
+# Format group name for display
+format_group() {
+    case "$1" in
+        tui) echo "TUI" ;;
+        cli) echo "CLI" ;;
+        core) echo "Core" ;;
+        player) echo "Player" ;;
+        asciicast) echo "Asciicast" ;;
+        tests) echo "Tests" ;;
+        docs) echo "Documentation" ;;
+        *) echo "$1" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}' ;;
+    esac
 }
 
 # Get the primary module for a commit based on file count
@@ -28,26 +53,22 @@ get_primary_module() {
     # Get files changed in this commit
     local files=$(git diff-tree --no-commit-id --name-only -r "$sha" 2>/dev/null)
 
-    # First pass: only count src/ modules (higher priority)
+    # First pass: count src/ modules (directories and single files)
     for mod in $MODULES; do
-        local count=$(echo "$files" | grep -c "^src/$mod/" 2>/dev/null || echo 0)
+        local count=0
+        # Check if it's a directory module
+        if [[ -d "src/$mod" ]]; then
+            local dir_count=$(echo "$files" | grep -c "^src/$mod/" 2>/dev/null)
+            count=${dir_count:-0}
+        fi
+        # Also check for single-file module (src/mod.rs)
+        local file_count=$(echo "$files" | grep -c "^src/$mod.rs$" 2>/dev/null)
+        file_count=${file_count:-0}
+        count=$((count + file_count))
+
         if [[ $count -gt $max_count ]]; then
             max_count=$count
             primary="$mod"
-        fi
-    done
-
-    # Check single-file modules in src/
-    for file in src/*.rs; do
-        [[ -f "$file" ]] || continue
-        local filename=$(basename "$file" .rs)
-        [[ "$filename" == "lib" || "$filename" == "main" ]] && continue
-        echo "$MODULES" | grep -qw "$filename" && continue
-
-        local count=$(echo "$files" | grep -c "^$file$" 2>/dev/null || echo 0)
-        if [[ $count -gt $max_count ]]; then
-            max_count=$count
-            primary="$filename"
         fi
     done
 
@@ -86,17 +107,18 @@ get_commits() {
 
     # Get commits with their SHAs, scopes, and messages
     # Format: sha|scope|message
+    # Filter: only lines starting with a commit SHA (40 hex chars)
     git cliff $cliff_args --body "{% for commit in commits %}{{ commit.id }}|{{ commit.scope | default(value='') }}|{{ commit.message | upper_first }}
-{% endfor %}" 2>/dev/null | grep -v "^$" || true
+{% endfor %}" 2>/dev/null | grep -E "^[a-f0-9]{40}\|" || true
 }
 
 # Build module -> commits mapping
 declare_module_commits() {
     local commits="$1"
 
-    # Temp files for each module
-    for mod in $MODULES tests docs; do
-        echo "" > "/tmp/changelog_$mod.txt"
+    # Temp files for each display group
+    for group in $DISPLAY_GROUPS tests docs; do
+        echo "" > "/tmp/changelog_$group.txt"
     done
 
     # Process each commit (format: sha|scope|message)
@@ -104,7 +126,9 @@ declare_module_commits() {
         [[ -z "$sha" ]] && continue
         local primary=$(get_primary_module "$sha" "$scope")
         if [[ -n "$primary" ]]; then
-            echo "- $message" >> "/tmp/changelog_$primary.txt"
+            # Map to display group
+            local group=$(declare_module_group "$primary")
+            echo "- $message" >> "/tmp/changelog_$group.txt"
         fi
     done <<< "$commits"
 }
@@ -128,31 +152,15 @@ generate_changelog() {
     local commits=$(get_commits)
     declare_module_commits "$commits"
 
-    # Output each module's commits
-    for mod in $MODULES; do
-        local content=$(cat "/tmp/changelog_$mod.txt" 2>/dev/null | grep -v "^$" | sort -u)
+    # Output each group's commits
+    for group in $DISPLAY_GROUPS tests docs; do
+        local content=$(cat "/tmp/changelog_$group.txt" 2>/dev/null | grep -v "^$" | sort -u)
         if [[ -n "$content" ]]; then
-            echo "### $(capitalize "$mod")"
+            echo "### $(format_group "$group")"
             echo "$content"
             echo ""
         fi
     done
-
-    # Tests section
-    local content=$(cat "/tmp/changelog_tests.txt" 2>/dev/null | grep -v "^$" | sort -u)
-    if [[ -n "$content" ]]; then
-        echo "### Tests"
-        echo "$content"
-        echo ""
-    fi
-
-    # Docs section
-    local content=$(cat "/tmp/changelog_docs.txt" 2>/dev/null | grep -v "^$" | sort -u)
-    if [[ -n "$content" ]]; then
-        echo "### Documentation"
-        echo "$content"
-        echo ""
-    fi
 
     # Cleanup
     rm -f /tmp/changelog_*.txt
