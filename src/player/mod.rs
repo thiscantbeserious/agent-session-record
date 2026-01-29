@@ -22,10 +22,6 @@
 
 mod asciinema;
 mod native;
-pub mod terminal;
 
 pub use asciinema::{play_session_asciinema, play_session_with_speed};
 pub use native::{play_session, play_session_native, PlaybackResult};
-
-// Re-export terminal types that might be useful externally
-pub use terminal::{Cell, CellStyle, Color, StyledLine, TerminalBuffer};

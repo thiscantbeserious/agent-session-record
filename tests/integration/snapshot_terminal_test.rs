@@ -2,7 +2,7 @@
 //!
 //! Tests ANSI escape sequence handling and terminal rendering.
 
-use agr::player::TerminalBuffer;
+use agr::terminal::TerminalBuffer;
 
 /// Helper to create a terminal buffer and process input
 fn process(input: &str) -> String {

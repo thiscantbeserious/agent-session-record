@@ -576,7 +576,7 @@ fn render_explorer_with_preview_and_backup(
 
 #[test]
 fn snapshot_file_explorer_with_session_preview() {
-    use agr::terminal_buffer::{Cell, CellStyle, Color, StyledLine};
+    use agr::terminal::{Cell, CellStyle, Color, StyledLine};
     use agr::tui::widgets::SessionPreview;
 
     let mut explorer = FileExplorer::new(create_test_file_items());
@@ -621,7 +621,7 @@ fn snapshot_file_explorer_with_session_preview() {
 
 #[test]
 fn snapshot_file_explorer_preview_with_backup() {
-    use agr::terminal_buffer::{Cell, CellStyle, StyledLine};
+    use agr::terminal::{Cell, CellStyle, StyledLine};
     use agr::tui::widgets::SessionPreview;
 
     let mut explorer = FileExplorer::new(create_test_file_items());
@@ -649,7 +649,7 @@ fn snapshot_file_explorer_preview_with_backup() {
 
 #[test]
 fn snapshot_file_explorer_preview_without_backup() {
-    use agr::terminal_buffer::{Cell, CellStyle, StyledLine};
+    use agr::terminal::{Cell, CellStyle, StyledLine};
     use agr::tui::widgets::SessionPreview;
 
     let mut explorer = FileExplorer::new(create_test_file_items());
