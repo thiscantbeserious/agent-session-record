@@ -25,7 +25,7 @@ use crossterm::{
 
 use crate::asciicast::AsciicastFile;
 
-use super::terminal::{CellStyle, Color as TermColor, TerminalBuffer};
+use crate::terminal::{CellStyle, Color as TermColor, TerminalBuffer};
 
 /// Result of a playback operation
 #[derive(Debug, Clone)]

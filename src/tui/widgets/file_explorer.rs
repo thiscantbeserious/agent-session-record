@@ -79,7 +79,7 @@ impl From<SessionInfo> for FileItem {
     }
 }
 
-use crate::terminal_buffer::{Color, StyledLine};
+use crate::terminal::{Color, StyledLine};
 
 /// Enhanced preview information for a session file.
 ///
@@ -115,7 +115,7 @@ impl SessionPreview {
     /// - Never stores all events in memory
     fn load_streaming<P: AsRef<Path>>(path: P) -> Option<Self> {
         use crate::asciicast::{EventType, Header};
-        use crate::terminal_buffer::TerminalBuffer;
+        use crate::terminal::TerminalBuffer;
         use std::fs::File;
         use std::io::{BufRead, BufReader};
 
@@ -241,7 +241,7 @@ impl SessionPreview {
         // Group consecutive cells with same style into spans
         let mut spans: Vec<Span<'static>> = Vec::new();
         let mut current_text = String::new();
-        let mut current_style: Option<crate::terminal_buffer::CellStyle> = None;
+        let mut current_style: Option<crate::terminal::CellStyle> = None;
 
         for cell in &line.cells {
             if Some(cell.style) == current_style {

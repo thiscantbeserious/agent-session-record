@@ -17,12 +17,8 @@ pub mod tui;
 pub use analyzer::Analyzer;
 pub use asciicast::{AsciicastFile, Event, EventType, Header, MarkerInfo, MarkerManager};
 pub use config::Config;
-pub use player::{play_session, PlaybackResult, TerminalBuffer};
+pub use player::{play_session, PlaybackResult};
 pub use recording::Recorder;
 pub use shell::ShellStatus;
 pub use storage::StorageManager;
-
-// Re-export terminal types under the old module name for backwards compatibility
-pub mod terminal_buffer {
-    pub use crate::player::terminal::*;
-}
+pub use terminal::TerminalBuffer;
