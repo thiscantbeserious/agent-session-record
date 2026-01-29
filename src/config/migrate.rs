@@ -328,4 +328,86 @@ directory_max_length = 25
         assert_eq!(parsed.recording.filename_template, "{date}");
         assert_eq!(parsed.recording.directory_max_length, 25);
     }
+
+    #[test]
+    fn nested_dotted_tables_are_preserved() {
+        // User might have custom nested tables or dotted section names
+        // Migration should preserve them without modification
+        let input = r#"
+[storage]
+directory = "~/recordings"
+size_threshold_gb = 5.0
+age_threshold_days = 30
+
+[storage.custom]
+nested_field = "preserved"
+
+[agents]
+enabled = ["claude"]
+no_wrap = []
+
+[shell]
+auto_wrap = true
+
+[recording]
+auto_analyze = false
+analysis_agent = "claude"
+filename_template = "{date}"
+directory_max_length = 25
+
+[my.dotted.section]
+value = 123
+"#;
+
+        let result = migrate_config(input).unwrap();
+
+        // Should not add any fields (all required present)
+        assert!(!result.has_changes());
+
+        // Nested and dotted sections should be preserved
+        assert!(result.content.contains("[storage.custom]"));
+        assert!(result.content.contains("nested_field"));
+        assert!(result.content.contains("[my.dotted.section]"));
+        assert!(result.content.contains("value = 123"));
+    }
+
+    #[test]
+    fn array_of_tables_preserved() {
+        // TOML array of tables syntax should be preserved
+        let input = r#"
+[storage]
+directory = "~/recordings"
+size_threshold_gb = 5.0
+age_threshold_days = 30
+
+[[custom_array]]
+name = "first"
+
+[[custom_array]]
+name = "second"
+
+[agents]
+enabled = ["claude"]
+no_wrap = []
+
+[shell]
+auto_wrap = true
+
+[recording]
+auto_analyze = false
+analysis_agent = "claude"
+filename_template = "{date}"
+directory_max_length = 25
+"#;
+
+        let result = migrate_config(input).unwrap();
+
+        // Should not add any fields (all required present)
+        assert!(!result.has_changes());
+
+        // Array of tables should be preserved
+        assert!(result.content.contains("[[custom_array]]"));
+        assert!(result.content.contains("name = \"first\""));
+        assert!(result.content.contains("name = \"second\""));
+    }
 }

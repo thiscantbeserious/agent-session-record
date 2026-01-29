@@ -482,9 +482,14 @@ This is useful after upgrading AGR to a new version that introduces
 new configuration options. The command shows a preview of changes
 and asks for confirmation before writing.
 
-EXAMPLE:
-    agr config migrate")]
-    Migrate,
+EXAMPLES:
+    agr config migrate              Interactive mode (shows preview, asks confirmation)
+    agr config migrate --yes        Apply changes without confirmation (for scripts/CI)")]
+    Migrate {
+        /// Apply changes without confirmation prompt
+        #[arg(long, short = 'y', help = "Skip confirmation prompt")]
+        yes: bool,
+    },
 }
 
 #[derive(Subcommand)]
