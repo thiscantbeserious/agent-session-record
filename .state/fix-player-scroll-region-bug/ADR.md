@@ -1,7 +1,7 @@
 # ADR: Fix Player Scroll Region Bug
 
 ## Status
-Approved
+Accepted
 
 ## Context
 
