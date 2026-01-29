@@ -194,13 +194,128 @@ fn trim_edges(s: &str) -> String {
         .to_string()
 }
 
-/// Truncates a string to the specified length.
-fn truncate_to_length(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        s.chars().take(max_len).collect()
+/// Vowels used for syllable detection.
+const VOWELS: &[char] = &['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U'];
+
+/// Extracts the first syllable of a word.
+///
+/// Algorithm:
+/// 1. Find first vowel
+/// 2. Include consonants after the first vowel until the next vowel or end
+/// 3. When there are doubled consonants before next vowel, split them
+/// 4. If no next vowel (single-syllable word), keep whole word
+///
+/// Short words (≤3 chars) are returned unchanged.
+///
+/// Examples:
+/// - "testing" → "test" (t + e + s + t, stop before 'i')
+/// - "hello" → "hel" (h + e + l, split doubled 'll')
+/// - "session" → "ses" (s + e + s, split doubled 'ss')
+/// - "recorder" → "rec" (r + e + c, stop before 'o')
+/// - "cool" → "co" (c + o, stop at second 'o' which is a vowel)
+/// - "world" → "world" (only one vowel, no more after)
+/// - "three" → "three" (vowels at end, no consonants after)
+/// - "five" → "fiv" (f + i + v, stop before 'e')
+/// - "really" → "re" (r + e, stop at 'a' which is a vowel)
+fn first_syllable(word: &str) -> &str {
+    // Short words stay unchanged
+    if word.len() <= 3 {
+        return word;
     }
+
+    let chars: Vec<char> = word.chars().collect();
+
+    // Find first vowel
+    let first_vowel_idx = match chars.iter().position(|c| VOWELS.contains(c)) {
+        Some(idx) => idx,
+        None => return word, // No vowel, return whole word
+    };
+
+    // Start after the first vowel, collect consonants until next vowel
+    let mut idx = first_vowel_idx + 1;
+    let consonant_start = idx;
+
+    while idx < chars.len() && !VOWELS.contains(&chars[idx]) {
+        idx += 1;
+    }
+
+    // idx is now at the next vowel or end of word
+    // If we reached the end of the word, this is a single-syllable word - keep it
+    if idx >= chars.len() {
+        return word;
+    }
+
+    // There's another vowel ahead - determine cut point
+    let consonant_count = idx - consonant_start;
+    let cut_idx = if consonant_count >= 2 {
+        // Check if it's doubled consonants (same letter repeated at the boundary)
+        let last_consonant = chars[idx - 1];
+        let second_last_consonant = chars[idx - 2];
+        if last_consonant == second_last_consonant {
+            // Split doubled consonants: keep first, leave second for next syllable
+            idx - 1
+        } else {
+            // Different consonants: keep all of them
+            idx
+        }
+    } else {
+        // 0 or 1 consonant: cut at the next vowel
+        idx
+    };
+
+    // Convert char index to byte index
+    let byte_idx = word
+        .char_indices()
+        .nth(cut_idx)
+        .map(|(i, _)| i)
+        .unwrap_or(word.len());
+    &word[..byte_idx]
+}
+
+/// Truncates a string to the specified length using smart abbreviation.
+///
+/// For multi-word strings (separated by `-`, `_`, `.`), applies first syllable
+/// extraction to each word when truncation is needed. If still too long after
+/// abbreviation, truncates proportionally. Single words are hard-truncated.
+fn truncate_to_length(s: &str, max_len: usize) -> String {
+    // If it fits, return unchanged
+    if s.len() <= max_len {
+        return s.to_string();
+    }
+
+    // Split on word boundaries
+    let words: Vec<&str> = s
+        .split(['-', '_', '.'])
+        .filter(|w| !w.is_empty())
+        .collect();
+
+    // Single word: just hard truncate
+    if words.len() <= 1 {
+        return s.chars().take(max_len).collect();
+    }
+
+    // Multiple words: apply first syllable abbreviation
+    let abbreviated: Vec<&str> = words.iter().map(|w| first_syllable(w)).collect();
+    let result = abbreviated.join("-");
+
+    // If abbreviated result fits, return it
+    if result.len() <= max_len {
+        return result;
+    }
+
+    // Further truncation needed - distribute chars evenly across words
+    let separator_count = words.len() - 1;
+    let available = max_len.saturating_sub(separator_count);
+    let chars_per_word = available / words.len();
+
+    let truncated: Vec<String> = abbreviated
+        .iter()
+        .map(|w| w.chars().take(chars_per_word.max(1)).collect::<String>())
+        .collect();
+
+    // Join and clean up any trailing hyphens
+    let joined = truncated.join("-");
+    joined.trim_end_matches('-').to_string()
 }
 
 /// Checks if a name is a Windows reserved name and prefixes it if so.
