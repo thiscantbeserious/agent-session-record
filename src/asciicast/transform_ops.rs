@@ -672,11 +672,17 @@ mod tests {
 
         // Transform 2 - should create NEW backup (previous was deleted by restore)
         let result2 = apply_transforms(&path).unwrap();
-        assert!(result2.backup_created, "New backup should be created since previous was deleted");
+        assert!(
+            result2.backup_created,
+            "New backup should be created since previous was deleted"
+        );
 
         // Restore again - deletes backup again
         restore_from_backup(&path).unwrap();
-        assert!(!has_backup(&path), "Backup should be deleted after second restore");
+        assert!(
+            !has_backup(&path),
+            "Backup should be deleted after second restore"
+        );
 
         // Final bytes should match original
         let final_bytes = fs::read(&path).unwrap();
