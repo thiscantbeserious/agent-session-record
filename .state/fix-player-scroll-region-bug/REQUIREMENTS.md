@@ -3,116 +3,104 @@
 ## Sign-off
 
 - [x] Requirements reviewed by Product Owner
-- [ ] Requirements approved by user
+- [x] Requirements approved by user
 - [ ] Implementation complete
 - [ ] Validation passed
 
 ## Problem Statement
 
-Our native player renders terminal output differently from asciinema and standard terminal emulators (pyte). Content appears at wrong line positions because our VT emulator ignores scroll region commands.
+Our native player renders terminal output differently from asciinema and standard terminal emulators (pyte). Content appears at wrong line positions because our VT emulator ignores scroll region commands. Additionally, the escape sequence handling code lacks organization and there's no visibility into unhandled sequences, making future gaps difficult to identify.
 
 **User Impact:** When users play back recordings of TUI applications (vim, tmux, codex CLI, htop, etc.), the displayed content appears at incorrect vertical positions. This makes recordings appear broken or corrupted, degrading trust in the tool and making playback unusable for debugging or review purposes.
 
+## Scope
+
+This is a **bugfix + refactor** with three components:
+
+1. **Bugfix:** Implement scroll region commands and update existing scroll behavior
+2. **Refactor:** Extract and organize escape sequence handlers into a central module
+3. **Observability:** Add logging for unhandled sequences to catch future gaps
+
 ## Investigation Summary
-
-### Visual Comparison (pyte vs our player at 10000 events)
-
-**Pyte output:**
-```
- 1: |  filename and filename alone, using glob::Pattern, with error handlin|
- 2: |  introduce dialoguer for interactive UI enhancements and update CLI p|
- 4: |  Designing interactive session list and cleanup UI                   |
-...content at lines 1-55...
-```
-
-**Our player output:**
-```
-45: |• Model changed to gpt-5.2-codex medium|
-47: |• Explored|
-48: |  └ Read storage.rs|
-50: |• Designing interactive list and cleanup flows (4m 02s • esc to interrupt)|
-...content at lines 45-55...
-```
-
-Same content, but at **different line positions**. Our player shows content 44 lines lower.
 
 ### Root Cause
 
-The test file contains **2,438 scroll region commands** in the first 10000 events:
-- `CSI r` (DECSTBM - Set Top and Bottom Margins): ~2438 occurrences
+The test file contains **2,438 scroll region commands** in the first 10,000 events:
+- `CSI r` (DECSTBM - Set Top and Bottom Margins): ~2,438 occurrences
 - `CSI S` (Scroll Up): ~106 occurrences
 - `CSI T` / `ESC M` (Scroll Down / Reverse Index): ~116 occurrences
 
-Our `TerminalBuffer` in `src/player/terminal.rs` has:
-```rust
-match action {
-    'A' => { /* cursor up */ }
-    'B' => { /* cursor down */ }
-    // ... other handlers ...
-    _ => {} // <-- SILENTLY IGNORES 'r', 'S', 'T'
-}
-```
-
-The `_ => {}` catch-all silently ignores:
-- `'r'` - Set scroll region (DECSTBM)
-- `'S'` - Scroll up n lines
-- `'T'` - Scroll down n lines
+Our `TerminalBuffer` in `src/player/terminal.rs` has a `_ => {}` catch-all that silently ignores `'r'`, `'S'`, `'T'` sequences.
 
 ### Impact
 
-- Playback looks wrong for recordings with TUI apps (vim, tmux, codex, etc.)
-- Content appears at wrong vertical positions
+- Content appears at wrong vertical positions (44 lines off in test case)
 - Users may think files are corrupted when they're actually fine
-- Seeking/jumping in playback produces wrong visual state
+- No visibility into what sequences are being ignored
 
 ## Acceptance Criteria
 
 ### User-Facing Requirements (CRITICAL)
-1. [ ] **Visual parity with standard terminals**: Playing the test file shows content at the same line positions as pyte/asciinema
+
+1. [ ] **Visual parity with standard terminals**: Playing the test fixture shows content at the same line positions as pyte/asciinema - NON-NEGOTIABLE
 2. [ ] **No regression for simple recordings**: Recordings without scroll regions continue to play correctly
 3. [ ] **TUI app compatibility**: Recordings of vim, tmux, codex CLI render correctly
 
-### Scroll Region Support (HIGH - Implementation Details)
-4. [ ] Add `scroll_top` and `scroll_bottom` fields to `TerminalBuffer`
-5. [ ] Implement `CSI r` handler (DECSTBM - Set Top and Bottom Margins)
-   - `CSI r` with no params: reset to full screen (1 to height)
-   - `CSI top;bottom r`: set scroll region to lines top-bottom (1-indexed)
-6. [ ] Update existing scroll operations to respect scroll region bounds
+### Test Infrastructure (HIGH)
 
-### Scroll Up/Down Commands (HIGH - Implementation Details)
-7. [ ] Implement `CSI S` handler (Scroll Up)
-   - Scroll content up n lines within scroll region
-   - Bottom lines become blank
-8. [ ] Implement `CSI T` handler (Scroll Down)
-   - Scroll content down n lines within scroll region
-   - Top lines become blank
-9. [ ] Update `ESC M` (Reverse Index) to respect scroll region
+4. [ ] **Extract test fixture**: Extract relevant scroll region test sections from the investigation recording into an anonymous, reusable test fixture (no personal paths or identifying info)
+5. [ ] **Visual comparison test**: Test fixture can be used to verify visual parity with pyte
 
-### Verification & Testing (HIGH)
-10. [ ] Visual comparison test passes at multiple checkpoints (1000, 5000, 10000 events)
-11. [ ] All existing terminal tests continue to pass (`cargo test`)
-12. [ ] Manual verification: play test file and confirm no visual artifacts
+### Scroll Region Implementation (HIGH)
+
+6. [ ] Add `scroll_top` and `scroll_bottom` fields to track scroll region
+7. [ ] Implement `CSI r` handler (DECSTBM - Set Top and Bottom Margins)
+8. [ ] Implement `CSI S` handler (Scroll Up within region)
+9. [ ] Implement `CSI T` handler (Scroll Down within region)
+10. [ ] Update `ESC M` (Reverse Index) to respect scroll region
+11. [ ] Update `line_feed` to respect scroll region
+12. [ ] Reset scroll region on terminal resize
+
+### Code Refactor (HIGH)
+
+13. [ ] **Extract handlers into methods**: Each escape sequence handler should be its own method, not inline in the match
+14. [ ] **Organize in central module**: Group handlers logically (cursor movement, scrolling, editing, etc.) with clear structure
+15. [ ] **Audit for other unhandled sequences**: Check what else is being silently ignored by the `_ => {}` catch-all
+
+### Observability (HIGH)
+
+16. [ ] **Log unhandled sequences**: Add debug/warning tracing for any escape sequences that hit the catch-all, so future gaps are visible
 
 ### Edge Cases (MEDIUM)
-13. [ ] Scroll region reset on terminal resize
-14. [ ] Invalid scroll region params handled gracefully (ignored or clamped)
-15. [ ] Cursor constrained appropriately when inside/outside scroll region
 
-## Test File
-
-Primary test file for verification:
-```
-/Users/simon.sanladerer/recorded_agent_sessions/codex/agr_codex_failed_interactively.cast
-```
-- 61,338 events
-- 106x70 terminal
-- Heavy use of scroll regions (codex TUI)
+17. [ ] Invalid scroll region params handled gracefully (ignored or clamped)
+18. [ ] Cursor behavior correct when inside/outside scroll region
 
 ## Out of Scope
 
-- Other missing VT sequences (unless discovered during implementation)
+- DECOM (origin mode) - cursor positioning remains absolute
+- Full xterm/vt100 edge case compatibility
 - Performance optimization
 - Alternate screen buffer handling
+
+## Test Fixture Requirements
+
+The existing investigation used a local recording at a personal path. For the implementation:
+
+1. **Extract only the relevant sections** that exercise scroll region commands
+2. **Keep it anonymous** - no personal paths or identifying information
+3. **Make it reusable** - place in a test fixtures directory as part of the codebase
+4. **Document what it tests** - the fixture should clearly indicate it's for scroll region verification
+
+## Definition of Done
+
+- [ ] Visual parity test passes using the extracted fixture
+- [ ] All existing terminal tests pass (`cargo test`)
+- [ ] Escape sequence handlers are organized in a central module with clear grouping
+- [ ] Unhandled sequences produce debug/trace output
+- [ ] Code reviewed by Reviewer role
+- [ ] Tests pass in CI
+- [ ] Product Owner validates user-facing requirements are met
 
 ## Technical Notes
 
@@ -130,37 +118,8 @@ Breakdown:
 - pyte (Python): https://github.com/selectel/pyte
 - vte (Rust crate we use): Already parses these, we just don't handle them
 
-## Verification Method
-
-To verify this fix works correctly:
-
-1. **Automated test**: Run the visual comparison test that compares our output against pyte at event checkpoints
-   ```bash
-   cargo test --test visual_comparison
-   ```
-
-2. **Manual verification**: Play the test file and visually confirm:
-   ```bash
-   cargo run -- play /Users/simon.sanladerer/recorded_agent_sessions/codex/agr_codex_failed_interactively.cast
-   ```
-   - Content should appear at correct line positions throughout playback
-   - Seek/jump should produce correct visual state
-   - No visual "tearing" or content appearing in wrong regions
-
-3. **Regression check**: Ensure all existing tests pass
-   ```bash
-   cargo test
-   ```
-
-## Definition of Done
-
-- [ ] All acceptance criteria marked as complete
-- [ ] Code reviewed by Reviewer role
-- [ ] Tests pass in CI
-- [ ] Product Owner validates user-facing requirements are met
-
 ## Context
 
 - Branch: `fix/player-scroll-region-bug`
-- Visual comparison test added in initial commit
+- ADR approved with implementation design
 - pyte installed for reference comparison: `pip3 install pyte`
