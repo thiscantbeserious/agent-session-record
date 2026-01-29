@@ -7,6 +7,7 @@ pub mod asciicast;
 pub mod branding;
 pub mod cli;
 pub mod config;
+pub mod files;
 pub mod player;
 pub mod recording;
 pub mod shell;

@@ -148,6 +148,39 @@ agr config show    # View current configuration
 agr config edit    # Open in your editor
 ```
 
+### Filename Templates
+
+Customize how recording filenames are generated using template tags:
+
+```toml
+[recording]
+filename_template = "{directory}_{date}_{time}"  # Default
+directory_max_length = 50                         # Truncate long directory names
+```
+
+**Available tags:**
+
+| Tag | Description | Example Output |
+|-----|-------------|----------------|
+| `{directory}` | Current working directory name | `my-project` |
+| `{date}` | Date in YYMMDD format | `260129` |
+| `{date:FORMAT}` | Date with custom strftime | `{date:%Y-%m-%d}` → `2026-01-29` |
+| `{time}` | Time in HHMM format | `1430` |
+| `{time:FORMAT}` | Time with custom strftime | `{time:%H:%M}` → `14:30` |
+
+**Example configurations:**
+
+```toml
+# Default: project_260129_1430.cast
+filename_template = "{directory}_{date}_{time}"
+
+# ISO date: project_2026-01-29.cast
+filename_template = "{directory}_{date:%Y-%m-%d}"
+
+# Simple timestamp: 260129-143022.cast
+filename_template = "{date:%y%m%d}-{time:%H%M%S}"
+```
+
 See the [Wiki](../../wiki) for full configuration reference.
 
 ## Development

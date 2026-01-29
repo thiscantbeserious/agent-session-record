@@ -1,14 +1,15 @@
 //! Unit tests for recording module
 
-use agr::Recorder;
+use agr::{Config, Recorder};
 
 #[test]
 fn generate_filename_has_correct_format() {
-    let filename = Recorder::generate_filename();
+    let config = Config::default();
+    let recorder = Recorder::new(config);
+    let filename = recorder.generate_filename();
     assert!(filename.ends_with(".cast"));
-    // Format: YYYYMMDD-HHMMSS-mmm.cast
-    assert!(filename.len() > 20);
-    assert!(filename.contains('-'));
+    // New format: {directory}_{date}_{time}.cast
+    assert!(filename.contains('_'));
 }
 
 #[test]
