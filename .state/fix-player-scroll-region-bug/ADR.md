@@ -1,7 +1,26 @@
 # ADR: Fix Player Scroll Region Bug
 
 ## Status
-Proposed
+Approved
+
+## Architect Review Notes
+
+**Reviewed:** 2026-01-29
+
+**Assessment:** The design is technically sound and aligns with the codebase architecture.
+
+**Implementation Notes:**
+1. The `scroll_up`/`scroll_down` methods should be implemented on `TerminalPerformer` to match the existing pattern (all buffer manipulation methods like `line_feed`, `delete_lines`, `insert_lines` are on the performer)
+2. The scroll region fields (`scroll_top`, `scroll_bottom`) should be stored in `TerminalBuffer` and passed to `TerminalPerformer` via its constructor
+3. The `line_feed` method (line 247) should also be updated to respect scroll regions for full correctness - when cursor is at `scroll_bottom`, scroll within the region rather than the full screen
+
+**Known Limitations (acceptable for this fix):**
+- DECOM (origin mode) is not implemented - cursor positioning is always absolute
+- Some edge cases may differ slightly from xterm/vt100 behavior
+
+**Technical Risks (low):**
+- Performance impact of scroll operations is negligible for typical recordings
+- Edge cases in scroll region handling are well-defined by the DECSTBM spec
 
 ## Context
 
@@ -123,11 +142,12 @@ fn scroll_down(&mut self, n: usize) {
 Current implementation doesn't respect scroll region:
 ```rust
 b'M' => {
+    // RI - Reverse Index (move cursor up, scroll if at top)
     if *self.cursor_row > 0 {
         *self.cursor_row -= 1;
     } else {
-        // Scroll down at top - currently scrolls whole screen
-        self.buffer.remove(self.height - 1);
+        // Scroll down - add empty row at top, remove bottom
+        self.buffer.pop();
         self.buffer.insert(0, vec![Cell::default(); self.width]);
     }
 }
@@ -142,6 +162,36 @@ b'M' => {
         // At top of scroll region - scroll down within region
         self.scroll_down(1);
     }
+    // If cursor is above scroll region, just move up (no scroll)
+}
+```
+
+### Update line_feed (Newline Handling)
+
+The `line_feed` method should also respect scroll regions. Currently it scrolls the entire screen when at the bottom:
+
+```rust
+fn line_feed(&mut self) {
+    if *self.cursor_row + 1 < self.height {
+        *self.cursor_row += 1;
+    } else {
+        // Scroll up - remove first row and add empty row at bottom
+        self.buffer.remove(0);
+        self.buffer.push(vec![Cell::default(); self.width]);
+    }
+}
+```
+
+Updated to respect scroll region:
+```rust
+fn line_feed(&mut self) {
+    if *self.cursor_row < self.scroll_bottom {
+        *self.cursor_row += 1;
+    } else if *self.cursor_row == self.scroll_bottom {
+        // At bottom of scroll region - scroll up within region
+        self.scroll_up(1);
+    }
+    // If cursor is below scroll region, just move down (no scroll)
 }
 ```
 

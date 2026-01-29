@@ -1,8 +1,17 @@
 # Requirements: Fix Player Scroll Region Bug
 
+## Sign-off
+
+- [x] Requirements reviewed by Product Owner
+- [ ] Requirements approved by user
+- [ ] Implementation complete
+- [ ] Validation passed
+
 ## Problem Statement
 
 Our native player renders terminal output differently from asciinema and standard terminal emulators (pyte). Content appears at wrong line positions because our VT emulator ignores scroll region commands.
+
+**User Impact:** When users play back recordings of TUI applications (vim, tmux, codex CLI, htop, etc.), the displayed content appears at incorrect vertical positions. This makes recordings appear broken or corrupted, degrading trust in the tool and making playback unusable for debugging or review purposes.
 
 ## Investigation Summary
 
@@ -58,30 +67,36 @@ The `_ => {}` catch-all silently ignores:
 
 ## Acceptance Criteria
 
-### Scroll Region Support (HIGH)
-1. [ ] Add `scroll_top` and `scroll_bottom` fields to `TerminalBuffer`
-2. [ ] Implement `CSI r` handler (DECSTBM - Set Top and Bottom Margins)
+### User-Facing Requirements (CRITICAL)
+1. [ ] **Visual parity with standard terminals**: Playing the test file shows content at the same line positions as pyte/asciinema
+2. [ ] **No regression for simple recordings**: Recordings without scroll regions continue to play correctly
+3. [ ] **TUI app compatibility**: Recordings of vim, tmux, codex CLI render correctly
+
+### Scroll Region Support (HIGH - Implementation Details)
+4. [ ] Add `scroll_top` and `scroll_bottom` fields to `TerminalBuffer`
+5. [ ] Implement `CSI r` handler (DECSTBM - Set Top and Bottom Margins)
    - `CSI r` with no params: reset to full screen (1 to height)
    - `CSI top;bottom r`: set scroll region to lines top-bottom (1-indexed)
-3. [ ] Update existing scroll operations to respect scroll region bounds
+6. [ ] Update existing scroll operations to respect scroll region bounds
 
-### Scroll Up/Down Commands (HIGH)
-4. [ ] Implement `CSI S` handler (Scroll Up)
+### Scroll Up/Down Commands (HIGH - Implementation Details)
+7. [ ] Implement `CSI S` handler (Scroll Up)
    - Scroll content up n lines within scroll region
    - Bottom lines become blank
-5. [ ] Implement `CSI T` handler (Scroll Down)
+8. [ ] Implement `CSI T` handler (Scroll Down)
    - Scroll content down n lines within scroll region
    - Top lines become blank
-6. [ ] Update `ESC M` (Reverse Index) to respect scroll region
+9. [ ] Update `ESC M` (Reverse Index) to respect scroll region
 
-### Visual Verification (HIGH)
-7. [ ] Visual comparison test passes (our output matches pyte at checkpoints)
-8. [ ] Existing terminal tests continue to pass
+### Verification & Testing (HIGH)
+10. [ ] Visual comparison test passes at multiple checkpoints (1000, 5000, 10000 events)
+11. [ ] All existing terminal tests continue to pass (`cargo test`)
+12. [ ] Manual verification: play test file and confirm no visual artifacts
 
 ### Edge Cases (MEDIUM)
-9. [ ] Scroll region reset on terminal resize
-10. [ ] Invalid scroll region params handled gracefully (ignored or clamped)
-11. [ ] Cursor clamped to scroll region when appropriate
+13. [ ] Scroll region reset on terminal resize
+14. [ ] Invalid scroll region params handled gracefully (ignored or clamped)
+15. [ ] Cursor constrained appropriately when inside/outside scroll region
 
 ## Test File
 
@@ -114,6 +129,35 @@ Breakdown:
 ### Reference implementations:
 - pyte (Python): https://github.com/selectel/pyte
 - vte (Rust crate we use): Already parses these, we just don't handle them
+
+## Verification Method
+
+To verify this fix works correctly:
+
+1. **Automated test**: Run the visual comparison test that compares our output against pyte at event checkpoints
+   ```bash
+   cargo test --test visual_comparison
+   ```
+
+2. **Manual verification**: Play the test file and visually confirm:
+   ```bash
+   cargo run -- play /Users/simon.sanladerer/recorded_agent_sessions/codex/agr_codex_failed_interactively.cast
+   ```
+   - Content should appear at correct line positions throughout playback
+   - Seek/jump should produce correct visual state
+   - No visual "tearing" or content appearing in wrong regions
+
+3. **Regression check**: Ensure all existing tests pass
+   ```bash
+   cargo test
+   ```
+
+## Definition of Done
+
+- [ ] All acceptance criteria marked as complete
+- [ ] Code reviewed by Reviewer role
+- [ ] Tests pass in CI
+- [ ] Product Owner validates user-facing requirements are met
 
 ## Context
 
