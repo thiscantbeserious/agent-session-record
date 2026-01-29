@@ -92,5 +92,5 @@ topo_order = false
 sort_commits = "oldest"
 
 [remote.github]
-owner = "simophin"
+owner = "thiscantbeserious"
 repo = "agent-session-recorder"

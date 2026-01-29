@@ -82,7 +82,7 @@ This triggers the release workflow which:
 ### Post-Release
 
 - CHANGELOG.md is auto-generated from conventional commits
-- Manual edits to CHANGELOG.md are optional (will be preserved)
+- Note: Each release fully regenerates CHANGELOG.md (manual edits will be overwritten)
 - Verify the GitHub Release was created correctly
 
 ## End of Cycle Tasks
