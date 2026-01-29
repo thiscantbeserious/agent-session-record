@@ -1,6 +1,6 @@
 //! SGR (Select Graphic Rendition) tests for colors and attributes.
 
-use crate::terminal::{Cell, CellStyle, Color, TerminalBuffer};
+use agr::terminal::{Cell, CellStyle, Color, TerminalBuffer};
 
 #[test]
 fn color_default_is_default() {

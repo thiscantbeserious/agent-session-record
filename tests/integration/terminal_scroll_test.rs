@@ -1,6 +1,6 @@
 //! Scroll region tests.
 
-use crate::terminal::TerminalBuffer;
+use agr::terminal::TerminalBuffer;
 
 #[test]
 fn scroll_when_full() {

@@ -10,9 +10,6 @@ mod handlers;
 mod performer;
 mod types;
 
-#[cfg(test)]
-mod tests;
-
 pub use types::{Cell, CellStyle, Color, StyledLine};
 
 use std::fmt;

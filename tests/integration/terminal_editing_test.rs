@@ -1,6 +1,6 @@
 //! Erase and delete operation tests.
 
-use crate::terminal::TerminalBuffer;
+use agr::terminal::TerminalBuffer;
 
 #[test]
 fn erase_to_end_of_line() {

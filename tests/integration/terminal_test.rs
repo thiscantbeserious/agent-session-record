@@ -1,6 +1,6 @@
 //! Integration tests for full sequence replay and fixtures.
 
-use crate::terminal::TerminalBuffer;
+use agr::terminal::TerminalBuffer;
 
 #[test]
 fn new_buffer_is_empty() {
@@ -80,33 +80,33 @@ fn mouse_tracking_sgr_mode_ignored() {
 #[test]
 fn wide_character_takes_two_columns() {
     let mut buf = TerminalBuffer::new(80, 24);
-    buf.process("中X");
+    buf.process("\u{4e2d}X");
     assert_eq!(buf.cursor_col(), 3);
 }
 
 #[test]
 fn wide_character_alignment() {
     let mut buf = TerminalBuffer::new(80, 24);
-    buf.process("A中B");
+    buf.process("A\u{4e2d}B");
     let output = buf.to_string();
     assert!(output.contains("A"));
-    assert!(output.contains("中"));
+    assert!(output.contains("\u{4e2d}"));
     assert!(output.contains("B"));
 }
 
 #[test]
 fn wide_character_wraps_correctly() {
     let mut buf = TerminalBuffer::new(5, 2);
-    buf.process("AAAA中");
+    buf.process("AAAA\u{4e2d}");
     assert_eq!(buf.cursor_row(), 1);
 }
 
 #[test]
 fn bullet_character_width() {
     let mut buf = TerminalBuffer::new(80, 24);
-    buf.process("●X");
+    buf.process("\u{25cf}X");
     let output = buf.to_string();
-    assert!(output.contains("●"));
+    assert!(output.contains("\u{25cf}"));
     assert!(output.contains("X"));
 }
 
@@ -114,7 +114,8 @@ fn bullet_character_width() {
 fn special_characters_have_correct_width() {
     use unicode_width::UnicodeWidthChar;
     let chars = [
-        '⏺', '⎿', '✳', '✶', '✻', '✢', '✽', '·', '●', '❯', '↓', '─', '│', '\u{00A0}',
+        '\u{23fa}', '\u{23bf}', '\u{2733}', '\u{2736}', '\u{273b}', '\u{2722}', '\u{273d}',
+        '\u{00b7}', '\u{25cf}', '\u{276f}', '\u{2193}', '\u{2500}', '\u{2502}', '\u{00A0}',
     ];
     for c in chars {
         let w = c.width().unwrap_or(1);
@@ -146,7 +147,7 @@ fn spinner_update_sequence() {
     buf.process("\x1b[6A");
     assert_eq!(buf.cursor_row(), 0);
 
-    buf.process("⏺");
+    buf.process("\u{23fa}");
     assert_eq!(buf.cursor_col(), 1);
 
     buf.process("\x1b[1C");
@@ -158,8 +159,8 @@ fn spinner_update_sequence() {
     let output = buf.to_string();
     let lines: Vec<&str> = output.lines().collect();
     assert!(
-        lines[0].starts_with("⏺"),
-        "Row 0 should start with ⏺, got: {}",
+        lines[0].starts_with("\u{23fa}"),
+        "Row 0 should start with record symbol, got: {}",
         lines[0]
     );
     assert!(
@@ -173,7 +174,7 @@ fn spinner_update_sequence() {
 /// This fixture contains diverse scroll region sequences for CI testing.
 #[test]
 fn scroll_region_fixture_test() {
-    use crate::asciicast::AsciicastFile;
+    use agr::asciicast::{AsciicastFile, EventType};
     use std::path::Path;
 
     let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -196,7 +197,7 @@ fn scroll_region_fixture_test() {
 
     // Process all events
     for event in &cast.events {
-        if event.event_type == crate::asciicast::EventType::Output {
+        if event.event_type == EventType::Output {
             buf.process(&event.data);
         }
     }

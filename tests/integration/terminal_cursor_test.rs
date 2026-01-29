@@ -1,6 +1,6 @@
 //! Cursor movement and positioning tests.
 
-use crate::terminal::TerminalBuffer;
+use agr::terminal::TerminalBuffer;
 
 #[test]
 fn cursor_movement_up() {
