@@ -10,6 +10,24 @@ This plan breaks the ADR into small, independently testable stages. Each stage s
 **Total stages:** 14
 **Estimated complexity:** Medium (refactor + feature)
 
+## Progress
+
+- [x] Stage 1: Create terminal directory structure
+- [x] Stage 2: Extract types.rs
+- [x] Stage 3: Move TerminalBuffer to mod.rs
+- [x] Stage 4: Move TerminalPerformer to performer.rs
+- [ ] Stage 5: Extract cursor handlers (deferred - refactoring)
+- [ ] Stage 6: Extract editing handlers (deferred - refactoring)
+- [ ] Stage 7: Extract style handler (deferred - refactoring)
+- [ ] Stage 8: Add observability for unhandled sequences (deferred - refactoring)
+- [x] Stage 9: Add scroll region state
+- [x] Stage 10: Implement scroll_up and scroll_down helpers
+- [x] Stage 11: Implement CSI r handler (DECSTBM)
+- [x] Stage 12: Implement CSI S and CSI T handlers
+- [x] Stage 13: Update line_feed and reverse_index
+- [ ] Stage 14: Migrate tests to separate files (deferred - refactoring)
+- [ ] Stage 15: Create scroll region test fixture (deferred)
+
 ---
 
 ## Phase 1: Module Structure Setup
