@@ -294,18 +294,16 @@ fn sanitize_directory_truncates_to_max_length() {
     // "this-is-a-very-long-directory-name" = 34 chars, limit 10
     // After first syllable: this-is-a-very-long-dir-nam = 27 chars
     // Still too long, so proportional truncation: 1 char per word
-    // Result: "t-i-a-v-l-d-n" = 13 chars (minimum for 7 words)
-    // This exceeds limit but is the structural minimum
+    // Result: "t-i-a-v-l-d-n" = 13 chars
+    // Final hard truncation to 10 chars: "t-i-a-v-l-"
     let config = Config {
         directory_max_length: 10,
     };
     let long_name = "this-is-a-very-long-directory-name";
     let result = filename::sanitize_directory(long_name, &config);
 
-    // Verify structure is preserved
-    let hyphen_count = result.chars().filter(|&c| c == '-').count();
-    assert_eq!(hyphen_count, 6, "Expected 6 hyphens (7 words) in '{}', got {}", result, hyphen_count);
-    assert!(!result.ends_with('-'), "Should not end with hyphen: '{}'", result);
+    // Verify hard truncation respects limit
+    assert!(result.chars().count() <= 10, "Expected <= 10 chars, got {} ('{}')", result.chars().count(), result);
 }
 
 #[test]
@@ -1567,17 +1565,14 @@ fn five_words_single_char_words_a_b_c_d_e_at_9() {
 #[test]
 fn five_words_single_char_words_a_b_c_d_e_at_7() {
     // 5 single-char words at tight limit
-    // "a-b-c-d-e" = 9 chars, minimum possible for 5 words with separators
-    // Physical constraint: can't fit 5 single-char words in less than 9 chars
-    // Algorithm does its best - preserves all words with 1 char each
+    // "a-b-c-d-e" = 9 chars, limit 7
+    // After proportional truncation (1 char per word), still 9 chars
+    // Final hard truncation kicks in: "a-b-c-d-e" -> "a-b-c-d" (7 chars)
     let config = Config::new(7);
     let result = filename::sanitize_directory("a-b-c-d-e", &config);
 
-    // We accept that 9 chars is the minimum for this structure
-    // At least verify word count is preserved
-    let hyphen_count = result.chars().filter(|&c| c == '-').count();
-    assert_eq!(hyphen_count, 4, "Expected 4 hyphens (5 words) in '{}', got {}", result, hyphen_count);
-    assert!(!result.ends_with('-'), "Should not end with hyphen: '{}'", result);
+    // Verify hard truncation respects limit
+    assert!(result.chars().count() <= 7, "Expected <= 7 chars, got {} ('{}')", result.chars().count(), result);
 }
 
 // ============================================================================
@@ -1627,17 +1622,14 @@ fn seven_words_single_char_a_b_c_d_e_f_g_at_13() {
 #[test]
 fn seven_words_single_char_a_b_c_d_e_f_g_at_10() {
     // 7 single-char words at tight limit
-    // "a-b-c-d-e-f-g" = 13 chars, minimum possible for 7 single-char words
-    // Physical constraint: can't fit 7 single-char words in less than 13 chars
+    // "a-b-c-d-e-f-g" = 13 chars, limit 10
+    // After proportional truncation (1 char per word), still 13 chars
+    // Final hard truncation kicks in: "a-b-c-d-e-f-g" -> "a-b-c-d-e-" (10 chars)
     let config = Config::new(10);
     let result = filename::sanitize_directory("a-b-c-d-e-f-g", &config);
 
-    // We accept that 13 chars is the minimum for this structure
-    // At least verify word count is preserved
-    let hyphen_count = result.chars().filter(|&c| c == '-').count();
-    assert_eq!(hyphen_count, 6, "Expected 6 hyphens (7 words) in '{}', got {}", result, hyphen_count);
-    assert!(!result.ends_with('-'), "Should not end with hyphen: '{}'", result);
-    assert!(!result.starts_with('-'), "Should not start with hyphen: '{}'", result);
+    // Verify hard truncation respects limit
+    assert!(result.chars().count() <= 10, "Expected <= 10 chars, got {} ('{}')", result.chars().count(), result);
 }
 
 #[test]

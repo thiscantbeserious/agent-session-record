@@ -202,7 +202,7 @@ const VOWELS: &[char] = &['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U'];
 /// Algorithm:
 /// 1. Find first vowel
 /// 2. Include consonants after the first vowel until the next vowel or end
-/// 3. When there are doubled consonants before next vowel, split them
+/// 3. When there are doubled consonants anywhere in the cluster, split at the double
 /// 4. If no next vowel (single-syllable word), keep whole word
 ///
 /// Short words (≤3 chars) are returned unchanged.
@@ -217,9 +217,10 @@ const VOWELS: &[char] = &['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U'];
 /// - "three" → "three" (vowels at end, no consonants after)
 /// - "five" → "fiv" (f + i + v, stop before 'e')
 /// - "really" → "re" (r + e, stop at 'a' which is a vowel)
+/// - "apple" → "ap" (a + p, split doubled 'pp')
 fn first_syllable(word: &str) -> &str {
-    // Short words stay unchanged
-    if word.len() <= 3 {
+    // Short words stay unchanged (use char count for unicode safety)
+    if word.chars().count() <= 3 {
         return word;
     }
 
@@ -248,16 +249,17 @@ fn first_syllable(word: &str) -> &str {
     // There's another vowel ahead - determine cut point
     let consonant_count = idx - consonant_start;
     let cut_idx = if consonant_count >= 2 {
-        // Check if it's doubled consonants (same letter repeated at the boundary)
-        let last_consonant = chars[idx - 1];
-        let second_last_consonant = chars[idx - 2];
-        if last_consonant == second_last_consonant {
-            // Split doubled consonants: keep first, leave second for next syllable
-            idx - 1
-        } else {
-            // Different consonants: keep all of them
-            idx
+        // Scan the consonant cluster for any doubled letters (not just at boundary)
+        let consonants = &chars[consonant_start..idx];
+        let mut double_pos = None;
+        for i in 0..consonants.len() - 1 {
+            if consonants[i] == consonants[i + 1] {
+                // Found doubled consonants - split after first one
+                double_pos = Some(consonant_start + i + 1);
+                break;
+            }
         }
+        double_pos.unwrap_or(idx)
     } else {
         // 0 or 1 consonant: cut at the next vowel
         idx
@@ -278,8 +280,8 @@ fn first_syllable(word: &str) -> &str {
 /// extraction to each word when truncation is needed. If still too long after
 /// abbreviation, truncates proportionally. Single words are hard-truncated.
 fn truncate_to_length(s: &str, max_len: usize) -> String {
-    // If it fits, return unchanged
-    if s.len() <= max_len {
+    // If it fits, return unchanged (use char count for unicode safety)
+    if s.chars().count() <= max_len {
         return s.to_string();
     }
 
@@ -289,7 +291,7 @@ fn truncate_to_length(s: &str, max_len: usize) -> String {
         .filter(|w| !w.is_empty())
         .collect();
 
-    // Single word: just hard truncate
+    // Single word: just hard truncate (char-based)
     if words.len() <= 1 {
         return s.chars().take(max_len).collect();
     }
@@ -298,8 +300,8 @@ fn truncate_to_length(s: &str, max_len: usize) -> String {
     let abbreviated: Vec<&str> = words.iter().map(|w| first_syllable(w)).collect();
     let result = abbreviated.join("-");
 
-    // If abbreviated result fits, return it
-    if result.len() <= max_len {
+    // If abbreviated result fits, return it (char-based check)
+    if result.chars().count() <= max_len {
         return result;
     }
 
@@ -315,7 +317,14 @@ fn truncate_to_length(s: &str, max_len: usize) -> String {
 
     // Join and clean up any trailing hyphens
     let joined = truncated.join("-");
-    joined.trim_end_matches('-').to_string()
+    let cleaned = joined.trim_end_matches('-').to_string();
+
+    // Final safety: hard truncate if still over limit
+    if cleaned.chars().count() > max_len {
+        cleaned.chars().take(max_len).collect()
+    } else {
+        cleaned
+    }
 }
 
 /// Checks if a name is a Windows reserved name and prefixes it if so.
