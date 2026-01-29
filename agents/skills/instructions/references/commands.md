@@ -5,7 +5,7 @@
 ```
 agr record <agent> [-- args...]      # Start recording session
 agr analyze <file> [--agent <name>]  # Analyze recording with AI
-agr status                           # Show storage stats
+agr usage                            # Show storage stats
 agr cleanup                          # Interactive cleanup
 agr list [agent]                     # List sessions
 agr marker add <file> <time> <label> # Add marker

@@ -287,7 +287,7 @@ fn main() -> Result<()> {
         Commands::Record { agent, name, args } => {
             commands::record::handle(&agent, name.as_deref(), &args)
         }
-        Commands::Status => commands::status::handle(),
+        Commands::Usage => commands::usage::handle(),
         Commands::Cleanup { agent, older_than } => {
             commands::cleanup::handle(agent.as_deref(), older_than)
         }
@@ -704,11 +704,11 @@ mod tests {
     }
 
     #[test]
-    fn cli_status_parses() {
-        let cli = Cli::try_parse_from(["agr", "status"]).unwrap();
+    fn cli_usage_parses() {
+        let cli = Cli::try_parse_from(["agr", "usage"]).unwrap();
         match cli.command {
-            Commands::Status => {}
-            _ => panic!("Expected Status command"),
+            Commands::Usage => {}
+            _ => panic!("Expected Usage command"),
         }
     }
 

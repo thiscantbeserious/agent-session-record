@@ -13,8 +13,8 @@ pub mod marker;
 pub mod play;
 pub mod record;
 pub mod shell;
-pub mod status;
 pub mod transform;
+pub mod usage;
 
 use anyhow::Result;
 use std::path::PathBuf;

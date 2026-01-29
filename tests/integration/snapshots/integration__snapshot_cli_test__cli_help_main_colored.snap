@@ -1,6 +1,5 @@
 ---
 source: tests/integration/snapshot_cli_test.rs
-assertion_line: 205
 expression: output
 ---
 === agr --help (colored) ===
@@ -24,7 +23,7 @@ with asciinema, auto-analyzed by AI agents, and annotated with markers.
 
 QUICK START:
     agr record claude              ESC[37mRecord a Claude sessionESC[0m
-    agr status                     ESC[37mCheck storage usageESC[0m
+    agr usage                      ESC[37mCheck storage usageESC[0m
     agr list                       ESC[37mList all recordingsESC[0m
     agr cleanup                    ESC[37mClean up old recordingsESC[0m
 
@@ -38,7 +37,7 @@ Usage: agr <COMMAND>
 
 Commands:
   record    ESC[37mStart recording a sessionESC[0m
-  status    ESC[37mShow storage statisticsESC[0m
+  usage     ESC[37mShow storage statisticsESC[0m
   cleanup   ESC[37mInteractive cleanup of old sessionsESC[0m
   list      ESC[37mList recorded sessions [aliases: ls]ESC[0m
   analyze   ESC[37mAnalyze a recording with AIESC[0m

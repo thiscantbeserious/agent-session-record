@@ -1,4 +1,4 @@
-//! Status command handler
+//! Usage command handler
 
 use anyhow::Result;
 

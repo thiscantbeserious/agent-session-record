@@ -120,13 +120,13 @@ fn snapshot_cli_help_list() {
 }
 
 #[test]
-fn snapshot_cli_help_status() {
-    let (stdout, stderr, exit_code) = run_agr(&["status", "--help"]);
+fn snapshot_cli_help_usage() {
+    let (stdout, stderr, exit_code) = run_agr(&["usage", "--help"]);
     let output = format!(
-        "=== agr status --help ===\nExit code: {}\n\n--- stdout ---\n{}\n--- stderr ---\n{}",
+        "=== agr usage --help ===\nExit code: {}\n\n--- stdout ---\n{}\n--- stderr ---\n{}",
         exit_code, stdout, stderr
     );
-    insta::assert_snapshot!("cli_help_status", output);
+    insta::assert_snapshot!("cli_help_usage", output);
 }
 
 #[test]

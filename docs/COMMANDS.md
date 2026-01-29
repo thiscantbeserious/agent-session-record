@@ -5,7 +5,7 @@ This document is auto-generated from the CLI definitions.
 ## Table of Contents
 
 - [record](#agr-record)
-- [status](#agr-status)
+- [usage](#agr-usage)
 - [cleanup](#agr-cleanup)
 - [list](#agr-list)
 - [analyze](#agr-analyze)
@@ -31,7 +31,7 @@ with asciinema, auto-analyzed by AI agents, and annotated with markers.
 
 QUICK START:
     agr record claude              Record a Claude session
-    agr status                     Check storage usage
+    agr usage                      Check storage usage
     agr list                       List all recordings
     agr cleanup                    Clean up old recordings
 
@@ -74,7 +74,7 @@ EXAMPLES:
 
 ---
 
-## agr status
+## agr usage
 
 Show storage statistics
 
@@ -87,7 +87,7 @@ Shows total size, disk usage percentage, session count by agent,
 and age of the oldest recording.
 
 EXAMPLE:
-    agr status
+    agr usage
 
 OUTPUT:
     Agent Sessions: 1.2 GB (0.5% of disk)
@@ -217,7 +217,7 @@ PLAYER CONTROLS:
     q, Esc      Quit
     Space       Pause/resume
     +/-         Adjust playback speed
-    <, >        Seek backward/forward 5s
+    <, > or ,, .  Seek backward/forward 5s
     m           Jump to next marker
     ?           Show help overlay
 ```

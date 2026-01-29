@@ -65,7 +65,7 @@ agr record claude
 agr list
 
 # Check storage usage:
-agr status
+agr usage
 
 # Play back a recording with the native player:
 agr play session.cast
