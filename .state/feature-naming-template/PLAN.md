@@ -166,8 +166,3 @@ Updated by implementer as work progresses.
 | 5 | complete | generate() function added, all 84 tests pass |
 | 6 | complete | Config integration done, recording.rs updated |
 | 7 | complete | README updated with template documentation |
-| 3 | pending | |
-| 4 | pending | |
-| 5 | pending | |
-| 6 | pending | |
-| 7 | pending | |

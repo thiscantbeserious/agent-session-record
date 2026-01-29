@@ -49,10 +49,8 @@ impl Recorder {
             .and_then(|p| p.file_name().map(|s| s.to_string_lossy().to_string()))
             .unwrap_or_else(|| "recording".to_string());
 
-        // Build filename config from recording config
-        let filename_config = filename::Config {
-            directory_max_length: self.config.recording.directory_max_length,
-        };
+        // Build filename config from recording config (enforces minimum of 1)
+        let filename_config = filename::Config::new(self.config.recording.directory_max_length);
 
         // Generate using template, fallback to simple timestamp on error
         filename::generate(

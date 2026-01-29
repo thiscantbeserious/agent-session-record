@@ -2,7 +2,7 @@
 //!
 //! These tests are written BEFORE implementation (TDD approach).
 
-use agr::files::filename::{self, Config, FilenameError, GenerateError, Template, TemplateError};
+use agr::files::filename::{self, Config, FilenameError, Template, TemplateError};
 
 // ============================================================================
 // Space Replacement Tests
@@ -237,6 +237,15 @@ fn sanitize_allows_reserved_names_as_substrings() {
     assert_eq!(filename::sanitize("CONTROLLER", &config), "CONTROLLER");
 }
 
+#[test]
+fn sanitize_handles_reserved_names_with_extensions() {
+    let config = Config::default();
+    // Reserved names with extensions should also be prefixed
+    assert_eq!(filename::sanitize("CON.txt", &config), "_CON.txt");
+    assert_eq!(filename::sanitize("NUL.cast", &config), "_NUL.cast");
+    assert_eq!(filename::sanitize("PRN.doc", &config), "_PRN.doc");
+}
+
 // ============================================================================
 // Empty Result Fallback Tests
 // ============================================================================
@@ -313,6 +322,16 @@ fn sanitize_directory_truncates_after_sanitization() {
 fn sanitize_directory_default_max_is_50() {
     let config = Config::default();
     assert_eq!(config.directory_max_length, 50);
+}
+
+#[test]
+fn config_new_enforces_minimum_directory_length() {
+    // Config::new should enforce minimum of 1
+    let config = Config::new(0);
+    assert_eq!(config.directory_max_length, 1);
+
+    let config = Config::new(5);
+    assert_eq!(config.directory_max_length, 5);
 }
 
 // ============================================================================
@@ -500,6 +519,27 @@ fn template_parse_invalid_format_string_returns_error() {
     assert!(matches!(
         result.unwrap_err(),
         TemplateError::InvalidFormat(_)
+    ));
+}
+
+#[test]
+fn template_parse_format_without_specifiers_returns_error() {
+    // Format with no valid strftime specifiers
+    let result = Template::parse("{date:invalid}");
+    assert!(result.is_err());
+    assert!(matches!(
+        result.unwrap_err(),
+        TemplateError::InvalidFormat(_)
+    ));
+}
+
+#[test]
+fn template_parse_unmatched_close_brace_returns_error() {
+    let result = Template::parse("test}bar");
+    assert!(result.is_err());
+    assert!(matches!(
+        result.unwrap_err(),
+        TemplateError::UnmatchedCloseBrace
     ));
 }
 

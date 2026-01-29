@@ -5,10 +5,13 @@
 
 use deunicode::deunicode;
 
+/// Minimum allowed value for directory_max_length.
+const MIN_DIRECTORY_MAX_LENGTH: usize = 1;
+
 /// Configuration for filename generation.
 #[derive(Debug, Clone)]
 pub struct Config {
-    /// Maximum length for the directory component (default: 50).
+    /// Maximum length for the directory component (default: 50, minimum: 1).
     pub directory_max_length: usize,
 }
 
@@ -16,6 +19,15 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             directory_max_length: 50,
+        }
+    }
+}
+
+impl Config {
+    /// Creates a new Config, ensuring directory_max_length is at least 1.
+    pub fn new(directory_max_length: usize) -> Self {
+        Self {
+            directory_max_length: directory_max_length.max(MIN_DIRECTORY_MAX_LENGTH),
         }
     }
 }
@@ -192,8 +204,16 @@ fn truncate_to_length(s: &str, max_len: usize) -> String {
 }
 
 /// Checks if a name is a Windows reserved name and prefixes it if so.
+///
+/// Handles both exact matches (CON) and names with extensions (CON.txt).
 fn handle_reserved_name(name: &str) -> String {
-    let upper = name.to_uppercase();
+    // Extract the base name (before any extension)
+    let base_name = match name.find('.') {
+        Some(pos) => &name[..pos],
+        None => name,
+    };
+
+    let upper = base_name.to_uppercase();
     for reserved in WINDOWS_RESERVED {
         if upper == *reserved {
             return format!("_{}", name);
@@ -228,6 +248,8 @@ pub enum TemplateError {
     Empty,
     /// Unclosed brace in template.
     UnclosedBrace,
+    /// Unmatched closing brace in template.
+    UnmatchedCloseBrace,
     /// Unknown tag name.
     UnknownTag(String),
     /// Invalid format string.
@@ -239,6 +261,7 @@ impl std::fmt::Display for TemplateError {
         match self {
             TemplateError::Empty => write!(f, "Template cannot be empty"),
             TemplateError::UnclosedBrace => write!(f, "Unclosed brace in template"),
+            TemplateError::UnmatchedCloseBrace => write!(f, "Unmatched closing brace in template"),
             TemplateError::UnknownTag(tag) => write!(f, "Unknown template tag: {}", tag),
             TemplateError::InvalidFormat(fmt) => write!(f, "Invalid format string: {}", fmt),
         }
@@ -322,6 +345,9 @@ impl Template {
                 // Parse the tag content
                 let segment = parse_tag(&tag_content)?;
                 segments.push(segment);
+            } else if c == '}' {
+                // Unmatched closing brace
+                return Err(TemplateError::UnmatchedCloseBrace);
             } else {
                 literal.push(c);
             }
@@ -396,6 +422,7 @@ fn parse_tag(content: &str) -> Result<Segment, TemplateError> {
                     "date format cannot be empty".to_string(),
                 ));
             }
+            validate_strftime_format(fmt)?;
             Ok(Segment::Date(fmt.to_string()))
         }
         "time" => {
@@ -405,8 +432,44 @@ fn parse_tag(content: &str) -> Result<Segment, TemplateError> {
                     "time format cannot be empty".to_string(),
                 ));
             }
+            validate_strftime_format(fmt)?;
             Ok(Segment::Time(fmt.to_string()))
         }
         _ => Err(TemplateError::UnknownTag(tag_name.to_string())),
     }
+}
+
+/// Validates a strftime format string by checking it contains at least one valid specifier.
+fn validate_strftime_format(fmt: &str) -> Result<(), TemplateError> {
+    // Valid strftime specifiers (common ones)
+    const VALID_SPECIFIERS: &[char] = &[
+        'Y', 'y', 'm', 'd', 'H', 'M', 'S', 'f', 'j', 'U', 'W', 'w', 'a', 'A', 'b', 'B', 'C', 'e',
+        'G', 'g', 'I', 'k', 'l', 'n', 'P', 'p', 'r', 'R', 'T', 's', 't', 'u', 'V', 'z', 'Z', '+',
+        '%',
+    ];
+
+    // Check if format contains at least one % followed by a valid specifier
+    let mut found_specifier = false;
+    let mut chars = fmt.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '%' {
+            if let Some(&next) = chars.peek() {
+                if VALID_SPECIFIERS.contains(&next) {
+                    found_specifier = true;
+                    chars.next(); // consume the specifier
+                }
+                // Invalid specifier after % - we'll let chrono handle it (passes through literally)
+            }
+        }
+    }
+
+    if !found_specifier {
+        return Err(TemplateError::InvalidFormat(format!(
+            "format string '{}' contains no valid strftime specifiers",
+            fmt
+        )));
+    }
+
+    Ok(())
 }
