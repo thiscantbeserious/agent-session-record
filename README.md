@@ -18,7 +18,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![asciinema](https://img.shields.io/badge/powered%20by-asciinema-d40000)](https://asciinema.org/)
 
-**Record, review, and understand your AI agent sessions.**
+**Record, replay, and understand your AI agent sessions.**
 
 AGR is a lightweight CLI tool that automatically records your terminal sessions with AI coding assistants like Claude Code, Codex, and Gemini CLI. It uses [asciinema](https://asciinema.org/) under the hood to capture everything - commands, output, timing - so you can replay sessions, analyze what happened, and learn from your AI-assisted coding workflows.
 
@@ -39,7 +39,7 @@ AGR is a lightweight CLI tool that automatically records your terminal sessions 
 ### From Source
 
 ```bash
-git clone https://github.com/thiscantbeserious/agent-session-record.git
+git clone https://github.com/thiscantbeserious/agent-session-recorder.git
 cd agent-session-recorder
 ./install.sh
 ```
@@ -105,7 +105,7 @@ agr optimize --remove-silence --output fast.cast session.cast
 |----------|-------------|
 | [Command Reference](docs/COMMANDS.md) | Complete CLI documentation |
 | [Wiki](../../wiki) | Detailed guides and configuration |
-| `agr --help` | Interactive TUI help |
+| `agr --help` | CLI help |
 | `agr <command> --help` | Command-specific help |
 
 ## Configuration
