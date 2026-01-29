@@ -27,6 +27,7 @@ VALID_SCOPES=(
     "docs"      # documentation
     "tests"     # test infrastructure
     "release"   # release automation
+    "changelog" # changelog config
 )
 
 # Extract scope from conventional commit: type(scope): message
