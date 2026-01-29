@@ -162,6 +162,9 @@ pub fn restore_from_backup(path: &Path) -> Result<()> {
             .with_context(|| format!("Failed to restore from backup: {}", path.display()));
     }
 
+    // Delete backup file after successful restore (best-effort, ignore errors)
+    let _ = fs::remove_file(&backup);
+
     Ok(())
 }
 
@@ -527,6 +530,36 @@ mod tests {
         );
     }
 
+    #[test]
+    fn restore_from_backup_deletes_backup_file() {
+        let dir = TempDir::new().unwrap();
+        let path = create_test_cast_file(
+            &dir,
+            "test.cast",
+            vec![Event::output(0.1, "hello"), Event::output(5.0, "world")],
+        );
+
+        // Create backup via transform
+        apply_transforms(&path).unwrap();
+        let backup_path = backup_path_for(&path);
+        assert!(backup_path.exists(), "Backup should exist after transform");
+
+        // Restore from backup
+        restore_from_backup(&path).unwrap();
+
+        // Verify backup is deleted after restore
+        assert!(
+            !backup_path.exists(),
+            "Backup file should be deleted after successful restore"
+        );
+
+        // Verify has_backup returns false
+        assert!(
+            !has_backup(&path),
+            "has_backup should return false after restore"
+        );
+    }
+
     #[cfg(unix)]
     #[test]
     fn apply_transforms_cleans_up_temp_file_on_rename_failure() {
@@ -633,15 +666,17 @@ mod tests {
         let result1 = apply_transforms(&path).unwrap();
         assert!(result1.backup_created);
 
-        // Restore
+        // Restore - deletes backup
         restore_from_backup(&path).unwrap();
+        assert!(!has_backup(&path), "Backup should be deleted after restore");
 
-        // Transform 2 - should NOT create new backup (existing preserved)
+        // Transform 2 - should create NEW backup (previous was deleted by restore)
         let result2 = apply_transforms(&path).unwrap();
-        assert!(!result2.backup_created);
+        assert!(result2.backup_created, "New backup should be created since previous was deleted");
 
-        // Restore again
+        // Restore again - deletes backup again
         restore_from_backup(&path).unwrap();
+        assert!(!has_backup(&path), "Backup should be deleted after second restore");
 
         // Final bytes should match original
         let final_bytes = fs::read(&path).unwrap();
