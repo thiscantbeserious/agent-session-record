@@ -69,9 +69,12 @@ pub fn extract_commands() -> Vec<CommandInfo> {
         .collect()
 }
 
-/// Check if a command accepts a file argument
+/// Check if a command accepts a file argument for completion
 fn is_file_accepting(cmd: &str) -> bool {
-    matches!(cmd, "play" | "analyze" | "optimize" | "marker")
+    matches!(
+        cmd,
+        "play" | "analyze" | "optimize" | "marker" | "list" | "ls" | "cleanup"
+    )
 }
 
 /// Generate zsh initialization code with embedded completions and ghost text
@@ -158,20 +161,20 @@ _agr_show_ghost() {{
     POSTDISPLAY=""
 
     # Check if we're at a file-accepting position (command followed by space)
-    if [[ "$buf" =~ ^agr\ (play|analyze|optimize)\ $ ]]; then
+    if [[ "$buf" =~ ^agr\ ({file_cmd_pattern})\ $ ]]; then
         local suggestion
         suggestion=$(agr completions --files --limit 1 2>/dev/null)
         if [[ -n "$suggestion" ]]; then
             _agr_ghost_text="$suggestion"
-            # Gray text (color 8 = bright black/gray)
-            POSTDISPLAY=$'\e[38;5;8m'"$suggestion"$'\e[0m'
+            # Gray text (90) + dim background (100)
+            POSTDISPLAY=$'\e[90;100m'"$suggestion"$'\e[0m'
         fi
     elif [[ "$buf" =~ ^agr\ marker\ (add|list)\ $ ]]; then
         local suggestion
         suggestion=$(agr completions --files --limit 1 2>/dev/null)
         if [[ -n "$suggestion" ]]; then
             _agr_ghost_text="$suggestion"
-            POSTDISPLAY=$'\e[38;5;8m'"$suggestion"$'\e[0m'
+            POSTDISPLAY=$'\e[90;100m'"$suggestion"$'\e[0m'
         fi
     fi
 }}
@@ -318,17 +321,17 @@ _agr_show_ghost() {{
     _agr_ghost_displayed=0
 
     # Check if we're at a file-accepting position
-    if [[ "$line" =~ ^agr\ (play|analyze|optimize)\ $ ]]; then
+    if [[ "$line" =~ ^agr\ ({file_cmd_pattern})\ $ ]]; then
         _agr_ghost_text=$(agr completions --files --limit 1 2>/dev/null)
         if [[ -n "$_agr_ghost_text" ]]; then
-            # Save cursor position, print gray ghost text, restore cursor
-            printf '\e[s\e[38;5;8m%s\e[0m\e[u' "$_agr_ghost_text"
+            # Save cursor position, print ghost text with gray+dim background, restore cursor
+            printf '\e[s\e[90;100m%s\e[0m\e[u' "$_agr_ghost_text"
             _agr_ghost_displayed=1
         fi
     elif [[ "$line" =~ ^agr\ marker\ (add|list)\ $ ]]; then
         _agr_ghost_text=$(agr completions --files --limit 1 2>/dev/null)
         if [[ -n "$_agr_ghost_text" ]]; then
-            printf '\e[s\e[38;5;8m%s\e[0m\e[u' "$_agr_ghost_text"
+            printf '\e[s\e[90;100m%s\e[0m\e[u' "$_agr_ghost_text"
             _agr_ghost_displayed=1
         fi
     fi
