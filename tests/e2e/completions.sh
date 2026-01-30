@@ -113,8 +113,8 @@ fi
 
 section "Shell Install Completions Tests"
 
-# Test: shell install creates completion files
-test_header "shell install creates completion files"
+# Test: shell install embeds completions in RC file
+test_header "shell install embeds completions in RC file"
 # First ensure clean state
 rm -f "$HOME/.zshrc" "$HOME/.bashrc"
 rm -rf "$HOME/.config/agr" "$HOME/.local/share/bash-completion" "$HOME/.zsh/completions"
@@ -125,50 +125,45 @@ touch "$HOME/.zshrc"
 # Run shell install
 $AGR shell install 2>&1
 
-# Check that completion files were created
+# Completions are now embedded directly in the RC file (no separate files)
+# Check that the RC file contains the completion function
+if /usr/bin/grep -q "_agr_complete" "$HOME/.zshrc"; then
+    pass "shell install embeds completion function in RC file"
+else
+    fail "shell install did not embed completion function in RC file"
+fi
+
+# Test: embedded completions contain command list
+test_header "embedded completions contain command list"
+if /usr/bin/grep -q "_agr_commands" "$HOME/.zshrc"; then
+    pass "embedded completions contain command list"
+else
+    fail "embedded completions missing command list"
+fi
+
+# Test: embedded completions contain ghost text function
+test_header "embedded completions contain ghost text function"
+if /usr/bin/grep -q "_agr_show_ghost" "$HOME/.zshrc"; then
+    pass "embedded completions contain ghost text function"
+else
+    fail "embedded completions missing ghost text function"
+fi
+
+# Test: shell uninstall cleans up old completion files if they exist
+test_header "shell uninstall cleans up properly"
+# Create fake old-style completion files to test cleanup
 BASH_COMP_PATH="$HOME/.local/share/bash-completion/completions/agr"
 ZSH_COMP_PATH="$HOME/.zsh/completions/_agr"
+mkdir -p "$(dirname "$BASH_COMP_PATH")" "$(dirname "$ZSH_COMP_PATH")"
+touch "$BASH_COMP_PATH" "$ZSH_COMP_PATH"
 
-if [ -f "$BASH_COMP_PATH" ] && [ -f "$ZSH_COMP_PATH" ]; then
-    pass "shell install creates both completion files"
-else
-    if [ ! -f "$BASH_COMP_PATH" ]; then
-        fail "shell install did not create bash completion at $BASH_COMP_PATH"
-    fi
-    if [ ! -f "$ZSH_COMP_PATH" ]; then
-        fail "shell install did not create zsh completion at $ZSH_COMP_PATH"
-    fi
-fi
-
-# Test: bash completion file contains expected content
-test_header "bash completion file has expected content"
-if [ -f "$BASH_COMP_PATH" ] && /usr/bin/grep -q "_agr_complete_files" "$BASH_COMP_PATH"; then
-    pass "bash completion file contains expected functions"
-else
-    fail "bash completion file missing expected content"
-fi
-
-# Test: zsh completion file contains expected content
-test_header "zsh completion file has expected content"
-if [ -f "$ZSH_COMP_PATH" ] && /usr/bin/grep -q "#compdef agr" "$ZSH_COMP_PATH"; then
-    pass "zsh completion file contains expected header"
-else
-    fail "zsh completion file missing expected content"
-fi
-
-# Test: shell uninstall removes completion files
-test_header "shell uninstall removes completion files"
 $AGR shell uninstall 2>&1
 
-if [ ! -f "$BASH_COMP_PATH" ] && [ ! -f "$ZSH_COMP_PATH" ]; then
-    pass "shell uninstall removes both completion files"
+# Old completion files should be removed, and RC file should not contain AGR markers
+if [ ! -f "$BASH_COMP_PATH" ] && [ ! -f "$ZSH_COMP_PATH" ] && ! /usr/bin/grep -q "AGR" "$HOME/.zshrc"; then
+    pass "shell uninstall cleans up old files and RC markers"
 else
-    if [ -f "$BASH_COMP_PATH" ]; then
-        fail "shell uninstall did not remove bash completion"
-    fi
-    if [ -f "$ZSH_COMP_PATH" ]; then
-        fail "shell uninstall did not remove zsh completion"
-    fi
+    fail "shell uninstall did not clean up properly"
 fi
 
 # ============================================
