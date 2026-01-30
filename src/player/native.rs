@@ -260,12 +260,12 @@ fn run_main_loop(
                     rec_cols as usize,
                 )?;
 
-                render_separator_line(stdout, state.term_cols, state.term_rows - 3)?;
+                render_separator_line(stdout, state.term_cols, state.term_rows.saturating_sub(3))?;
 
                 render_progress_bar(
                     stdout,
                     state.term_cols,
-                    state.term_rows - 2,
+                    state.term_rows.saturating_sub(2),
                     state.current_time(),
                     total_duration,
                     markers,
@@ -274,7 +274,7 @@ fn run_main_loop(
                 render_status_bar(
                     stdout,
                     state.term_cols,
-                    state.term_rows - 1,
+                    state.term_rows.saturating_sub(1),
                     state.paused,
                     state.speed,
                     rec_cols,

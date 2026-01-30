@@ -25,7 +25,7 @@ pub fn handle_mouse_event(
     rec_rows: u32,
 ) -> InputResult {
     if let MouseEventKind::Down(MouseButton::Left) = mouse.kind {
-        let progress_row = state.term_rows - 2;
+        let progress_row = state.term_rows.saturating_sub(2);
 
         if mouse.row == progress_row {
             // Calculate time from x position on progress bar

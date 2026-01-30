@@ -87,12 +87,14 @@ pub fn render_progress_bar(
     total_duration: f64,
     markers: &[MarkerPosition],
 ) -> Result<()> {
-    let bar_width = (width as usize).saturating_sub(14); // Account for padding and time display
-    let (bar, filled) = build_progress_bar_chars(bar_width, current_time, total_duration, markers);
-
+    // Compute time display first to determine its actual length
     let current_str = format_duration(current_time);
     let total_str = format_duration(total_duration);
     let time_display = format!(" {}/{}", current_str, total_str);
+
+    // Account for left padding (1) + time display length
+    let bar_width = (width as usize).saturating_sub(1 + time_display.len());
+    let (bar, filled) = build_progress_bar_chars(bar_width, current_time, total_duration, markers);
 
     // Build output string
     let mut output = String::with_capacity(width as usize * 4);

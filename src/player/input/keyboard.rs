@@ -173,6 +173,12 @@ fn handle_resize_to_recording(state: &mut PlaybackState, rec_cols: u32, rec_rows
             if state.view_cols >= rec_cols as usize {
                 state.set_view_col_offset(0, 0);
             }
+        } else {
+            // Clamp to new maximums in case the viewport grew but still doesn't fit
+            let max_row_offset = (rec_rows as usize).saturating_sub(state.view_rows);
+            let max_col_offset = (rec_cols as usize).saturating_sub(state.view_cols);
+            state.set_view_row_offset(state.view_row_offset(), max_row_offset);
+            state.set_view_col_offset(state.view_col_offset(), max_col_offset);
         }
     }
     state.needs_render = true;
