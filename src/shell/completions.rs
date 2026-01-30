@@ -78,8 +78,7 @@ fn extract_subcommands(cmd: &clap::Command) -> Vec<CommandInfo> {
 
 /// Check if a command has a positional "file" argument (dynamic detection from clap)
 fn has_file_argument(cmd: &clap::Command) -> bool {
-    cmd.get_positionals()
-        .any(|arg| arg.get_id() == "file")
+    cmd.get_positionals().any(|arg| arg.get_id() == "file")
 }
 
 /// Generate zsh initialization code with embedded completions
@@ -108,7 +107,8 @@ pub fn generate_zsh_init() -> String {
     for cmd in &commands {
         if !cmd.subcommands.is_empty() {
             // Generate array for this command's subcommands
-            let sub_entries: Vec<String> = cmd.subcommands
+            let sub_entries: Vec<String> = cmd
+                .subcommands
                 .iter()
                 .map(|s| {
                     let desc = s.description.replace('\'', "'\\''");

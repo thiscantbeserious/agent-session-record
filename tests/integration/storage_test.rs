@@ -643,6 +643,9 @@ fn list_cast_files_short_sorted_by_mtime_descending() {
 
     // Most recent first
     assert_eq!(files[0], "codex/newest.cast", "Newest file should be first");
-    assert_eq!(files[1], "claude/middle.cast", "Middle file should be second");
+    assert_eq!(
+        files[1], "claude/middle.cast",
+        "Middle file should be second"
+    );
     assert_eq!(files[2], "claude/oldest.cast", "Oldest file should be last");
 }
