@@ -627,11 +627,12 @@ fn list_cast_files_short_sorted_by_mtime_descending() {
     create_test_session(temp.path(), "claude", "oldest.cast", "oldest content");
 
     // Sleep to ensure different modification times
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    // Use 1100ms to handle filesystems with 1-second timestamp granularity
+    std::thread::sleep(std::time::Duration::from_millis(1100));
 
     create_test_session(temp.path(), "claude", "middle.cast", "middle content");
 
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    std::thread::sleep(std::time::Duration::from_millis(1100));
 
     // Newest file last
     create_test_session(temp.path(), "codex", "newest.cast", "newest content");

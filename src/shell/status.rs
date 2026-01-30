@@ -97,10 +97,9 @@ pub fn extract_script_path(rc_file: &Path) -> io::Result<Option<PathBuf>> {
         .skip_while(|line| !line.contains(MARKER_START))
         .take_while(|line| !line.contains(MARKER_END))
         .find(|line| {
-            let trimmed = line.trim();
             // Old-style: starts with [ -f and contains source
-            // This won't match internal script code which is indented or in functions
-            trimmed.starts_with("[ -f \"") && trimmed.contains("&& source")
+            // Check the raw line start (not trimmed) so indented internal script lines don't match
+            line.starts_with("[ -f \"") && line.contains("&& source")
         });
 
     if let Some(line) = in_section {
