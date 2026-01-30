@@ -195,6 +195,243 @@ pub fn render_single_line(
 
 #[cfg(test)]
 mod tests {
-    // Viewport rendering is primarily tested through integration tests
-    // and snapshot tests since it involves stdout output
+    use super::*;
+    use crate::terminal::TerminalBuffer;
+
+    fn create_buffer_with_content(width: usize, height: usize, content: &str) -> TerminalBuffer {
+        let mut buffer = TerminalBuffer::new(width, height);
+        buffer.process(content);
+        buffer
+    }
+
+    // === render_viewport tests ===
+
+    #[test]
+    fn render_viewport_does_not_panic_empty_buffer() {
+        let mut stdout = io::stdout();
+        let buffer = TerminalBuffer::new(80, 24);
+        let result = render_viewport(&mut stdout, &buffer, 0, 0, 24, 80, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_does_not_panic_with_content() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Hello, World!");
+        let result = render_viewport(&mut stdout, &buffer, 0, 0, 24, 80, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_with_row_offset() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Line 1\nLine 2\nLine 3");
+        let result = render_viewport(&mut stdout, &buffer, 1, 0, 20, 80, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_with_col_offset() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Hello, World!");
+        let result = render_viewport(&mut stdout, &buffer, 0, 5, 24, 75, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_with_both_offsets() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Line 1\nLine 2\nLine 3");
+        let result = render_viewport(&mut stdout, &buffer, 1, 3, 20, 75, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_with_highlight_line() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Line 1\nLine 2\nLine 3");
+        let result = render_viewport(&mut stdout, &buffer, 0, 0, 24, 80, Some(1));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_highlight_at_top() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Line 1\nLine 2\nLine 3");
+        let result = render_viewport(&mut stdout, &buffer, 0, 0, 24, 80, Some(0));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_highlight_at_bottom() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Line 1\nLine 2\nLine 3");
+        let result = render_viewport(&mut stdout, &buffer, 0, 0, 24, 80, Some(23));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_small_view() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Hello");
+        let result = render_viewport(&mut stdout, &buffer, 0, 0, 5, 10, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_larger_than_buffer() {
+        let mut stdout = io::stdout();
+        let buffer = TerminalBuffer::new(40, 10);
+        // View is larger than buffer
+        let result = render_viewport(&mut stdout, &buffer, 0, 0, 24, 80, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_offset_beyond_content() {
+        let mut stdout = io::stdout();
+        let buffer = TerminalBuffer::new(80, 24);
+        // Offset would be past buffer content
+        let result = render_viewport(&mut stdout, &buffer, 20, 70, 24, 80, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_with_ansi_colors() {
+        let mut stdout = io::stdout();
+        // Add content with ANSI color codes
+        let buffer = create_buffer_with_content(80, 24, "\x1b[31mRed\x1b[0m \x1b[32mGreen\x1b[0m");
+        let result = render_viewport(&mut stdout, &buffer, 0, 0, 24, 80, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_with_bold_text() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "\x1b[1mBold\x1b[0m Normal");
+        let result = render_viewport(&mut stdout, &buffer, 0, 0, 24, 80, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_viewport_multiline() {
+        let mut stdout = io::stdout();
+        let content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
+        let buffer = create_buffer_with_content(80, 24, content);
+        let result = render_viewport(&mut stdout, &buffer, 0, 0, 5, 80, None);
+        assert!(result.is_ok());
+    }
+
+    // === render_single_line tests ===
+
+    #[test]
+    fn render_single_line_does_not_panic_empty() {
+        let mut stdout = io::stdout();
+        let buffer = TerminalBuffer::new(80, 24);
+        let result = render_single_line(&mut stdout, &buffer, 0, 0, 0, 80, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_single_line_with_content() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Hello, World!");
+        let result = render_single_line(&mut stdout, &buffer, 0, 0, 0, 80, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_single_line_with_highlight() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Hello, World!");
+        let result = render_single_line(&mut stdout, &buffer, 0, 0, 0, 80, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_single_line_above_viewport_returns_early() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Hello, World!");
+        // buf_row 0 is above view_row_offset 5
+        let result = render_single_line(&mut stdout, &buffer, 0, 5, 0, 80, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_single_line_within_viewport() {
+        let mut stdout = io::stdout();
+        let content = "Line 1\nLine 2\nLine 3";
+        let buffer = create_buffer_with_content(80, 24, content);
+        // Render line 2 (buf_row 1), viewport starts at 0
+        let result = render_single_line(&mut stdout, &buffer, 1, 0, 0, 80, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_single_line_with_col_offset() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Hello, World!");
+        let result = render_single_line(&mut stdout, &buffer, 0, 0, 5, 75, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_single_line_with_ansi_colors() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "\x1b[31mRed\x1b[0m");
+        let result = render_single_line(&mut stdout, &buffer, 0, 0, 0, 80, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_single_line_highlighted_with_colors() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "\x1b[31mRed\x1b[0m");
+        // When highlighted, colors should be overridden
+        let result = render_single_line(&mut stdout, &buffer, 0, 0, 0, 80, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_single_line_empty_row() {
+        let mut stdout = io::stdout();
+        let buffer = TerminalBuffer::new(80, 24);
+        // Row 10 is empty
+        let result = render_single_line(&mut stdout, &buffer, 10, 0, 0, 80, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_single_line_empty_row_highlighted() {
+        let mut stdout = io::stdout();
+        let buffer = TerminalBuffer::new(80, 24);
+        let result = render_single_line(&mut stdout, &buffer, 10, 0, 0, 80, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_single_line_narrow_view() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Hello, World! This is a longer line.");
+        let result = render_single_line(&mut stdout, &buffer, 0, 0, 0, 10, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_single_line_past_content() {
+        let mut stdout = io::stdout();
+        let buffer = create_buffer_with_content(80, 24, "Short");
+        // col_offset beyond content length
+        let result = render_single_line(&mut stdout, &buffer, 0, 0, 50, 30, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_single_line_row_beyond_buffer() {
+        let mut stdout = io::stdout();
+        let buffer = TerminalBuffer::new(80, 10);
+        // Render row 15, but buffer only has 10 rows
+        let result = render_single_line(&mut stdout, &buffer, 15, 0, 0, 80, false);
+        assert!(result.is_ok());
+    }
 }

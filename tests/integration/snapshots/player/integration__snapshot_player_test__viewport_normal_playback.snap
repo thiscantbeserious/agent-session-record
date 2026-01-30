@@ -1,0 +1,11 @@
+---
+source: tests/integration/snapshot_player_test.rs
+expression: output
+---
+Viewport: 40x10 at offset (0, 0)
+Buffer size: 80x24
+---
+    $ cargo build                           
+       Compiling agr v0.1.0                 
+        Finished release                    
+    $

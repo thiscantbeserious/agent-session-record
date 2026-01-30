@@ -223,4 +223,263 @@ mod tests {
         assert_eq!(count_digits(999), 3);
         assert_eq!(count_digits(1000), 4);
     }
+
+    #[test]
+    fn render_separator_line_does_not_panic() {
+        // Just verify it doesn't panic with various inputs
+        let mut stdout = io::stdout();
+        assert!(render_separator_line(&mut stdout, 80, 0).is_ok());
+        assert!(render_separator_line(&mut stdout, 80, 10).is_ok());
+        assert!(render_separator_line(&mut stdout, 120, 5).is_ok());
+    }
+
+    #[test]
+    fn render_separator_line_handles_small_width() {
+        let mut stdout = io::stdout();
+        assert!(render_separator_line(&mut stdout, 10, 0).is_ok());
+        assert!(render_separator_line(&mut stdout, 1, 0).is_ok());
+    }
+
+    #[test]
+    fn render_status_bar_does_not_panic_basic() {
+        let mut stdout = io::stdout();
+        let result = render_status_bar(
+            &mut stdout,
+            80,    // width
+            25,    // row
+            false, // paused
+            1.0,   // speed
+            80,    // rec_cols
+            24,    // rec_rows
+            80,    // view_cols
+            24,    // view_rows
+            0,     // col_offset
+            0,     // row_offset
+            0,     // marker_count
+            false, // viewport_mode
+            false, // free_mode
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_status_bar_with_paused() {
+        let mut stdout = io::stdout();
+        let result = render_status_bar(
+            &mut stdout,
+            80,
+            25,
+            true, // paused
+            1.0,
+            80,
+            24,
+            80,
+            24,
+            0,
+            0,
+            0,
+            false,
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_status_bar_with_viewport_mode() {
+        let mut stdout = io::stdout();
+        let result = render_status_bar(
+            &mut stdout,
+            80,
+            25,
+            false,
+            1.0,
+            80,
+            24,
+            80,
+            24,
+            0,
+            0,
+            0,
+            true, // viewport_mode
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_status_bar_with_free_mode() {
+        let mut stdout = io::stdout();
+        let result = render_status_bar(
+            &mut stdout,
+            80,
+            25,
+            true, // paused (always paused in free mode)
+            1.0,
+            80,
+            24,
+            80,
+            24,
+            0,
+            0,
+            0,
+            false,
+            true, // free_mode
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_status_bar_with_markers() {
+        let mut stdout = io::stdout();
+        let result = render_status_bar(
+            &mut stdout,
+            80,
+            25,
+            false,
+            1.0,
+            80,
+            24,
+            80,
+            24,
+            0,
+            0,
+            5, // marker_count
+            false,
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_status_bar_with_scroll_offsets() {
+        let mut stdout = io::stdout();
+        // Recording larger than viewport to trigger offset display
+        let result = render_status_bar(
+            &mut stdout,
+            80,
+            25,
+            false,
+            1.0,
+            120, // rec_cols (larger than view)
+            48,  // rec_rows (larger than view)
+            80,  // view_cols
+            24,  // view_rows
+            10,  // col_offset
+            5,   // row_offset
+            0,
+            false,
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_status_bar_with_custom_speed() {
+        let mut stdout = io::stdout();
+        let result = render_status_bar(
+            &mut stdout,
+            80,
+            25,
+            false,
+            2.5, // custom speed
+            80,
+            24,
+            80,
+            24,
+            0,
+            0,
+            0,
+            false,
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_status_bar_wide_terminal() {
+        let mut stdout = io::stdout();
+        let result = render_status_bar(
+            &mut stdout,
+            200, // wide terminal
+            25,
+            false,
+            1.0,
+            80,
+            24,
+            200,
+            24,
+            0,
+            0,
+            0,
+            false,
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_status_bar_narrow_terminal() {
+        let mut stdout = io::stdout();
+        let result = render_status_bar(
+            &mut stdout,
+            40, // narrow terminal
+            25,
+            false,
+            1.0,
+            80,
+            24,
+            40,
+            24,
+            0,
+            0,
+            0,
+            false,
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn render_status_bar_all_options() {
+        let mut stdout = io::stdout();
+        // All features at once
+        let result = render_status_bar(
+            &mut stdout,
+            100,
+            25,
+            true,  // paused
+            3.0,   // speed
+            120,   // rec_cols (larger)
+            48,    // rec_rows (larger)
+            100,   // view_cols
+            30,    // view_rows
+            15,    // col_offset
+            10,    // row_offset
+            7,     // marker_count
+            true,  // viewport_mode
+            false, // free_mode (can't be both)
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn count_digits_handles_powers_of_ten() {
+        // Specific edge cases around powers of 10
+        assert_eq!(count_digits(0), 1);
+        assert_eq!(count_digits(1), 1);
+        assert_eq!(count_digits(10), 2);
+        assert_eq!(count_digits(100), 3);
+        assert_eq!(count_digits(1000), 4);
+        assert_eq!(count_digits(10000), 5);
+        assert_eq!(count_digits(100000), 6);
+    }
+
+    #[test]
+    fn count_digits_just_below_powers() {
+        assert_eq!(count_digits(9), 1);
+        assert_eq!(count_digits(99), 2);
+        assert_eq!(count_digits(999), 3);
+        assert_eq!(count_digits(9999), 4);
+        assert_eq!(count_digits(99999), 5);
+    }
 }

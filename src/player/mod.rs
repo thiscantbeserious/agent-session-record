@@ -26,9 +26,9 @@
 //! }
 //! ```
 
-pub mod input;
+pub(crate) mod input;
 mod native;
-pub mod playback;
+pub(crate) mod playback;
 pub mod render;
 pub mod state;
 

@@ -1,5 +1,5 @@
 ---
-source: tests/integration/player_snapshot_test.rs
+source: tests/integration/snapshot_player_test.rs
 expression: output
 ---
 Help overlay centered at row 0, col 0

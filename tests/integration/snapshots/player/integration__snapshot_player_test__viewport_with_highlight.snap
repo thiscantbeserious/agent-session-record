@@ -1,0 +1,13 @@
+---
+source: tests/integration/snapshot_player_test.rs
+expression: output
+---
+Viewport: 40x10 at offset (0, 0)
+Highlighted line: 2
+Buffer size: 80x24
+---
+    Line 0                                  
+    Line 1                                  
+>>> Line 2 - highlighted                     <<<
+    Line 3                                  
+    Line 4

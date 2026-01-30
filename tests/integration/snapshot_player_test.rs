@@ -7,6 +7,7 @@
 //! any refactoring begins and verified to match AFTER refactoring.
 
 use agr::asciicast::AsciicastFile;
+use agr::player::render::{HELP_BOX_WIDTH, HELP_LINES};
 use agr::terminal::{CellStyle, Color, TerminalBuffer};
 use std::path::Path;
 
@@ -139,46 +140,6 @@ fn build_scroll_arrows(
         Some(arrows.join(" "))
     }
 }
-
-/// Help text lines for the help overlay.
-const HELP_LINES: &[&str] = &[
-    "",
-    "  +=============================================+",
-    "  |          AGR Native Player Help           |",
-    "  +=============================================+",
-    "  |                                           |",
-    "  |  Playback                                 |",
-    "  |    Space      Pause / Resume              |",
-    "  |    <-/->      Seek +/-5s                  |",
-    "  |    Shift+<-/->  Seek +/-5%                |",
-    "  |    +/-        Speed up / down             |",
-    "  |    Home/End   Go to start / end           |",
-    "  |                                           |",
-    "  |  Markers                                  |",
-    "  |    m          Jump to next marker         |",
-    "  |                                           |",
-    "  |  Free Mode (line-by-line navigation)      |",
-    "  |    f          Toggle free mode            |",
-    "  |    Up/Down    Move highlight up/down      |",
-    "  |    Esc        Exit free mode              |",
-    "  |                                           |",
-    "  |  Viewport                                 |",
-    "  |    v          Toggle viewport mode        |",
-    "  |    Up/Down/L/R Scroll viewport (v mode)   |",
-    "  |    r          Resize to recording         |",
-    "  |    Esc        Exit viewport mode          |",
-    "  |                                           |",
-    "  |  General                                  |",
-    "  |    ?          Show this help              |",
-    "  |    q          Quit player                 |",
-    "  |                                           |",
-    "  |         Press any key to close            |",
-    "  +=============================================+",
-    "",
-];
-
-/// Width of the help box (for centering calculations).
-const HELP_BOX_WIDTH: usize = 47;
 
 /// Calculate the starting row for centering the help box.
 fn calc_help_start_row(term_height: u16) -> u16 {

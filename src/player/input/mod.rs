@@ -68,3 +68,154 @@ pub fn handle_event(
         _ => InputResult::Continue, // Ignore focus events, etc.
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::asciicast::{AsciicastFile, Event as CastEvent, Header, TermInfo};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEventKind};
+
+    fn create_test_state() -> PlaybackState {
+        PlaybackState::new(80, 27)
+    }
+
+    fn create_test_cast() -> AsciicastFile {
+        let mut cast = AsciicastFile::new(Header {
+            version: 3,
+            width: Some(80),
+            height: Some(24),
+            term: Some(TermInfo {
+                cols: Some(80),
+                rows: Some(24),
+                term_type: None,
+            }),
+            timestamp: None,
+            duration: None,
+            title: None,
+            command: None,
+            env: None,
+            idle_time_limit: None,
+        });
+        cast.events.push(CastEvent::output(0.1, "hello"));
+        cast
+    }
+
+    #[test]
+    fn handle_event_dispatches_key_event() {
+        let mut state = create_test_state();
+        let mut buffer = TerminalBuffer::new(80, 24);
+        let cast = create_test_cast();
+        let markers = vec![];
+
+        let key_event = Event::Key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE));
+        let result = handle_event(
+            key_event,
+            &mut state,
+            &mut buffer,
+            &cast,
+            &markers,
+            10.0,
+            80,
+            24,
+        );
+
+        assert_eq!(result, InputResult::Quit);
+    }
+
+    #[test]
+    fn handle_event_dispatches_mouse_event() {
+        let mut state = create_test_state();
+        let mut buffer = TerminalBuffer::new(80, 24);
+        let cast = create_test_cast();
+        let markers = vec![];
+
+        // Mouse click not on progress bar (row 0)
+        let mouse_event = Event::Mouse(crossterm::event::MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 40,
+            row: 0,
+            modifiers: KeyModifiers::NONE,
+        });
+        let result = handle_event(
+            mouse_event,
+            &mut state,
+            &mut buffer,
+            &cast,
+            &markers,
+            10.0,
+            80,
+            24,
+        );
+
+        assert_eq!(result, InputResult::Continue);
+    }
+
+    #[test]
+    fn handle_event_dispatches_resize_event() {
+        let mut state = create_test_state();
+        let mut buffer = TerminalBuffer::new(80, 24);
+        let cast = create_test_cast();
+        let markers = vec![];
+
+        let resize_event = Event::Resize(100, 40);
+        let result = handle_event(
+            resize_event,
+            &mut state,
+            &mut buffer,
+            &cast,
+            &markers,
+            10.0,
+            80,
+            24,
+        );
+
+        assert_eq!(result, InputResult::Continue);
+        assert_eq!(state.term_cols, 100);
+        assert_eq!(state.term_rows, 40);
+        assert!(state.needs_render);
+    }
+
+    #[test]
+    fn handle_event_ignores_focus_events() {
+        let mut state = create_test_state();
+        let mut buffer = TerminalBuffer::new(80, 24);
+        let cast = create_test_cast();
+        let markers = vec![];
+
+        let focus_event = Event::FocusGained;
+        let result = handle_event(
+            focus_event,
+            &mut state,
+            &mut buffer,
+            &cast,
+            &markers,
+            10.0,
+            80,
+            24,
+        );
+
+        assert_eq!(result, InputResult::Continue);
+    }
+
+    #[test]
+    fn handle_event_ignores_focus_lost() {
+        let mut state = create_test_state();
+        let mut buffer = TerminalBuffer::new(80, 24);
+        let cast = create_test_cast();
+        let markers = vec![];
+
+        let focus_event = Event::FocusLost;
+        let result = handle_event(
+            focus_event,
+            &mut state,
+            &mut buffer,
+            &cast,
+            &markers,
+            10.0,
+            80,
+            24,
+        );
+
+        assert_eq!(result, InputResult::Continue);
+    }
+}

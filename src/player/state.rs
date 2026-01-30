@@ -15,7 +15,7 @@ pub enum InputResult {
     Continue,
     /// Exit the player normally
     Quit,
-    /// Exit and return the file path (for `agr ls` integration)
+    /// Reserved for future `agr ls` integration where player returns selected file
     QuitWithFile,
 }
 
@@ -34,23 +34,29 @@ pub struct MarkerPosition {
 ///
 /// This struct contains all state needed for playback, rendering,
 /// and input handling. It is passed to various modules as needed.
+///
+/// Some fields are private with validated setter methods to ensure
+/// invariants are maintained (e.g., time values are non-negative,
+/// indices are within bounds).
 #[derive(Debug)]
 pub struct PlaybackState {
-    // === Playback timing ===
+    // === Playback timing (guarded) ===
+    /// Current event index in the cast file (private, use getter/setter)
+    event_idx: usize,
+    /// Current playback time in seconds (private, use getter/setter)
+    current_time: f64,
+    /// Cumulative time at current event index (private, use getter/setter)
+    cumulative_time: f64,
+    /// Time offset for seeking (private, use getter/setter)
+    time_offset: f64,
+
+    // === Playback timing (public) ===
     /// Whether playback is paused
     pub paused: bool,
     /// Playback speed multiplier (1.0 = normal)
     pub speed: f64,
-    /// Current event index in the cast file
-    pub event_idx: usize,
-    /// Current playback time in seconds
-    pub current_time: f64,
-    /// Cumulative time at current event index
-    pub cumulative_time: f64,
     /// Wall clock time when playback started/resumed
     pub start_time: Instant,
-    /// Time offset for seeking (added to elapsed wall time)
-    pub time_offset: f64,
 
     // === UI modes ===
     /// Whether help overlay is visible
@@ -60,15 +66,23 @@ pub struct PlaybackState {
     /// Whether free mode is active (line-by-line navigation)
     pub free_mode: bool,
 
-    // === Free mode state ===
-    /// Current highlighted line in free mode (buffer row)
-    pub free_line: usize,
+    // === Free mode state (guarded) ===
+    /// Current highlighted line in free mode (private, use getter/setter)
+    free_line: usize,
+
+    // === Free mode state (public) ===
     /// Previous highlighted line (for partial updates)
     pub prev_free_line: usize,
     /// True if only free_line changed (enables partial update optimization)
     pub free_line_only: bool,
 
-    // === Viewport state ===
+    // === Viewport state (guarded) ===
+    /// Vertical scroll offset into buffer (private, use getter/setter)
+    view_row_offset: usize,
+    /// Horizontal scroll offset into buffer (private, use getter/setter)
+    view_col_offset: usize,
+
+    // === Viewport state (public) ===
     /// Current terminal width
     pub term_cols: u16,
     /// Current terminal height
@@ -77,10 +91,6 @@ pub struct PlaybackState {
     pub view_rows: usize,
     /// Number of visible content columns
     pub view_cols: usize,
-    /// Vertical scroll offset into buffer
-    pub view_row_offset: usize,
-    /// Horizontal scroll offset into buffer
-    pub view_col_offset: usize,
 
     // === Rendering flags ===
     /// True when screen needs to be redrawn
@@ -170,15 +180,43 @@ impl PlaybackState {
         self.needs_render = true;
     }
 
-    /// Increase playback speed (max 16x).
+    /// Fixed speed steps for clean playback speed values.
+    /// Using fixed steps prevents floating point drift when adjusting speed up and down.
+    const SPEED_STEPS: &'static [f64] = &[0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0];
+
+    /// Increase playback speed to the next fixed step (max 16x).
+    ///
+    /// Uses fixed speed steps to prevent floating point drift.
+    /// If current speed isn't exactly a step value, snaps to the nearest higher step.
     pub fn speed_up(&mut self) {
-        self.speed = (self.speed * 1.5).min(16.0);
+        // Find the next speed step higher than current
+        for &step in Self::SPEED_STEPS {
+            if step > self.speed + f64::EPSILON {
+                self.speed = step;
+                self.needs_render = true;
+                return;
+            }
+        }
+        // Already at or above max speed
+        self.speed = 16.0;
         self.needs_render = true;
     }
 
-    /// Decrease playback speed (min 0.1x).
+    /// Decrease playback speed to the next fixed step (min 0.25x).
+    ///
+    /// Uses fixed speed steps to prevent floating point drift.
+    /// If current speed isn't exactly a step value, snaps to the nearest lower step.
     pub fn speed_down(&mut self) {
-        self.speed = (self.speed / 1.5).max(0.1);
+        // Find the next speed step lower than current
+        for &step in Self::SPEED_STEPS.iter().rev() {
+            if step < self.speed - f64::EPSILON {
+                self.speed = step;
+                self.needs_render = true;
+                return;
+            }
+        }
+        // Already at or below min speed
+        self.speed = 0.25;
         self.needs_render = true;
     }
 
@@ -227,6 +265,111 @@ impl PlaybackState {
             false // Should quit
         }
     }
+
+    // === Getters for guarded fields ===
+
+    /// Get the current playback time in seconds.
+    #[inline]
+    pub fn current_time(&self) -> f64 {
+        self.current_time
+    }
+
+    /// Get the time offset (added to elapsed wall time).
+    #[inline]
+    pub fn time_offset(&self) -> f64 {
+        self.time_offset
+    }
+
+    /// Get the current event index.
+    #[inline]
+    pub fn event_idx(&self) -> usize {
+        self.event_idx
+    }
+
+    /// Get the cumulative time at current event index.
+    #[inline]
+    pub fn cumulative_time(&self) -> f64 {
+        self.cumulative_time
+    }
+
+    /// Get the current highlighted line in free mode.
+    #[inline]
+    pub fn free_line(&self) -> usize {
+        self.free_line
+    }
+
+    /// Get the vertical scroll offset into buffer.
+    #[inline]
+    pub fn view_row_offset(&self) -> usize {
+        self.view_row_offset
+    }
+
+    /// Get the horizontal scroll offset into buffer.
+    #[inline]
+    pub fn view_col_offset(&self) -> usize {
+        self.view_col_offset
+    }
+
+    // === Setters with validation ===
+
+    /// Set current playback time, clamped to valid range [0.0, max_time].
+    pub fn set_current_time(&mut self, time: f64, max_time: f64) {
+        self.current_time = time.clamp(0.0, max_time);
+    }
+
+    /// Set time offset, clamped to >= 0.0.
+    pub fn set_time_offset(&mut self, offset: f64) {
+        self.time_offset = offset.max(0.0);
+    }
+
+    /// Set event index, clamped to valid range [0, max_idx].
+    pub fn set_event_idx(&mut self, idx: usize, max_idx: usize) {
+        self.event_idx = idx.min(max_idx);
+    }
+
+    /// Set cumulative time, clamped to >= 0.0.
+    pub fn set_cumulative_time(&mut self, time: f64) {
+        self.cumulative_time = time.max(0.0);
+    }
+
+    /// Set event index and cumulative time together (common operation after seeking).
+    pub fn set_event_position(&mut self, idx: usize, cumulative: f64, max_idx: usize) {
+        self.event_idx = idx.min(max_idx);
+        self.cumulative_time = cumulative.max(0.0);
+    }
+
+    /// Set free line, clamped to buffer bounds.
+    /// Also updates prev_free_line to track the previous value.
+    pub fn set_free_line(&mut self, line: usize, max_line: usize) {
+        self.prev_free_line = self.free_line;
+        self.free_line = line.min(max_line);
+    }
+
+    /// Set view row offset, clamped to valid range [0, max_offset].
+    pub fn set_view_row_offset(&mut self, offset: usize, max_offset: usize) {
+        self.view_row_offset = offset.min(max_offset);
+    }
+
+    /// Set view col offset, clamped to valid range [0, max_offset].
+    pub fn set_view_col_offset(&mut self, offset: usize, max_offset: usize) {
+        self.view_col_offset = offset.min(max_offset);
+    }
+
+    /// Increment event index by 1 if below max.
+    /// Returns true if incremented, false if already at max.
+    pub fn increment_event_idx(&mut self, max_idx: usize) -> bool {
+        if self.event_idx < max_idx {
+            self.event_idx += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Add to cumulative time (always non-negative result).
+    pub fn add_cumulative_time(&mut self, delta: f64) {
+        self.cumulative_time = (self.cumulative_time + delta).max(0.0);
+    }
 }
 
 #[cfg(test)]
@@ -239,8 +382,8 @@ mod tests {
 
         assert!(!state.paused);
         assert_eq!(state.speed, 1.0);
-        assert_eq!(state.event_idx, 0);
-        assert_eq!(state.current_time, 0.0);
+        assert_eq!(state.event_idx(), 0);
+        assert_eq!(state.current_time(), 0.0);
         assert!(!state.show_help);
         assert!(!state.viewport_mode);
         assert!(!state.free_mode);
@@ -263,37 +406,42 @@ mod tests {
     #[test]
     fn handle_resize_clamps_offset() {
         let mut state = PlaybackState::new(80, 27);
-        state.view_row_offset = 100;
-        state.view_col_offset = 100;
+        state.set_view_row_offset(100, 200);
+        state.set_view_col_offset(100, 200);
 
         state.handle_resize(80, 27, 30, 30);
 
         // Offset should be clamped: 30 - 24 = 6 max row, 30 - 80 = 0 max col
-        assert!(state.view_row_offset <= 6);
-        assert_eq!(state.view_col_offset, 0);
+        assert!(state.view_row_offset() <= 6);
+        assert_eq!(state.view_col_offset(), 0);
     }
 
     #[test]
     fn toggle_pause_resets_timing() {
         let mut state = PlaybackState::new(80, 27);
         state.paused = true;
-        state.current_time = 10.0;
+        state.set_current_time(10.0, 100.0);
         state.free_mode = true;
 
         state.toggle_pause();
 
         assert!(!state.paused);
         assert!(!state.free_mode); // Exited free mode
-        assert_eq!(state.time_offset, 10.0); // Preserved current time
+        assert_eq!(state.time_offset(), 10.0); // Preserved current time
     }
 
     #[test]
-    fn speed_up_increases_speed() {
+    fn speed_up_uses_fixed_steps() {
         let mut state = PlaybackState::new(80, 27);
+        assert_eq!(state.speed, 1.0);
         state.speed_up();
-        assert_eq!(state.speed, 1.5);
+        assert_eq!(state.speed, 2.0);
         state.speed_up();
-        assert!((state.speed - 2.25).abs() < 0.01);
+        assert_eq!(state.speed, 4.0);
+        state.speed_up();
+        assert_eq!(state.speed, 8.0);
+        state.speed_up();
+        assert_eq!(state.speed, 16.0);
     }
 
     #[test]
@@ -302,22 +450,124 @@ mod tests {
         state.speed = 15.0;
         state.speed_up();
         assert_eq!(state.speed, 16.0);
+        // Already at max
+        state.speed_up();
+        assert_eq!(state.speed, 16.0);
     }
 
     #[test]
-    fn speed_down_decreases_speed() {
+    fn speed_down_uses_fixed_steps() {
         let mut state = PlaybackState::new(80, 27);
-        state.speed = 2.0;
+        assert_eq!(state.speed, 1.0);
         state.speed_down();
-        assert!((state.speed - 1.333).abs() < 0.01);
+        assert_eq!(state.speed, 0.5);
+        state.speed_down();
+        assert_eq!(state.speed, 0.25);
     }
 
     #[test]
-    fn speed_down_mins_at_0_1() {
+    fn speed_down_mins_at_0_25() {
         let mut state = PlaybackState::new(80, 27);
-        state.speed = 0.15;
+        state.speed = 0.3;
         state.speed_down();
-        assert_eq!(state.speed, 0.1);
+        assert_eq!(state.speed, 0.25);
+        // Already at min
+        state.speed_down();
+        assert_eq!(state.speed, 0.25);
+    }
+
+    #[test]
+    fn speed_up_to_max_and_back_returns_to_1x() {
+        // This is the main bug fix test: speed should return to exactly 1.0
+        // after going up to 16x and back down
+        let mut state = PlaybackState::new(80, 27);
+        assert_eq!(state.speed, 1.0);
+
+        // Speed up: 1.0 -> 2.0 -> 4.0 -> 8.0 -> 16.0
+        state.speed_up();
+        state.speed_up();
+        state.speed_up();
+        state.speed_up();
+        assert_eq!(state.speed, 16.0);
+
+        // Speed down: 16.0 -> 8.0 -> 4.0 -> 2.0 -> 1.0
+        state.speed_down();
+        state.speed_down();
+        state.speed_down();
+        state.speed_down();
+        assert_eq!(state.speed, 1.0); // Must be EXACTLY 1.0, not 0.9-something
+    }
+
+    #[test]
+    fn speed_down_to_min_and_back_returns_to_1x() {
+        // Speed should return to exactly 1.0 after going down to 0.25x and back up
+        let mut state = PlaybackState::new(80, 27);
+        assert_eq!(state.speed, 1.0);
+
+        // Speed down: 1.0 -> 0.5 -> 0.25
+        state.speed_down();
+        state.speed_down();
+        assert_eq!(state.speed, 0.25);
+
+        // Speed up: 0.25 -> 0.5 -> 1.0
+        state.speed_up();
+        state.speed_up();
+        assert_eq!(state.speed, 1.0); // Must be EXACTLY 1.0
+    }
+
+    #[test]
+    fn rapid_speed_changes_no_drift() {
+        // Test rapid speed changes don't cause drift
+        let mut state = PlaybackState::new(80, 27);
+
+        // Many rapid up/down cycles
+        for _ in 0..10 {
+            state.speed_up();
+            state.speed_down();
+        }
+        assert_eq!(state.speed, 1.0);
+
+        // Many rapid down/up cycles
+        for _ in 0..10 {
+            state.speed_down();
+            state.speed_up();
+        }
+        assert_eq!(state.speed, 1.0);
+    }
+
+    #[test]
+    fn speed_stays_within_bounds() {
+        let mut state = PlaybackState::new(80, 27);
+
+        // Try to exceed max
+        for _ in 0..20 {
+            state.speed_up();
+        }
+        assert_eq!(state.speed, 16.0);
+
+        // Try to go below min
+        for _ in 0..20 {
+            state.speed_down();
+        }
+        assert_eq!(state.speed, 0.25);
+    }
+
+    #[test]
+    fn speed_snaps_to_nearest_step_on_speed_up() {
+        let mut state = PlaybackState::new(80, 27);
+        // Set speed to a non-step value
+        state.speed = 1.7;
+        state.speed_up();
+        assert_eq!(state.speed, 2.0); // Should snap to next higher step
+    }
+
+    #[test]
+    fn speed_snaps_to_nearest_step_on_speed_down() {
+        let mut state = PlaybackState::new(80, 27);
+        // Set speed to a non-step value
+        state.speed = 1.7;
+        state.speed_down();
+        assert_eq!(state.speed, 1.0); // Should snap to next lower step
     }
 
     #[test]
@@ -330,7 +580,7 @@ mod tests {
         assert!(state.free_mode);
         assert!(state.paused);
         assert!(!state.viewport_mode);
-        assert_eq!(state.free_line, 5);
+        assert_eq!(state.free_line(), 5);
     }
 
     #[test]
@@ -383,5 +633,142 @@ mod tests {
         };
         assert_eq!(marker.time, 5.5);
         assert_eq!(marker.label, "Test marker");
+    }
+
+    // === Guard tests ===
+
+    #[test]
+    fn set_current_time_clamps_negative_to_zero() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_current_time(-5.0, 100.0);
+        assert_eq!(state.current_time(), 0.0);
+    }
+
+    #[test]
+    fn set_current_time_clamps_to_max() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_current_time(150.0, 100.0);
+        assert_eq!(state.current_time(), 100.0);
+    }
+
+    #[test]
+    fn set_current_time_allows_valid_value() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_current_time(50.0, 100.0);
+        assert_eq!(state.current_time(), 50.0);
+    }
+
+    #[test]
+    fn set_time_offset_clamps_negative_to_zero() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_time_offset(-10.0);
+        assert_eq!(state.time_offset(), 0.0);
+    }
+
+    #[test]
+    fn set_time_offset_allows_positive() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_time_offset(25.0);
+        assert_eq!(state.time_offset(), 25.0);
+    }
+
+    #[test]
+    fn set_event_idx_clamps_to_max() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_event_idx(100, 50);
+        assert_eq!(state.event_idx(), 50);
+    }
+
+    #[test]
+    fn set_event_idx_allows_valid_value() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_event_idx(25, 50);
+        assert_eq!(state.event_idx(), 25);
+    }
+
+    #[test]
+    fn set_cumulative_time_clamps_negative_to_zero() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_cumulative_time(-5.0);
+        assert_eq!(state.cumulative_time(), 0.0);
+    }
+
+    #[test]
+    fn set_event_position_clamps_both_values() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_event_position(100, -5.0, 50);
+        assert_eq!(state.event_idx(), 50);
+        assert_eq!(state.cumulative_time(), 0.0);
+    }
+
+    #[test]
+    fn set_free_line_clamps_to_max() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_free_line(100, 23);
+        assert_eq!(state.free_line(), 23);
+    }
+
+    #[test]
+    fn set_free_line_updates_prev_free_line() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_free_line(5, 100);
+        state.set_free_line(10, 100);
+        assert_eq!(state.free_line(), 10);
+        assert_eq!(state.prev_free_line, 5);
+    }
+
+    #[test]
+    fn set_view_row_offset_clamps_to_max() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_view_row_offset(100, 50);
+        assert_eq!(state.view_row_offset(), 50);
+    }
+
+    #[test]
+    fn set_view_col_offset_clamps_to_max() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_view_col_offset(100, 30);
+        assert_eq!(state.view_col_offset(), 30);
+    }
+
+    #[test]
+    fn set_view_offsets_allow_valid_values() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_view_row_offset(10, 50);
+        state.set_view_col_offset(5, 30);
+        assert_eq!(state.view_row_offset(), 10);
+        assert_eq!(state.view_col_offset(), 5);
+    }
+
+    #[test]
+    fn increment_event_idx_increments_when_below_max() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_event_idx(5, 100);
+        assert!(state.increment_event_idx(100));
+        assert_eq!(state.event_idx(), 6);
+    }
+
+    #[test]
+    fn increment_event_idx_returns_false_at_max() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_event_idx(100, 100);
+        assert!(!state.increment_event_idx(100));
+        assert_eq!(state.event_idx(), 100);
+    }
+
+    #[test]
+    fn add_cumulative_time_adds_positive() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_cumulative_time(5.0);
+        state.add_cumulative_time(3.0);
+        assert_eq!(state.cumulative_time(), 8.0);
+    }
+
+    #[test]
+    fn add_cumulative_time_clamps_result_to_zero() {
+        let mut state = PlaybackState::new(80, 27);
+        state.set_cumulative_time(5.0);
+        state.add_cumulative_time(-10.0);
+        assert_eq!(state.cumulative_time(), 0.0);
     }
 }

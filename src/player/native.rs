@@ -168,21 +168,21 @@ fn run_main_loop(
         // Process events if not paused
         if !state.paused {
             let elapsed =
-                state.start_time.elapsed().as_secs_f64() * state.speed + state.time_offset;
+                state.start_time.elapsed().as_secs_f64() * state.speed + state.time_offset();
             // Cap elapsed time to total duration
             let elapsed = elapsed.min(total_duration);
-            state.current_time = elapsed;
+            state.set_current_time(elapsed, total_duration);
             state.needs_render = true; // Always render when playing (time changes)
 
-            while state.event_idx < cast.events.len() {
-                let evt = &cast.events[state.event_idx];
-                let next_time = state.cumulative_time + evt.time;
+            while state.event_idx() < cast.events.len() {
+                let evt = &cast.events[state.event_idx()];
+                let next_time = state.cumulative_time() + evt.time;
 
                 if next_time > elapsed {
                     break;
                 }
 
-                state.cumulative_time = next_time;
+                state.set_cumulative_time(next_time);
 
                 if evt.is_output() {
                     buffer.process(&evt.data);
@@ -190,7 +190,7 @@ fn run_main_loop(
                     buffer.resize(cols as usize, rows as usize);
                 }
 
-                state.event_idx += 1;
+                state.increment_event_idx(cast.events.len());
             }
         }
 
@@ -214,17 +214,17 @@ fn run_main_loop(
                     stdout,
                     buffer,
                     state.prev_free_line,
-                    state.view_row_offset,
-                    state.view_col_offset,
+                    state.view_row_offset(),
+                    state.view_col_offset(),
                     state.view_cols,
                     false, // not highlighted
                 )?;
                 render_single_line(
                     stdout,
                     buffer,
-                    state.free_line,
-                    state.view_row_offset,
-                    state.view_col_offset,
+                    state.free_line(),
+                    state.view_row_offset(),
+                    state.view_col_offset(),
                     state.view_cols,
                     true, // highlighted
                 )?;
@@ -237,12 +237,12 @@ fn run_main_loop(
                 render_viewport(
                     stdout,
                     buffer,
-                    state.view_row_offset,
-                    state.view_col_offset,
+                    state.view_row_offset(),
+                    state.view_col_offset(),
                     state.view_rows,
                     state.view_cols,
                     if state.free_mode {
-                        Some(state.free_line)
+                        Some(state.free_line())
                     } else {
                         None
                     },
@@ -252,8 +252,8 @@ fn run_main_loop(
                 render_scroll_indicator(
                     stdout,
                     state.term_cols,
-                    state.view_row_offset,
-                    state.view_col_offset,
+                    state.view_row_offset(),
+                    state.view_col_offset(),
                     state.view_rows,
                     state.view_cols,
                     rec_rows as usize,
@@ -266,7 +266,7 @@ fn run_main_loop(
                     stdout,
                     state.term_cols,
                     state.term_rows - 2,
-                    state.current_time,
+                    state.current_time(),
                     total_duration,
                     markers,
                 )?;
@@ -281,8 +281,8 @@ fn run_main_loop(
                     rec_rows,
                     state.view_cols,
                     state.view_rows,
-                    state.view_col_offset,
-                    state.view_row_offset,
+                    state.view_col_offset(),
+                    state.view_row_offset(),
                     markers.len(),
                     state.viewport_mode,
                     state.free_mode,
@@ -295,7 +295,7 @@ fn run_main_loop(
 
         stdout.flush()?;
 
-        if state.event_idx >= cast.events.len() && !state.paused {
+        if state.event_idx() >= cast.events.len() && !state.paused {
             std::thread::sleep(Duration::from_millis(500));
             return Ok(PlaybackResult::Success(name.to_string()));
         }
