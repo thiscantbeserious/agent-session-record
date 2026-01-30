@@ -62,3 +62,6 @@ mod terminal_editing_test;
 
 #[path = "integration/terminal_style_test.rs"]
 mod terminal_style_test;
+
+#[path = "integration/player_snapshot_test.rs"]
+mod player_snapshot_test;

@@ -1,0 +1,49 @@
+---
+source: tests/integration/player_snapshot_test.rs
+expression: output
+---
+=== Player Frame 100x33 ===
+Recording: 100x30, View: 100x30
+Time: 10.0/20.0s, Speed: 1.5x, Paused: false
+Viewport: false, Free: false, Offset: (0,0)
+
+--- Viewport ---
+Viewport: 100x30 at offset (0, 0)
+Buffer size: 100x30
+---
+    $ make build                                                                                        
+    Building...                                                                                         
+    Done!                                                                                               
+    $                                                                                                   
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+--- Separator ---
+────────────────────────────────────────────────────────────────────────────────────────────────────
+--- Progress Bar ---
+ ━━━━━━━━━━━━━━━━━━━━━[M]━━━━━━━━━━━━━━━━━━━━━[*]────────────────────[m]───────────────────── 00:10/00:20
+--- Status Bar ---
+ [||] spd:1.5x M2 | space:pause m:mrk f:fre v:vpt r:rsz ?:hlp q:quit

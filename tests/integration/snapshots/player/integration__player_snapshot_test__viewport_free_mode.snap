@@ -1,0 +1,20 @@
+---
+source: tests/integration/player_snapshot_test.rs
+expression: output
+---
+Viewport: 40x12 at offset (0, 0)
+Highlighted line: 7
+Buffer size: 80x24
+---
+    Line 0: content                         
+    Line 1: content                         
+    Line 2: content                         
+    Line 3: content                         
+    Line 4: content                         
+    Line 5: content                         
+    Line 6: content                         
+>>> Line 7: content                          <<<
+    Line 8: content                         
+    Line 9: content                         
+    Line 10: content                        
+    Line 11: content
