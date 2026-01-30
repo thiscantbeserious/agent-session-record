@@ -70,18 +70,16 @@ fn extract_subcommands(cmd: &clap::Command) -> Vec<CommandInfo> {
         .map(|sub| CommandInfo {
             name: sub.get_name().to_string(),
             description: sub.get_about().map(|s| s.to_string()).unwrap_or_default(),
-            accepts_file: is_file_accepting(sub.get_name()),
+            accepts_file: has_file_argument(sub),
             subcommands: extract_subcommands(sub),
         })
         .collect()
 }
 
-/// Check if a command accepts a file argument for completion
-fn is_file_accepting(cmd: &str) -> bool {
-    matches!(
-        cmd,
-        "play" | "analyze" | "optimize" | "marker" | "list" | "ls" | "cleanup"
-    )
+/// Check if a command has a positional "file" argument (dynamic detection from clap)
+fn has_file_argument(cmd: &clap::Command) -> bool {
+    cmd.get_positionals()
+        .any(|arg| arg.get_id() == "file")
 }
 
 /// Generate zsh initialization code with embedded completions
