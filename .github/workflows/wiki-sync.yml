@@ -1,0 +1,51 @@
+name: Sync Wiki
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/wiki/**'
+
+jobs:
+  sync-wiki:
+    name: Sync to GitHub Wiki
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DOCS_DEPLOY_KEY }}
+
+      - name: Checkout main repo
+        uses: actions/checkout@v5
+        with:
+          path: main
+
+      - name: Checkout wiki
+        run: |
+          git clone git@github.com:${{ github.repository }}.wiki.git wiki || {
+            echo "Wiki doesn't exist yet, creating..."
+            mkdir wiki
+            cd wiki
+            git init
+            git remote add origin git@github.com:${{ github.repository }}.wiki.git
+          }
+
+      - name: Sync wiki content
+        run: |
+          # Copy generated pages to wiki
+          cp -r main/docs/wiki/* wiki/
+
+          cd wiki
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+          # Check for changes
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No wiki changes to sync"
+            exit 0
+          fi
+
+          git add -A
+          git commit -m "docs: sync wiki from main repo"
+          git push origin HEAD:master || git push origin HEAD:main
