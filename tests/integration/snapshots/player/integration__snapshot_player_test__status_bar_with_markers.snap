@@ -1,0 +1,5 @@
+---
+source: tests/integration/snapshot_player_test.rs
+expression: output
+---
+ [||] spd:1.0x M5 | space:pause m:mrk f:fre v:vpt r:rsz ?:hlp q:quit

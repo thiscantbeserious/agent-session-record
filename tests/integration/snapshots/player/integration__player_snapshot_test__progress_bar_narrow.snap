@@ -1,0 +1,5 @@
+---
+source: tests/integration/player_snapshot_test.rs
+expression: output
+---
+ ━━━━━━[*]─────────────────── 00:25/01:40

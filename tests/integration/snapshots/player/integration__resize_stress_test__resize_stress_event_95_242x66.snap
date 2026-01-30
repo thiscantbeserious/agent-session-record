@@ -1,0 +1,12 @@
+---
+source: tests/integration/resize_stress_test.rs
+expression: content.clone()
+---
+
+▗ ▗   ▖ ▖  Claude Code v2.1.23
+           Opus 4.5 · Claude Team
+  ▘▘ ▝▝    ~/git/simon/agent-session-recorder
+
+❯ I need to splitup and refactor the native player into proper modules with bigger coverage also - this should be a tdd driven refactoring. while doing so lets get rid of the native asciicinema.rs player also!
+
+⏺ Skill(roles)

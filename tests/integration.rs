@@ -62,3 +62,9 @@ mod terminal_editing_test;
 
 #[path = "integration/terminal_style_test.rs"]
 mod terminal_style_test;
+
+#[path = "integration/snapshot_player_test.rs"]
+mod snapshot_player_test;
+
+#[path = "integration/resize_stress_test.rs"]
+mod resize_stress_test;

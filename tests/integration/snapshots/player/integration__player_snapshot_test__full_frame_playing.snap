@@ -1,0 +1,43 @@
+---
+source: tests/integration/player_snapshot_test.rs
+expression: output
+---
+=== Player Frame 80x27 ===
+Recording: 80x24, View: 80x24
+Time: 5.0/30.0s, Speed: 1.0x, Paused: false
+Viewport: false, Free: false, Offset: (0,0)
+
+--- Viewport ---
+Viewport: 80x24 at offset (0, 0)
+Buffer size: 80x24
+---
+    $ cargo build                                                                   
+       Compiling agr v0.1.0                                                         
+    $                                                                               
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+--- Separator ---
+────────────────────────────────────────────────────────────────────────────────
+--- Progress Bar ---
+ ━━━━━━━━━━━[*]────────────────────────────────────────────────────── 00:05/00:30
+--- Status Bar ---
+ [||] spd:1.0x | space:pause m:mrk f:fre v:vpt r:rsz ?:hlp q:quit

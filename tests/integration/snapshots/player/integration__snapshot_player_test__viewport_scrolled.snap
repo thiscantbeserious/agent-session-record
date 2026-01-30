@@ -1,0 +1,17 @@
+---
+source: tests/integration/snapshot_player_test.rs
+expression: output
+---
+Viewport: 40x10 at offset (5, 10)
+Buffer size: 100x30
+---
+    11 - some content here with offset      
+    12 - some content here with offset      
+    13 - some content here with offset      
+    14 - some content here with offset      
+    15 - some content here with offset      
+    16 - some content here with offset      
+    17 - some content here with offset      
+    18 - some content here with offset      
+    19 - some content here with offset      
+    20 - some content here with offset

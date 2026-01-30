@@ -1,0 +1,39 @@
+---
+source: tests/integration/player_snapshot_test.rs
+expression: output
+---
+Help overlay centered at row 3, col 36
+Terminal: 120x40, Box: 47x33
+
+                                    
+                                      ╔═══════════════════════════════════════════╗
+                                      ║          AGR Native Player Help           ║
+                                      ╠═══════════════════════════════════════════╣
+                                      ║                                           ║
+                                      ║  Playback                                 ║
+                                      ║    Space      Pause / Resume              ║
+                                      ║    <-/->      Seek +/-5s                  ║
+                                      ║    Shift+<-/->  Seek +/-5%                ║
+                                      ║    +/-        Speed up / down             ║
+                                      ║    Home/End   Go to start / end           ║
+                                      ║                                           ║
+                                      ║  Markers                                  ║
+                                      ║    m          Jump to next marker         ║
+                                      ║                                           ║
+                                      ║  Free Mode (line-by-line navigation)      ║
+                                      ║    f          Toggle free mode            ║
+                                      ║    Up/Down    Move highlight up/down      ║
+                                      ║    Esc        Exit free mode              ║
+                                      ║                                           ║
+                                      ║  Viewport                                 ║
+                                      ║    v          Toggle viewport mode        ║
+                                      ║    Up/Down/L/R Scroll viewport (v mode)   ║
+                                      ║    r          Resize to recording         ║
+                                      ║    Esc        Exit viewport mode          ║
+                                      ║                                           ║
+                                      ║  General                                  ║
+                                      ║    ?          Show this help              ║
+                                      ║    q          Quit player                 ║
+                                      ║                                           ║
+                                      ║         Press any key to close            ║
+                                      ╚═══════════════════════════════════════════╝

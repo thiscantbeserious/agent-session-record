@@ -3,7 +3,14 @@
 //! Provides functionality for playing back asciicast recordings:
 //!
 //! - `native`: Full-featured native player (seeking, markers, viewport scrolling)
-//! - `asciinema`: Legacy wrapper for shelling out to asciinema CLI
+//!
+//! # Architecture
+//!
+//! The player is organized into submodules:
+//! - `state`: PlaybackState struct and shared types (MarkerPosition, InputResult)
+//! - `input/`: Keyboard and mouse input handling
+//! - `playback/`: Seeking, marker collection, and time management
+//! - `render/`: UI rendering (viewport, progress bar, status bar, help, scroll indicators)
 //!
 //! # Usage
 //!
@@ -19,8 +26,11 @@
 //! }
 //! ```
 
-mod asciinema;
+pub(crate) mod input;
 mod native;
+pub(crate) mod playback;
+pub mod render;
+pub mod state;
 
-pub use asciinema::{play_session_asciinema, play_session_with_speed};
 pub use native::{play_session, play_session_native, PlaybackResult};
+pub use state::{InputResult, MarkerPosition, PlaybackState};

@@ -1,0 +1,44 @@
+---
+source: tests/integration/player_snapshot_test.rs
+expression: output
+---
+=== Player Frame 80x27 ===
+Recording: 120x48, View: 80x24
+Time: 25.0/60.0s, Speed: 1.0x, Paused: true
+Viewport: true, Free: false, Offset: (10,15)
+
+--- Viewport ---
+Viewport: 80x24 at offset (10, 15)
+Buffer size: 120x48
+---
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+    his is a long line of content that extends beyond the viewport width for testing
+Scroll: ▲ ▼ ◀ ▶
+--- Separator ---
+────────────────────────────────────────────────────────────────────────────────
+--- Progress Bar ---
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━[*]────────────────────────────────────── 00:25/01:00
+--- Status Bar ---
+ [>]  [V] spd:1.0x [10,15] | space:play m:mrk f:fre v:vpt r:rsz ?:hlp q:quit
