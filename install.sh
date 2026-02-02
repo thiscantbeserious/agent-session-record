@@ -56,6 +56,11 @@ if ! command -v cargo &>/dev/null; then
     exit 1
 fi
 
+if ! command -v rustc &>/dev/null; then
+    echo "Error: rustc not found. Please install Rust: https://rustup.rs"
+    exit 1
+fi
+
 # Check Rust version
 RUST_VERSION=$(rustc --version | sed 's/rustc \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
 echo "Detected Rust version: $RUST_VERSION (minimum required: $MIN_RUST_VERSION)"
