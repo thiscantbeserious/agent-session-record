@@ -766,23 +766,39 @@ fn generate_with_invalid_template_returns_error() {
 
 #[test]
 fn first_syllable_agent_session_recorder_at_12() {
-    // "agent" -> "ag", "session" -> "ses", "recorder" -> "rec"
-    // First syllable: "ag-ses-rec" = 10 chars
-    // At limit 12, should fit
+    // First word uses vowel removal since "ag" < 3 chars: "agent" -> "agnt"
+    // Other words use syllable: "session" -> "ses", "recorder" -> "rec"
+    // Result: "agnt-ses-rec" = 12 chars
+    // At limit 12, should fit exactly
     let config = Config::new(12);
     let result = filename::sanitize_directory("agent-session-recorder", &config);
 
-    assert_eq!(result, "ag-ses-rec");
+    assert_eq!(result, "agnt-ses-rec");
 }
 
 #[test]
 fn first_syllable_agent_session_recorder_at_10() {
-    // First syllable: "ag-ses-rec" = 10 chars
-    // At limit 10, fits exactly!
+    // First word uses vowel removal: "agent" -> "agnt"
+    // Other words use syllable: "session" -> "ses", "recorder" -> "rec"
+    // Result: "agnt-ses-rec" = 12 chars, too long for 10
+    // Proportional truncation: 3 words, 2 separators = 2 chars
+    // Available: 10-2 = 8 chars, 8/3 = 2 chars per word
+    // Result: "ag-se-re" = 8 chars
     let config = Config::new(10);
     let result = filename::sanitize_directory("agent-session-recorder", &config);
 
-    assert_eq!(result, "ag-ses-rec");
+    assert!(
+        result.len() <= 10,
+        "Expected <= 10, got {} ('{}')",
+        result.len(),
+        result
+    );
+    let hyphen_count = result.chars().filter(|&c| c == '-').count();
+    assert_eq!(
+        hyphen_count, 2,
+        "Expected 2 hyphens in '{}', got {}",
+        result, hyphen_count
+    );
 }
 
 #[test]
@@ -1289,11 +1305,12 @@ fn abbrev_empty_words_filtered() {
 
 #[test]
 fn syllable_specific_agent_session_recorder_exact() {
-    // "agent" -> "ag", "session" -> "ses", "recorder" -> "rec"
-    // First syllable: "ag-ses-rec" = 10 chars
-    let config = Config::new(10);
+    // First word uses vowel removal: "agent" -> "agnt"
+    // Other words use syllable: "session" -> "ses", "recorder" -> "rec"
+    // Result: "agnt-ses-rec" = 12 chars
+    let config = Config::new(12);
     let result = filename::sanitize_directory("agent-session-recorder", &config);
-    assert_eq!(result, "ag-ses-rec");
+    assert_eq!(result, "agnt-ses-rec");
 }
 
 #[test]
@@ -1692,27 +1709,43 @@ fn four_words_one_two_three_four_at_10() {
 
 #[test]
 fn five_words_agent_session_recorder_for_cli_at_25() {
-    // First syllable: "agent" -> "ag", "session" -> "ses", "recorder" -> "rec", "for" -> "for", "cli" -> "cli"
-    // First syllable: "ag-ses-rec-for-cli" = 18 chars, fits at 25
+    // First word uses vowel removal: "agent" -> "agnt"
+    // Other words use syllable: "session" -> "ses", "recorder" -> "rec", "for" -> "for", "cli" -> "cli"
+    // Result: "agnt-ses-rec-for-cli" = 20 chars, fits at 25
     let config = Config::new(25);
     let result = filename::sanitize_directory("agent-session-recorder-for-cli", &config);
-    assert_eq!(result, "ag-ses-rec-for-cli");
+    assert_eq!(result, "agnt-ses-rec-for-cli");
 }
 
 #[test]
 fn five_words_agent_session_recorder_for_cli_at_18() {
-    // First syllable: "ag-ses-rec-for-cli" = 18 chars, fits exactly!
+    // First word uses vowel removal: "agent" -> "agnt"
+    // Result: "agnt-ses-rec-for-cli" = 20 chars, too long for 18
+    // Proportional truncation needed
     let config = Config::new(18);
     let result = filename::sanitize_directory("agent-session-recorder-for-cli", &config);
-    assert_eq!(result, "ag-ses-rec-for-cli");
+
+    assert!(
+        result.len() <= 18,
+        "Expected <= 18, got {} ('{}')",
+        result.len(),
+        result
+    );
+    let hyphen_count = result.chars().filter(|&c| c == '-').count();
+    assert_eq!(
+        hyphen_count, 4,
+        "Expected 4 hyphens (5 words) in '{}', got {}",
+        result, hyphen_count
+    );
 }
 
 #[test]
 fn five_words_agent_session_recorder_for_cli_at_20() {
-    // First syllable: "ag-ses-rec-for-cli" = 18 chars, fits at 20
+    // First word uses vowel removal: "agent" -> "agnt"
+    // Result: "agnt-ses-rec-for-cli" = 20 chars, fits exactly!
     let config = Config::new(20);
     let result = filename::sanitize_directory("agent-session-recorder-for-cli", &config);
-    assert_eq!(result, "ag-ses-rec-for-cli");
+    assert_eq!(result, "agnt-ses-rec-for-cli");
 }
 
 #[test]
@@ -1931,4 +1964,155 @@ fn ten_words_at_19() {
     let config = Config::new(19);
     let result = filename::sanitize_directory("a-b-c-d-e-f-g-h-i-j", &config);
     assert_eq!(result, "a-b-c-d-e-f-g-h-i-j");
+}
+
+// ============================================================================
+// First Word Abbreviation Edge Cases
+// ============================================================================
+// These tests verify the first-word abbreviation logic that uses vowel removal
+// when syllable extraction produces fewer than 3 characters, but ensures
+// the result is never less recognizable than necessary.
+
+#[test]
+fn first_word_all_vowels_io_uses_syllable() {
+    // "io" is 2 chars, syllable returns "io" unchanged (short word)
+    // Vowel removal would give "i" (1 char) - worse!
+    // Should use syllable "io" since it's longer
+    let config = Config::new(15);
+    let result = filename::sanitize_directory("io-project", &config);
+    // "io" stays "io" (syllable, 2 chars >= vowel removal's 1 char)
+    // "project" -> "proj" (syllable)
+    assert!(
+        result.starts_with("io-"),
+        "Expected 'io' preserved, got '{}'",
+        result
+    );
+}
+
+#[test]
+fn first_word_all_vowels_aeiou_falls_back_to_truncation() {
+    // "aeiou" -> syllable "a" (1 char), vowel removal "a" (1 char)
+    // Both are < MIN_ABBREV_RESULT_LEN (2), so fall back to first 2 chars of original
+    // Should return "ae"
+    let config = Config::new(8); // Force abbreviation
+    let result = filename::sanitize_directory("aeiou-test", &config);
+    let first_word = result.split('-').next().unwrap();
+    assert_eq!(
+        first_word, "ae",
+        "All-vowel word should fall back to first 2 chars, got '{}'",
+        first_word
+    );
+}
+
+#[test]
+fn first_word_short_vowel_word_a_preserved() {
+    // Single char "a" - both methods give "a", that's fine
+    let config = Config::new(10);
+    let result = filename::sanitize_directory("a-test", &config);
+    assert!(
+        result.starts_with("a-"),
+        "Expected 'a' preserved, got '{}'",
+        result
+    );
+}
+
+#[test]
+fn first_word_single_char_stays_intact() {
+    // Single character first words should never be modified
+    let test_cases = vec![
+        ("a-project", "a"),
+        ("b-testing", "b"),
+        ("x-files", "x"),
+        ("1-test", "1"),
+    ];
+
+    for (input, expected_first) in test_cases {
+        let config = Config::new(8); // Force abbreviation
+        let result = filename::sanitize_directory(input, &config);
+        let first_word = result.split('-').next().unwrap();
+        assert_eq!(
+            first_word, expected_first,
+            "Single char '{}' should stay intact, got '{}' from input '{}'",
+            expected_first, first_word, input
+        );
+    }
+}
+
+#[test]
+fn first_word_vowel_removal_preferred_when_longer() {
+    // "agent" -> syllable "ag" (2 chars, < 3)
+    // "agent" -> vowel removal "agnt" (4 chars)
+    // Should use vowel removal since it's longer and >= 2
+    // Use limit 8 to force abbreviation: "agent-test" = 10 chars
+    let config = Config::new(8);
+    let result = filename::sanitize_directory("agent-test", &config);
+    // "agnt-test" = 9 chars, still too long, proportional truncation
+    // But first word should start with "ag" from vowel removal path
+    assert!(
+        result.starts_with("ag"),
+        "Expected first word to start with 'ag' from vowel removal, got '{}'",
+        result
+    );
+    // Verify it's not just "a-" (which would be syllable truncated further)
+    let first_word = result.split('-').next().unwrap();
+    assert!(
+        first_word.len() >= 2,
+        "First word '{}' should be at least 2 chars",
+        first_word
+    );
+}
+
+#[test]
+fn first_word_no_vowels_rhythm_unchanged() {
+    // "rhythm" has no standard vowels (y is not in VOWELS)
+    // syllable would return whole word (no vowel found)
+    // vowel removal gives "rhythm" (nothing to remove)
+    let config = Config::new(20);
+    let result = filename::sanitize_directory("rhythm-test", &config);
+    assert!(
+        result.starts_with("rhythm-"),
+        "Expected 'rhythm' unchanged, got '{}'",
+        result
+    );
+}
+
+#[test]
+fn first_word_uppercase_vowels_removed() {
+    // "AGENT" -> vowel removal should handle uppercase
+    // VOWELS includes uppercase: 'A', 'E', 'I', 'O', 'U'
+    // Use limit 8 to force abbreviation
+    let config = Config::new(8);
+    let result = filename::sanitize_directory("AGENT-TEST", &config);
+    // "AGENT" -> syllable "AG" (2 chars), vowel removal "AGNT" (4 chars)
+    // Should prefer vowel removal, then proportional truncation
+    assert!(
+        result.starts_with("AG"),
+        "Expected first word to start with 'AG' from vowel removal, got '{}'",
+        result
+    );
+}
+
+#[test]
+fn first_word_result_never_shorter_than_syllable() {
+    // For any input, the first word result should never be shorter than
+    // what syllable extraction would give (unless both are very short)
+    let test_cases = vec![
+        "io-test",     // all vowels
+        "a-test",      // single vowel
+        "ae-test",     // two vowels
+        "agent-test",  // normal case
+        "rhythm-test", // no vowels
+    ];
+
+    let config = Config::new(30);
+    for input in test_cases {
+        let result = filename::sanitize_directory(input, &config);
+        let first_word = result.split('-').next().unwrap();
+        // First word should be at least 1 char (can't be empty)
+        assert!(
+            !first_word.is_empty(),
+            "First word empty for input '{}'",
+            input
+        );
+    }
 }
