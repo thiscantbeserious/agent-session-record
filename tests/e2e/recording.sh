@@ -12,6 +12,9 @@ if [ -z "$_AGR_E2E_MAIN_RUNNER" ]; then
     echo "Test directory: $TEST_DIR"
 fi
 
+# Set up CI-optimized config with millisecond timestamps to prevent filename collisions
+create_ci_config
+
 # Test: Record a simple command
 test_header "Record simple command"
 $AGR record echo -- "hello e2e test" </dev/null
