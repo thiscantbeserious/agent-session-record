@@ -48,8 +48,8 @@ echo "asciinema: $(command -v asciinema)"
 echo
 echo "Installing binary..."
 
-# Minimum Rust version required (edition 2024 support)
-MIN_RUST_VERSION="1.85.0"
+# Minimum Rust version required (edition 2021 support)
+MIN_RUST_VERSION="1.70.0"
 
 if ! command -v cargo &>/dev/null; then
     echo "Error: cargo not found. Please install Rust: https://rustup.rs"
