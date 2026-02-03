@@ -33,6 +33,9 @@ git log --oneline -5
 **Current focus:** None (phase complete)
 
 **Recently completed:**
+- Final checks: Miri + ASan/LSan CI jobs for memory safety (PR #109)
+- Miri CI job with label-based trigger (PR #108)
+- count_digits floating-point precision fix (PR #107)
 - CI optimization with caching, path filters, and E2E test fixes (PR #104)
 - Clipboard copy for recordings (PR #103)
 - Aggressive shell minification for RC file embedding (PR #90)

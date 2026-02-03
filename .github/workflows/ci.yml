@@ -93,10 +93,11 @@ jobs:
       - name: Run unit tests
         run: cargo test --verbose
 
-  # 2b. Miri - detect undefined behavior (Linux only, macOS has FFI limitations)
-  # Runs on: push to main, or PRs with 'ready-to-merge' label
+  # 2b. Final checks - run on push to main or PRs with 'ready-to-merge' label
+  # These are slower checks that catch memory safety issues
+
   miri:
-    name: Undefined Behavior (Miri)
+    name: "Final Check: Undefined Behavior (Miri)"
     needs: build
     runs-on: ubuntu-latest
     if: >
@@ -137,6 +138,48 @@ jobs:
           # Only run lib tests - integration tests spawn processes which Miri doesn't support
           # Skip transform_ops tests - they use unsupported FFI (fclonefileat, chmod)
           cargo miri test --lib -- --skip transform_ops
+
+  asan:
+    name: "Final Check: Memory Leaks (ASan/LSan)"
+    needs: build
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.labels.*.name, 'ready-to-merge')
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust nightly with ASan support
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: x86_64-unknown-linux-gnu
+          components: rust-src
+
+      - name: Get rustc version for cache key
+        id: rustc
+        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Cache cargo registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: asan-${{ steps.rustc.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            asan-${{ steps.rustc.outputs.version }}-
+            asan-
+
+      - name: Run tests with AddressSanitizer
+        env:
+          # Use target-specific RUSTFLAGS to avoid applying to build scripts
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "-Z sanitizer=address"
+        run: |
+          # Build std with sanitizer support via -Zbuild-std
+          # Only run lib tests - integration tests spawn processes
+          # Skip transform_ops tests - they use filesystem operations
+          cargo +nightly test --lib -Zbuild-std --target x86_64-unknown-linux-gnu -- --skip transform_ops
 
   # 3. Coverage - generate test coverage and upload to Codecov
   coverage:
