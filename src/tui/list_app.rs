@@ -49,6 +49,7 @@ pub enum Mode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContextMenuItem {
     Play,
+    Copy,
     Optimize,
     Restore,
     Delete,
@@ -57,8 +58,9 @@ pub enum ContextMenuItem {
 
 impl ContextMenuItem {
     /// All menu items in display order
-    pub const ALL: [ContextMenuItem; 5] = [
+    pub const ALL: [ContextMenuItem; 6] = [
         ContextMenuItem::Play,
+        ContextMenuItem::Copy,
         ContextMenuItem::Optimize,
         ContextMenuItem::Restore,
         ContextMenuItem::Delete,
@@ -69,6 +71,7 @@ impl ContextMenuItem {
     pub fn label(&self) -> &'static str {
         match self {
             ContextMenuItem::Play => "Play",
+            ContextMenuItem::Copy => "Copy to clipboard",
             ContextMenuItem::Optimize => "Optimize",
             ContextMenuItem::Restore => "Restore from backup",
             ContextMenuItem::Delete => "Delete",
@@ -80,6 +83,7 @@ impl ContextMenuItem {
     pub fn shortcut(&self) -> &'static str {
         match self {
             ContextMenuItem::Play => "p",
+            ContextMenuItem::Copy => "c",
             ContextMenuItem::Optimize => "t",
             ContextMenuItem::Restore => "r",
             ContextMenuItem::Delete => "d",
@@ -362,6 +366,7 @@ impl ListApp {
             }
             // Direct shortcuts (bypass context menu)
             KeyCode::Char('p') => self.play_session()?,
+            KeyCode::Char('c') => self.copy_to_clipboard()?,
             KeyCode::Char('t') => self.optimize_session()?,
             KeyCode::Char('d') => {
                 if self.explorer.selected_item().is_some() {
@@ -508,6 +513,13 @@ impl ListApp {
                     .unwrap_or(0);
                 self.execute_context_menu_action()?;
             }
+            KeyCode::Char('c') => {
+                self.context_menu_idx = ContextMenuItem::ALL
+                    .iter()
+                    .position(|i| matches!(i, ContextMenuItem::Copy))
+                    .unwrap_or(0);
+                self.execute_context_menu_action()?;
+            }
             KeyCode::Char('t') => {
                 self.context_menu_idx = ContextMenuItem::ALL
                     .iter()
@@ -578,6 +590,7 @@ impl ListApp {
 
         match action {
             ContextMenuItem::Play => self.play_session()?,
+            ContextMenuItem::Copy => self.copy_to_clipboard()?,
             ContextMenuItem::Optimize => self.optimize_session()?,
             ContextMenuItem::Restore => self.restore_session()?,
             ContextMenuItem::Delete => {
@@ -606,6 +619,31 @@ impl ListApp {
             // Resume TUI - re-enters alternate screen and raw mode
             self.app.resume()?;
             self.status_message = Some(result.message());
+        }
+        Ok(())
+    }
+
+    /// Copy the selected session to the clipboard.
+    fn copy_to_clipboard(&mut self) -> Result<()> {
+        use crate::clipboard::copy_file_to_clipboard;
+
+        if let Some(item) = self.explorer.selected_item() {
+            let path = Path::new(&item.path);
+
+            // Extract filename without .cast extension
+            let filename = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("recording");
+
+            match copy_file_to_clipboard(path) {
+                Ok(result) => {
+                    self.status_message = Some(result.message(filename));
+                }
+                Err(e) => {
+                    self.status_message = Some(format!("Copy failed: {}", e));
+                }
+            }
         }
         Ok(())
     }
@@ -736,7 +774,7 @@ impl ListApp {
 
         // Center the modal
         let modal_width = 60.min(area.width.saturating_sub(4));
-        let modal_height = 26.min(area.height.saturating_sub(4)); // Updated: removed r shortcut
+        let modal_height = 27.min(area.height.saturating_sub(4)); // Updated: added c for copy
         let x = (area.width - modal_width) / 2;
         let y = (area.height - modal_height) / 2;
         let modal_area = Rect::new(x, y, modal_width, modal_height);
@@ -782,6 +820,10 @@ impl ListApp {
             Line::from(vec![
                 Span::styled("  p", Style::default().fg(theme.accent)),
                 Span::raw("           Play session"),
+            ]),
+            Line::from(vec![
+                Span::styled("  c", Style::default().fg(theme.accent)),
+                Span::raw("           Copy to clipboard"),
             ]),
             Line::from(vec![
                 Span::styled("  t", Style::default().fg(theme.accent)),
@@ -1138,8 +1180,8 @@ mod tests {
     }
 
     #[test]
-    fn context_menu_has_five_items() {
-        assert_eq!(ContextMenuItem::ALL.len(), 5);
+    fn context_menu_has_six_items() {
+        assert_eq!(ContextMenuItem::ALL.len(), 6);
     }
 
     #[test]
@@ -1157,13 +1199,20 @@ mod tests {
     }
 
     #[test]
+    fn context_menu_copy_label_and_shortcut() {
+        assert_eq!(ContextMenuItem::Copy.label(), "Copy to clipboard");
+        assert_eq!(ContextMenuItem::Copy.shortcut(), "c");
+    }
+
+    #[test]
     fn context_menu_item_order() {
-        // Verify expected order: Play, Optimize, Restore, Delete, AddMarker
+        // Verify expected order: Play, Copy, Optimize, Restore, Delete, AddMarker
         assert_eq!(ContextMenuItem::ALL[0], ContextMenuItem::Play);
-        assert_eq!(ContextMenuItem::ALL[1], ContextMenuItem::Optimize);
-        assert_eq!(ContextMenuItem::ALL[2], ContextMenuItem::Restore);
-        assert_eq!(ContextMenuItem::ALL[3], ContextMenuItem::Delete);
-        assert_eq!(ContextMenuItem::ALL[4], ContextMenuItem::AddMarker);
+        assert_eq!(ContextMenuItem::ALL[1], ContextMenuItem::Copy);
+        assert_eq!(ContextMenuItem::ALL[2], ContextMenuItem::Optimize);
+        assert_eq!(ContextMenuItem::ALL[3], ContextMenuItem::Restore);
+        assert_eq!(ContextMenuItem::ALL[4], ContextMenuItem::Delete);
+        assert_eq!(ContextMenuItem::ALL[5], ContextMenuItem::AddMarker);
     }
 
     #[test]
