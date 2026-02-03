@@ -99,10 +99,34 @@ reset_config() {
     create_ci_config
 }
 
-# Create config with specific content
+# Create config with specific content, always including CI filename template
 create_config() {
     mkdir -p "$HOME/.config/agr"
-    cat > "$HOME/.config/agr/config.toml"
+    # Read the custom content from stdin
+    local custom_content
+    custom_content=$(cat)
+
+    # If custom content has [recording], merge with our filename_template
+    # Otherwise prepend our recording section
+    if echo "$custom_content" | grep -q '^\[recording\]'; then
+        # Insert filename_template after [recording] line
+        echo "$custom_content" | awk '
+            /^\[recording\]/ {
+                print
+                print "filename_template = \"{directory}_{date}_{time:%H%M%S%f}\""
+                next
+            }
+            { print }
+        ' > "$HOME/.config/agr/config.toml"
+    else
+        # Prepend recording section with filename_template
+        cat > "$HOME/.config/agr/config.toml" << 'CIEOF'
+[recording]
+filename_template = "{directory}_{date}_{time:%H%M%S%f}"
+
+CIEOF
+        echo "$custom_content" >> "$HOME/.config/agr/config.toml"
+    fi
 }
 
 # Create CI-optimized config with unique filenames (nanosecond timestamps via %f)
