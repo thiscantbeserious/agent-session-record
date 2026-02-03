@@ -12,15 +12,8 @@ on:
       - 'install.sh'
       - '.github/**'
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     branches: [main]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'build.rs'
-      - 'install.sh'
-      - '.github/**'
 
 env:
   CARGO_TERM_COLOR: always
@@ -99,6 +92,51 @@ jobs:
 
       - name: Run unit tests
         run: cargo test --verbose
+
+  # 2b. Miri - detect undefined behavior (Linux only, macOS has FFI limitations)
+  # Runs on: push to main, or PRs with 'ready-to-merge' label
+  miri:
+    name: Undefined Behavior (Miri)
+    needs: build
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.labels.*.name, 'ready-to-merge')
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust nightly with Miri
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+
+      - name: Get rustc version for cache key
+        id: rustc
+        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Cache cargo registry and Miri sysroot
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ~/.cache/miri/
+          key: miri-${{ steps.rustc.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            miri-${{ steps.rustc.outputs.version }}-
+            miri-
+
+      - name: Setup Miri
+        run: cargo miri setup
+
+      - name: Run Miri tests
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation"
+        run: |
+          # Only run lib tests - integration tests spawn processes which Miri doesn't support
+          # Skip transform_ops tests - they use unsupported FFI (fclonefileat, chmod)
+          cargo miri test --lib -- --skip transform_ops
 
   # 3. Coverage - generate test coverage and upload to Codecov
   coverage:
