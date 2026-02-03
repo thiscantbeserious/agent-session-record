@@ -1990,17 +1990,16 @@ fn first_word_all_vowels_io_uses_syllable() {
 }
 
 #[test]
-fn first_word_all_vowels_aeiou_prefers_longer() {
-    // "aeiou" -> syllable would be "ae" (a + e, stop at 'i')
-    // vowel removal would give "a" (1 char) - worse!
-    // Should use syllable since it's longer
-    let config = Config::new(15);
+fn first_word_all_vowels_aeiou_falls_back_to_truncation() {
+    // "aeiou" -> syllable "a" (1 char), vowel removal "a" (1 char)
+    // Both are < MIN_ABBREV_RESULT_LEN (2), so fall back to first 2 chars of original
+    // Should return "ae"
+    let config = Config::new(8); // Force abbreviation
     let result = filename::sanitize_directory("aeiou-test", &config);
-    // First word should be at least 2 chars
     let first_word = result.split('-').next().unwrap();
-    assert!(
-        first_word.chars().count() >= 2,
-        "First word '{}' should be at least 2 chars",
+    assert_eq!(
+        first_word, "ae",
+        "All-vowel word should fall back to first 2 chars, got '{}'",
         first_word
     );
 }

@@ -312,6 +312,10 @@ const MIN_ABBREV_RESULT_LEN: usize = 2;
 /// a result shorter than MIN_FIRST_WORD_ABBREV_LEN characters, try vowel removal instead.
 /// If vowel removal also produces a very short result (< MIN_ABBREV_RESULT_LEN), use
 /// whichever approach gives the longer (more recognizable) result.
+///
+/// As a final fallback, if both methods produce results shorter than MIN_ABBREV_RESULT_LEN
+/// but the original word is long enough, take the first MIN_ABBREV_RESULT_LEN characters
+/// of the original word (e.g., "aeiou" -> "ae" instead of "a").
 fn abbreviate_first_word(word: &str) -> String {
     let syllable = first_syllable(word);
     let syllable_len = syllable.chars().count();
@@ -331,10 +335,17 @@ fn abbreviate_first_word(word: &str) -> String {
         vowel_removed
     } else if syllable_len >= MIN_ABBREV_RESULT_LEN {
         syllable.to_string()
-    } else if vowel_removed_len >= syllable_len {
-        vowel_removed
     } else {
-        syllable.to_string()
+        // Neither method produced MIN_ABBREV_RESULT_LEN chars
+        // Fall back to truncating the original word if it's long enough
+        let word_len = word.chars().count();
+        if word_len >= MIN_ABBREV_RESULT_LEN {
+            word.chars().take(MIN_ABBREV_RESULT_LEN).collect()
+        } else if vowel_removed_len >= syllable_len {
+            vowel_removed
+        } else {
+            syllable.to_string()
+        }
     }
 }
 
