@@ -194,8 +194,12 @@ fn trim_edges(s: &str) -> String {
         .to_string()
 }
 
-/// Vowels used for syllable detection.
+/// Vowels used for syllable detection and removal.
 const VOWELS: &[char] = &['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U'];
+
+/// Minimum length for first word abbreviation before switching strategies.
+/// If syllable extraction produces a result shorter than this, use vowel removal instead.
+const MIN_FIRST_WORD_ABBREV_LEN: usize = 3;
 
 /// Extracts the first syllable of a word.
 ///
@@ -274,11 +278,73 @@ fn first_syllable(word: &str) -> &str {
     &word[..byte_idx]
 }
 
+/// Removes vowels from a word, keeping at least the first character.
+///
+/// Examples:
+/// - "agent" → "agnt" (keeps 'a' as first char, removes 'e')
+/// - "session" → "sssn" (keeps 's', removes 'e', 'i', 'o')
+/// - "hello" → "hll" (keeps 'h', removes 'e', 'o')
+fn remove_vowels(word: &str) -> String {
+    let mut chars = word.chars();
+    let mut result = String::with_capacity(word.len());
+
+    // Always keep the first character
+    if let Some(first) = chars.next() {
+        result.push(first);
+    }
+
+    // Remove vowels from the rest
+    for c in chars {
+        if !VOWELS.contains(&c) {
+            result.push(c);
+        }
+    }
+
+    result
+}
+
+/// Minimum result length - if abbreviation would be shorter, use the longer alternative.
+const MIN_ABBREV_RESULT_LEN: usize = 2;
+
+/// Abbreviates the first word, using vowel removal if syllable extraction is too short.
+///
+/// For the first word, we want it to remain recognizable. If first_syllable produces
+/// a result shorter than MIN_FIRST_WORD_ABBREV_LEN characters, try vowel removal instead.
+/// If vowel removal also produces a very short result (< MIN_ABBREV_RESULT_LEN), use
+/// whichever approach gives the longer (more recognizable) result.
+fn abbreviate_first_word(word: &str) -> String {
+    let syllable = first_syllable(word);
+    let syllable_len = syllable.chars().count();
+
+    // If syllable is long enough, use it
+    if syllable_len >= MIN_FIRST_WORD_ABBREV_LEN {
+        return syllable.to_string();
+    }
+
+    // Try vowel removal as alternative
+    let vowel_removed = remove_vowels(word);
+    let vowel_removed_len = vowel_removed.chars().count();
+
+    // Use whichever gives a longer (more recognizable) result
+    // But ensure we don't go below MIN_ABBREV_RESULT_LEN if avoidable
+    if vowel_removed_len >= MIN_ABBREV_RESULT_LEN && vowel_removed_len > syllable_len {
+        vowel_removed
+    } else if syllable_len >= MIN_ABBREV_RESULT_LEN {
+        syllable.to_string()
+    } else if vowel_removed_len >= syllable_len {
+        vowel_removed
+    } else {
+        syllable.to_string()
+    }
+}
+
 /// Truncates a string to the specified length using smart abbreviation.
 ///
 /// For multi-word strings (separated by `-`, `_`, `.`), applies first syllable
-/// extraction to each word when truncation is needed. If still too long after
-/// abbreviation, truncates proportionally. Single words are hard-truncated.
+/// extraction to each word when truncation is needed. The first word uses a special
+/// strategy: if syllable extraction would produce fewer than 3 characters, vowel
+/// removal is used instead to keep the word more recognizable.
+/// If still too long after abbreviation, truncates proportionally. Single words are hard-truncated.
 fn truncate_to_length(s: &str, max_len: usize) -> String {
     // If it fits, return unchanged (use char count for unicode safety)
     if s.chars().count() <= max_len {
@@ -293,8 +359,20 @@ fn truncate_to_length(s: &str, max_len: usize) -> String {
         return s.chars().take(max_len).collect();
     }
 
-    // Multiple words: apply first syllable abbreviation
-    let abbreviated: Vec<&str> = words.iter().map(|w| first_syllable(w)).collect();
+    // Multiple words: apply abbreviation
+    // First word: use vowel removal if syllable is too short
+    // Other words: use first syllable
+    let abbreviated: Vec<String> = words
+        .iter()
+        .enumerate()
+        .map(|(i, w)| {
+            if i == 0 {
+                abbreviate_first_word(w)
+            } else {
+                first_syllable(w).to_string()
+            }
+        })
+        .collect();
     let result = abbreviated.join("-");
 
     // If abbreviated result fits, return it (char-based check)

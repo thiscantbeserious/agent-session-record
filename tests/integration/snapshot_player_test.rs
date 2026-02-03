@@ -194,6 +194,7 @@ fn render_progress_bar_snapshot(
 }
 
 /// Render status bar to string for snapshot testing.
+#[allow(clippy::too_many_arguments)]
 fn render_status_bar_snapshot(
     width: usize,
     paused: bool,
@@ -774,6 +775,7 @@ fn snapshot_viewport_free_mode_highlight() {
 // ============================================================================
 
 /// Render a complete player frame as it would appear in the terminal.
+#[allow(clippy::too_many_arguments)]
 fn render_full_player_frame(
     buffer: &TerminalBuffer,
     term_width: usize,
@@ -812,7 +814,7 @@ fn render_full_player_frame(
         "Viewport: {}, Free: {}, Offset: ({},{})\n",
         viewport_mode, free_mode, view_col_offset, view_row_offset
     ));
-    output.push_str("\n");
+    output.push('\n');
 
     // Viewport content
     output.push_str("--- Viewport ---\n");

@@ -228,10 +228,7 @@ fn test_resize_clamps_cursor() {
     // Text wraps correctly: 'T' at end of row 0, 'EST' at start of row 1
     assert!(output.contains('T'), "T should be visible on row 0");
     assert!(
-        output
-            .lines()
-            .nth(1)
-            .map_or(false, |l| l.starts_with("EST")),
+        output.lines().nth(1).is_some_and(|l| l.starts_with("EST")),
         "EST should wrap to row 1, got: '{}'",
         output
     );
