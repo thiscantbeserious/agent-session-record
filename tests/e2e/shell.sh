@@ -295,7 +295,7 @@ run_with_timeout 30 bash -c "
     export PATH='$MOCK_AGENT_DIR:$PROJECT_DIR/target/release:$ASCIINEMA_DIR:$ORIG_PATH'
     export HOME='$TEST_DIR'
     unset ASCIINEMA_REC
-    source '\$HOME/.zshrc' && mock-agent test-arg
+    source \"\$HOME/.zshrc\" && mock-agent test-arg
 " </dev/null
 AFTER_COUNT=$(ls "$HOME/recorded_agent_sessions/mock-agent/"*.cast 2>/dev/null | wc -l | tr -d ' ')
 if [ "$AFTER_COUNT" -gt "$BEFORE_COUNT" ]; then
