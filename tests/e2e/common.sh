@@ -104,12 +104,12 @@ create_config() {
     cat > "$HOME/.config/agr/config.toml"
 }
 
-# Create CI-optimized config with unique filenames (includes microseconds to prevent collisions)
+# Create CI-optimized config with unique filenames (includes nanosecond timestamp via %f)
 create_ci_config() {
     mkdir -p "$HOME/.config/agr"
     cat > "$HOME/.config/agr/config.toml" << 'EOF'
 [recording]
-filename_template = "{directory}_{date}_{time:%H%M%S%6f}"
+filename_template = "{directory}_{date}_{time:%H%M%S%f}"
 directory_max_length = 50
 EOF
 }

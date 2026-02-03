@@ -175,6 +175,14 @@ test_agr_sh() {
 # Re-install shell integration for wrapper tests
 $AGR shell install
 
+# Add CI-optimized recording config (nanosecond timestamps to prevent collisions)
+# Append to existing config since shell install created it
+cat >> "$HOME/.config/agr/config.toml" << 'EOF'
+
+[recording]
+filename_template = "{directory}_{date}_{time:%H%M%S%f}"
+EOF
+
 # Test: agr.sh defines _agr_record_session function
 test_header "agr.sh defines _agr_record_session function"
 if test_agr_sh 'type _agr_record_session 2>/dev/null | grep -q function'; then
