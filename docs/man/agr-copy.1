@@ -1,0 +1,28 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH copy 1  "copy " 
+.SH NAME
+copy \- Copy a recording to the clipboard
+.SH SYNOPSIS
+\fBcopy\fR [\fB\-h\fR|\fB\-\-help\fR] <\fIFILE\fR> 
+.SH DESCRIPTION
+Copy a recording file to the system clipboard.
+.PP
+On macOS, the file is copied as a file reference, allowing direct paste
+into Slack, email, or other applications as an attachment. On Linux,
+the file content is copied as text (file copy not supported).
+.PP
+Recordings can be specified by absolute path, short format (agent/file.cast),
+or just filename (fuzzy matches across all agents).
+.PP
+EXAMPLES:
+    agr copy session.cast                 Copy by filename (fuzzy match)
+    agr copy claude/session.cast          Copy using short format
+    agr copy /path/to/session.cast        Copy by absolute path
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fIFILE\fR>
+Path to the .cast recording file

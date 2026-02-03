@@ -70,6 +70,9 @@ agr status
 # Play back a recording with the native player:
 agr play session.cast
 
+# Copy a recording to the clipboard (paste into Slack, email, etc.):
+agr copy session.cast
+
 # Remove long pauses from a recording (e.g., lunch breaks):
 agr optimize --remove-silence session.cast
 
@@ -107,6 +110,41 @@ agr play ~/recorded_agent_sessions/claude/session.cast
 | `q` / `Esc` | Quit player |
 
 **Viewport Mode**: When the recording is larger than your terminal, press `v` to enter viewport mode. Use arrow keys to scroll around the recording, and press `Esc` to exit viewport mode.
+
+## Copying Recordings
+
+Copy recordings to your clipboard for sharing via Slack, email, or other applications.
+
+```bash
+# Copy by filename (fuzzy matches across agents)
+agr copy session.cast
+
+# Copy using short format
+agr copy claude/session.cast
+
+# Copy by absolute path
+agr copy ~/recorded_agent_sessions/claude/session.cast
+```
+
+**Platform Behavior:**
+- **macOS**: Copies the file as a file reference - paste directly into Slack, email, etc. as an attachment
+- **Linux**: Copies the file content as text (file reference copy not widely supported)
+
+## Interactive File Browser
+
+Use `agr list` or `agr ls` to open the interactive TUI for browsing recordings.
+
+### Browser Controls
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Play selected recording |
+| `c` | Copy recording to clipboard |
+| `d` | Delete recording |
+| `e` | Explore recording in file viewer |
+| `a` | Analyze recording with AI |
+| `?` | Show help overlay |
+| `q` / `Esc` | Quit browser |
 
 ## Post-Processing Recordings
 
