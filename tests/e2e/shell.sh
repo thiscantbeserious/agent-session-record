@@ -290,17 +290,13 @@ export ASCIINEMA_DIR
 # Capture original PATH for the test subshell
 ORIG_PATH="$PATH"
 
-(
-    # Preserve access to asciinema by including its directory in PATH
-    export PATH="$MOCK_AGENT_DIR:$PROJECT_DIR/target/release:$ASCIINEMA_DIR:$ORIG_PATH"
-    export HOME="$TEST_DIR"
-    # Unset ASCIINEMA_REC so wrapper doesn't think we're already recording
+# Use timeout to prevent hanging in CI environments (asciinema may wait for PTY)
+run_with_timeout 30 bash -c "
+    export PATH='$MOCK_AGENT_DIR:$PROJECT_DIR/target/release:$ASCIINEMA_DIR:$ORIG_PATH'
+    export HOME='$TEST_DIR'
     unset ASCIINEMA_REC
-    # Run directly without eating stderr so we can debug if needed
-    # The AGR script is now embedded in .zshrc
-    # Use timeout to prevent hanging in CI environments
-    timeout 30 bash -c "source '$HOME/.zshrc' && mock-agent test-arg" </dev/null || true
-)
+    source '\$HOME/.zshrc' && mock-agent test-arg
+" </dev/null
 AFTER_COUNT=$(ls "$HOME/recorded_agent_sessions/mock-agent/"*.cast 2>/dev/null | wc -l | tr -d ' ')
 if [ "$AFTER_COUNT" -gt "$BEFORE_COUNT" ]; then
     pass "Wrapper invoked agr record and created recording"
@@ -316,8 +312,7 @@ BEFORE_COUNT=$(ls "$HOME/recorded_agent_sessions/mock-agent/"*.cast 2>/dev/null 
     export HOME="$TEST_DIR"
     export ASCIINEMA_REC="/tmp/fake-recording.cast"
     # The AGR script is now embedded in .zshrc
-    # Use timeout to prevent hanging in CI environments
-    timeout 30 bash -c "source '$HOME/.zshrc' && mock-agent skip-test" </dev/null 2>/dev/null || true
+    bash -c "source '$HOME/.zshrc' && mock-agent skip-test" </dev/null 2>/dev/null
 )
 AFTER_COUNT=$(ls "$HOME/recorded_agent_sessions/mock-agent/"*.cast 2>/dev/null | wc -l | tr -d ' ')
 if [ "$AFTER_COUNT" -eq "$BEFORE_COUNT" ]; then
@@ -335,8 +330,7 @@ BEFORE_COUNT=$(ls "$HOME/recorded_agent_sessions/mock-agent/"*.cast 2>/dev/null 
     export PATH="$MOCK_AGENT_DIR:$PROJECT_DIR/target/release:$ASCIINEMA_DIR:$PATH"
     export HOME="$TEST_DIR"
     # The AGR script is now embedded in .zshrc
-    # Use timeout to prevent hanging in CI environments
-    timeout 30 bash -c "source '$HOME/.zshrc' && mock-agent nowrap-test" </dev/null 2>/dev/null || true
+    bash -c "source '$HOME/.zshrc' && mock-agent nowrap-test" </dev/null 2>/dev/null
 )
 AFTER_COUNT=$(ls "$HOME/recorded_agent_sessions/mock-agent/"*.cast 2>/dev/null | wc -l | tr -d ' ')
 if [ "$AFTER_COUNT" -eq "$BEFORE_COUNT" ]; then
