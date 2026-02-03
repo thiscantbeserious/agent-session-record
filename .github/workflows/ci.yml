@@ -21,6 +21,8 @@ on:
       - 'build.rs'
       - 'install.sh'
       - '.github/**'
+  merge_group:
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -101,10 +103,15 @@ jobs:
         run: cargo test --verbose
 
   # 2b. Miri - detect undefined behavior (Linux only, macOS has FFI limitations)
+  # Runs on: push to main, merge queue, or PRs with 'ready-to-merge' label
   miri:
     name: Undefined Behavior (Miri)
     needs: build
     runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'merge_group' ||
+      contains(github.event.pull_request.labels.*.name, 'ready-to-merge')
     steps:
       - uses: actions/checkout@v5
 
@@ -137,9 +144,9 @@ jobs:
         env:
           MIRIFLAGS: "-Zmiri-disable-isolation"
         run: |
-          # Skip transform_ops tests - they use macOS-specific FFI (fclonefileat, chmod)
-          # that Miri doesn't support even on Linux due to cross-compilation constraints
-          cargo miri test -- --skip transform_ops
+          # Only run lib tests - integration tests spawn processes which Miri doesn't support
+          # Skip transform_ops tests - they use unsupported FFI (fclonefileat, chmod)
+          cargo miri test --lib -- --skip transform_ops
 
   # 3. Coverage - generate test coverage and upload to Codecov
   coverage:
