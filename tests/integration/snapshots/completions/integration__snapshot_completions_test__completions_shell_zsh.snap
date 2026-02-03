@@ -90,6 +90,13 @@ _arguments "${_arguments_options[@]}" : \
 ':file -- Path to the .cast recording file:_default' \
 && ret=0
 ;;
+(copy)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':file -- Path to the .cast recording file:_default' \
+&& ret=0
+;;
 (marker)
 _arguments "${_arguments_options[@]}" : \
 '-h[Print help (see more with '\''--help'\'')]' \
@@ -527,6 +534,10 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(copy)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (marker)
 _arguments "${_arguments_options[@]}" : \
 ":: :_agr__help__marker_commands" \
@@ -698,6 +709,7 @@ _agr_commands() {
 'ls:List recorded sessions' \
 'analyze:Analyze a recording with AI' \
 'play:Play a recording with the native player' \
+'copy:Copy a recording to the clipboard' \
 'marker:Manage markers in cast files' \
 'agents:Manage configured agents' \
 'config:Configuration management' \
@@ -926,6 +938,11 @@ _agr__config__show_commands() {
     local commands; commands=()
     _describe -t commands 'agr config show commands' commands "$@"
 }
+(( $+functions[_agr__copy_commands] )) ||
+_agr__copy_commands() {
+    local commands; commands=()
+    _describe -t commands 'agr copy commands' commands "$@"
+}
 (( $+functions[_agr__help_commands] )) ||
 _agr__help_commands() {
     local commands; commands=(
@@ -935,6 +952,7 @@ _agr__help_commands() {
 'list:List recorded sessions' \
 'analyze:Analyze a recording with AI' \
 'play:Play a recording with the native player' \
+'copy:Copy a recording to the clipboard' \
 'marker:Manage markers in cast files' \
 'agents:Manage configured agents' \
 'config:Configuration management' \
@@ -1038,6 +1056,11 @@ _agr__help__config__migrate_commands() {
 _agr__help__config__show_commands() {
     local commands; commands=()
     _describe -t commands 'agr help config show commands' commands "$@"
+}
+(( $+functions[_agr__help__copy_commands] )) ||
+_agr__help__copy_commands() {
+    local commands; commands=()
+    _describe -t commands 'agr help copy commands' commands "$@"
 }
 (( $+functions[_agr__help__help_commands] )) ||
 _agr__help__help_commands() {

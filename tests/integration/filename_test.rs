@@ -634,8 +634,8 @@ fn template_render_time_default_format() {
     let template = Template::parse("{time}").unwrap();
     let config = Config::default();
     let result = template.render("dir", &config);
-    // Default format is %H%M (4 digits)
-    assert_eq!(result.len(), 4);
+    // Default format is %H%M%S (6 digits)
+    assert_eq!(result.len(), 6);
     assert!(result.chars().all(|c| c.is_ascii_digit()));
 }
 

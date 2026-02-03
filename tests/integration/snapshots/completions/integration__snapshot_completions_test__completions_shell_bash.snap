@@ -39,6 +39,9 @@ _agr() {
             agr,config)
                 cmd="agr__config"
                 ;;
+            agr,copy)
+                cmd="agr__copy"
+                ;;
             agr,help)
                 cmd="agr__help"
                 ;;
@@ -174,6 +177,9 @@ _agr() {
             agr__help,config)
                 cmd="agr__help__config"
                 ;;
+            agr__help,copy)
+                cmd="agr__help__copy"
+                ;;
             agr__help,help)
                 cmd="agr__help__help"
                 ;;
@@ -295,7 +301,7 @@ _agr() {
 
     case "${cmd}" in
         agr)
-            opts="-h -V --help --version record status cleanup list ls analyze play marker agents config shell optimize completions help"
+            opts="-h -V --help --version record status cleanup list ls analyze play copy marker agents config shell optimize completions help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -840,8 +846,22 @@ _agr() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        agr__copy)
+            opts="-h --help <FILE>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         agr__help)
-            opts="record status cleanup list analyze play marker agents config shell optimize completions help"
+            opts="record status cleanup list analyze play copy marker agents config shell optimize completions help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1067,6 +1087,20 @@ _agr() {
         agr__help__config__show)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        agr__help__copy)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi

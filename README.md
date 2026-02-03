@@ -34,7 +34,12 @@ AGR is a lightweight CLI tool that automatically records your terminal sessions 
 
 ### Prerequisites
 
-- [asciinema](https://asciinema.org/) must be installed (`brew install asciinema` or `apt install asciinema`)
+- **asciinema v3+** is required (v2 won't work)
+
+  ```bash
+  cargo install asciinema
+  asciinema --version  # must be 3.x
+  ```
 
 ### From Source
 
@@ -69,6 +74,9 @@ agr status
 
 # Play back a recording with the native player:
 agr play session.cast
+
+# Copy a recording to the clipboard (paste into Slack, email, etc.):
+agr copy session.cast
 
 # Remove long pauses from a recording (e.g., lunch breaks):
 agr optimize --remove-silence session.cast
@@ -107,6 +115,41 @@ agr play ~/recorded_agent_sessions/claude/session.cast
 | `q` / `Esc` | Quit player |
 
 **Viewport Mode**: When the recording is larger than your terminal, press `v` to enter viewport mode. Use arrow keys to scroll around the recording, and press `Esc` to exit viewport mode.
+
+## Copying Recordings
+
+Copy recordings to your clipboard for sharing via Slack, email, or other applications.
+
+```bash
+# Copy by filename (fuzzy matches across agents)
+agr copy session.cast
+
+# Copy using short format
+agr copy claude/session.cast
+
+# Copy by absolute path
+agr copy ~/recorded_agent_sessions/claude/session.cast
+```
+
+**Platform Behavior:**
+- **macOS**: Copies the file as a file reference - paste directly into Slack, email, etc. as an attachment
+- **Linux**: Copies the file content as text (file reference copy not widely supported)
+
+## Interactive File Browser
+
+Use `agr list` or `agr ls` to open the interactive TUI for browsing recordings.
+
+### Browser Controls
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Play selected recording |
+| `c` | Copy recording to clipboard |
+| `d` | Delete recording |
+| `e` | Explore recording in file viewer |
+| `a` | Analyze recording with AI |
+| `?` | Show help overlay |
+| `q` / `Esc` | Quit browser |
 
 ## Post-Processing Recordings
 
@@ -165,20 +208,20 @@ directory_max_length = 50                         # Truncate long directory name
 | `{directory}` | Current working directory name | `my-project` |
 | `{date}` | Date in YYMMDD format | `260129` |
 | `{date:FORMAT}` | Date with custom strftime | `{date:%Y-%m-%d}` → `2026-01-29` |
-| `{time}` | Time in HHMM format | `1430` |
+| `{time}` | Time in HHMMSS format | `143022` |
 | `{time:FORMAT}` | Time with custom strftime | `{time:%H:%M}` → `14:30` |
 
 **Example configurations:**
 
 ```toml
-# Default: project_260129_1430.cast
+# Default: project_260129_143022.cast
 filename_template = "{directory}_{date}_{time}"
 
 # ISO date: project_2026-01-29.cast
 filename_template = "{directory}_{date:%Y-%m-%d}"
 
-# Simple timestamp: 260129-143022.cast
-filename_template = "{date:%y%m%d}-{time:%H%M%S}"
+# Simple timestamp: 260129-1430.cast (minutes only)
+filename_template = "{date:%y%m%d}-{time:%H%M}"
 ```
 
 See the [Wiki](../../wiki) for full configuration reference.

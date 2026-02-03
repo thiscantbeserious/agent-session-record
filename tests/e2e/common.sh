@@ -121,5 +121,28 @@ print_summary() {
     return 0
 }
 
+# Portable timeout function (works on macOS and Linux)
+# Usage: run_with_timeout SECONDS COMMAND [ARGS...]
+run_with_timeout() {
+    local timeout_sec=$1
+    shift
+    if command -v timeout &>/dev/null; then
+        # Linux: use native timeout
+        timeout "$timeout_sec" "$@" || true
+    else
+        # macOS: use background process with kill
+        "$@" &
+        local pid=$!
+        (
+            sleep "$timeout_sec"
+            kill "$pid" 2>/dev/null
+        ) &
+        local watchdog=$!
+        wait "$pid" 2>/dev/null || true
+        kill "$watchdog" 2>/dev/null || true
+        wait "$watchdog" 2>/dev/null || true
+    fi
+}
+
 # Export variables for subshells
 export TEST_DIR ORIGINAL_HOME AGR PROJECT_DIR

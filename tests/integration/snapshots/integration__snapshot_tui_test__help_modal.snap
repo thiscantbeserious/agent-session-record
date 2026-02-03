@@ -15,6 +15,7 @@ expression: output
      │Actions                                                   │     
      │  Enter       Context menu                                │     
      │  p           Play session                                │     
+     │  c           Copy to clipboard                           │     
      │  t           Optimize (removes silence)                  │     
      │  d           Delete session                              │     
      │                                                          │     
@@ -27,6 +28,5 @@ expression: output
      │  q           Quit                                        │     
      │                                                          │     
      │Press any key to close                                    │     
-     │                                                          │     
      │                                                          │     
      └──────────────────────────────────────────────────────────┘

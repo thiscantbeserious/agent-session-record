@@ -8,9 +8,10 @@ expression: output
           │Actions                               │          
           │                                      │          
           │    Play (p)                          │          
+          │    Copy to clipboard (c)             │          
           │    Optimize (t)                      │          
           │       Removes silence from recording │          
-          │    Restore from backup (r)           │          
-          │>   Delete (d)                        │          
+          │>   Restore from backup (r)           │          
+          │    Delete (d)                        │          
           │    Add marker (m)                    │          
           └──────────────────────────────────────┘
