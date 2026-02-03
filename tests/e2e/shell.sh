@@ -175,8 +175,9 @@ test_agr_sh() {
 # Re-install shell integration for wrapper tests
 $AGR shell install
 
-# Restore CI-optimized recording config (shell install may have changed it)
-ensure_ci_recording_config
+# Restore CI-optimized recording config (shell install overwrites it)
+# Use create_ci_config which creates a complete valid config
+create_ci_config
 
 # Test: agr.sh defines _agr_record_session function
 test_header "agr.sh defines _agr_record_session function"

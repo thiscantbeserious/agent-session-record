@@ -120,29 +120,6 @@ no_wrap = []
 EOF
 }
 
-# Ensure recording config has nanosecond timestamps (preserves existing agents)
-ensure_ci_recording_config() {
-    local config="$HOME/.config/agr/config.toml"
-    mkdir -p "$HOME/.config/agr"
-
-    if [ -f "$config" ]; then
-        # Remove any existing [recording] section and its contents
-        local temp=$(mktemp)
-        awk '/^\[recording\]/{skip=1; next} /^\[/{skip=0} !skip' "$config" > "$temp"
-        mv "$temp" "$config"
-    fi
-
-    # Prepend recording section
-    local existing=""
-    [ -f "$config" ] && existing=$(cat "$config")
-    cat > "$config" << EOF
-[recording]
-filename_template = "{directory}_{date}_{time:%H%M%S%f}"
-directory_max_length = 50
-
-$existing
-EOF
-}
 
 # Print section header
 section() {
