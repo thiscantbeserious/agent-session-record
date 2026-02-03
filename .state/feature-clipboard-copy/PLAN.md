@@ -30,32 +30,32 @@ All stages follow TDD:
 #### Red Phase
 
 **result.rs tests:**
-- [ ] `CopyMethod::name()` returns correct strings for all variants
-- [ ] `CopyResult::file_copied()` creates correct variant
-- [ ] `CopyResult::content_copied()` creates correct variant
-- [ ] `CopyResult::message()` formats file copy message correctly
-- [ ] `CopyResult::message()` formats content copy message correctly
-- [ ] `CopyResult::is_file_copy()` returns true for FileCopied
-- [ ] `CopyResult::is_file_copy()` returns false for ContentCopied
+- [x] `CopyMethod::name()` returns correct strings for all variants
+- [x] `CopyResult::file_copied()` creates correct variant
+- [x] `CopyResult::content_copied()` creates correct variant
+- [x] `CopyResult::message()` formats file copy message correctly
+- [x] `CopyResult::message()` formats content copy message correctly
+- [x] `CopyResult::is_file_copy()` returns true for FileCopied
+- [x] `CopyResult::is_file_copy()` returns false for ContentCopied
 
 **error.rs tests:**
-- [ ] `ClipboardError::FileNotFound` displays path in message
-- [ ] `ClipboardError::NoToolAvailable` has helpful Linux message
+- [x] `ClipboardError::FileNotFound` displays path in message
+- [x] `ClipboardError::NoToolAvailable` has helpful Linux message
 
 **tool.rs tests:**
-- [ ] `CopyToolError::NotSupported` exists and is Clone
-- [ ] `CopyToolError::Failed` contains message string
-- [ ] `CopyToolError::NotFound` exists
-- [ ] Default `name()` implementation uses `method().name()`
+- [x] `CopyToolError::NotSupported` exists and is Clone
+- [x] `CopyToolError::Failed` contains message string
+- [x] `CopyToolError::NotFound` exists
+- [x] Default `name()` implementation uses `method().name()`
 
 #### Green Phase
-- [ ] Create `src/clipboard/mod.rs` with module declarations
-- [ ] Implement `CopyMethod` enum with all variants and `name()` method
-- [ ] Implement `CopyResult` enum with constructors, `message()`, `is_file_copy()`
-- [ ] Implement `ClipboardError` enum with thiserror derives
-- [ ] Implement `CopyToolError` enum
-- [ ] Implement `CopyTool` trait with all method signatures and default `name()`
-- [ ] Add `pub mod clipboard;` to `src/lib.rs`
+- [x] Create `src/clipboard/mod.rs` with module declarations
+- [x] Implement `CopyMethod` enum with all variants and `name()` method
+- [x] Implement `CopyResult` enum with constructors, `message()`, `is_file_copy()`
+- [x] Implement `ClipboardError` enum with thiserror derives
+- [x] Implement `CopyToolError` enum
+- [x] Implement `CopyTool` trait with all method signatures and default `name()`
+- [x] Add `pub mod clipboard;` to `src/lib.rs`
 
 **Files**: `src/clipboard/{mod,result,error,tool}.rs`, `src/lib.rs`
 
@@ -81,24 +81,24 @@ struct MockTool {
 ```
 
 **Tests:**
-- [ ] MockTool compiles and implements CopyTool trait (static verification)
-- [ ] `Copy::with_tools()` accepts empty vec
-- [ ] `file()` returns `FileNotFound` for non-existent path
-- [ ] `file()` tries file copy first when tool supports it
-- [ ] `file()` returns `FileCopied` when file copy succeeds
-- [ ] `file()` falls back to content copy when file copy fails
-- [ ] `file()` returns `ContentCopied` when content copy succeeds
-- [ ] `file()` skips unavailable tools
-- [ ] `file()` skips tools that don't support file copy (for file phase)
-- [ ] `file()` returns `NoToolAvailable` when all tools fail
-- [ ] `file()` tries tools in order (first available wins)
+- [x] MockTool compiles and implements CopyTool trait (static verification)
+- [x] `Copy::with_tools()` accepts empty vec
+- [x] `file()` returns `FileNotFound` for non-existent path
+- [x] `file()` tries file copy first when tool supports it
+- [x] `file()` returns `FileCopied` when file copy succeeds
+- [x] `file()` falls back to content copy when file copy fails
+- [x] `file()` returns `ContentCopied` when content copy succeeds
+- [x] `file()` skips unavailable tools
+- [x] `file()` skips tools that don't support file copy (for file phase)
+- [x] `file()` returns `NoToolAvailable` when all tools fail
+- [x] `file()` tries tools in order (first available wins)
 
 #### Green Phase
-- [ ] Implement `Copy` struct with `tools` field
-- [ ] Implement `Copy::with_tools()` constructor
-- [ ] Implement `Copy::file()` with file copy phase
-- [ ] Implement `Copy::file()` with content copy fallback phase
-- [ ] Implement `Default` trait for `Copy`
+- [x] Implement `Copy` struct with `tools` field
+- [x] Implement `Copy::with_tools()` constructor
+- [x] Implement `Copy::file()` with file copy phase
+- [x] Implement `Copy::file()` with content copy fallback phase
+- [x] Implement `Default` trait for `Copy`
 
 **Files**: `src/clipboard/copy.rs`
 
@@ -113,30 +113,30 @@ struct MockTool {
 #### Red Phase
 
 **osascript.rs tests:**
-- [ ] `escape_path()` handles simple path unchanged
-- [ ] `escape_path()` escapes double quotes
-- [ ] `escape_path()` escapes backslashes
-- [ ] `escape_path()` handles path with spaces (no escape needed)
-- [ ] `build_file_script()` creates correct AppleScript
-- [ ] `method()` returns `CopyMethod::OsaScript`
-- [ ] `is_available()` returns true on macOS cfg
-- [ ] `can_copy_files()` returns true
-- [ ] `try_copy_text()` returns `NotSupported`
+- [x] `escape_path()` handles simple path unchanged
+- [x] `escape_path()` escapes double quotes
+- [x] `escape_path()` escapes backslashes
+- [x] `escape_path()` handles path with spaces (no escape needed)
+- [x] `build_file_script()` creates correct AppleScript
+- [x] `method()` returns `CopyMethod::OsaScript`
+- [x] `is_available()` returns true on macOS cfg
+- [x] `can_copy_files()` returns true
+- [x] `try_copy_text()` returns `NotSupported`
 
 **pbcopy.rs tests:**
-- [ ] `method()` returns `CopyMethod::Pbcopy`
-- [ ] `is_available()` returns true on macOS cfg
-- [ ] `can_copy_files()` returns false
-- [ ] `try_copy_file()` returns `NotSupported`
+- [x] `method()` returns `CopyMethod::Pbcopy`
+- [x] `is_available()` returns true on macOS cfg
+- [x] `can_copy_files()` returns false
+- [x] `try_copy_file()` returns `NotSupported`
 
 #### Green Phase
-- [ ] Create `src/clipboard/tools/mod.rs` with module declarations
-- [ ] Implement `OsaScript` struct with `escape_path()`, `build_file_script()`, `run_script()`
-- [ ] Implement `CopyTool` trait for `OsaScript`
-- [ ] Implement `Pbcopy` struct
-- [ ] Implement `CopyTool` trait for `Pbcopy` with stdin pipe to pbcopy
-- [ ] Implement `Default` trait for both
-- [ ] Export in `src/clipboard/tools/mod.rs`
+- [x] Create `src/clipboard/tools/mod.rs` with module declarations
+- [x] Implement `OsaScript` struct with `escape_path()`, `build_file_script()`, `run_script()`
+- [x] Implement `CopyTool` trait for `OsaScript`
+- [x] Implement `Pbcopy` struct
+- [x] Implement `CopyTool` trait for `Pbcopy` with stdin pipe to pbcopy
+- [x] Implement `Default` trait for both
+- [x] Export in `src/clipboard/tools/mod.rs`
 
 **Files**: `src/clipboard/tools/{mod,osascript,pbcopy}.rs`
 
@@ -151,33 +151,33 @@ struct MockTool {
 #### Red Phase
 
 **xclip.rs tests:**
-- [ ] `build_file_uri()` creates correct file:// URI
-- [ ] `build_file_uri()` handles paths with spaces (URI encoding)
-- [ ] `method()` returns `CopyMethod::Xclip`
-- [ ] `is_available()` checks for xclip binary
-- [ ] `can_copy_files()` returns true
+- [x] `build_file_uri()` creates correct file:// URI
+- [x] `build_file_uri()` handles paths with spaces (URI encoding)
+- [x] `method()` returns `CopyMethod::Xclip`
+- [x] `is_available()` checks for xclip binary
+- [x] `can_copy_files()` returns true
 
 **xsel.rs tests:**
-- [ ] `method()` returns `CopyMethod::Xsel`
-- [ ] `is_available()` checks for xsel binary
-- [ ] `can_copy_files()` returns false (xsel is text-only)
-- [ ] `try_copy_file()` returns `NotSupported`
+- [x] `method()` returns `CopyMethod::Xsel`
+- [x] `is_available()` checks for xsel binary
+- [x] `can_copy_files()` returns false (xsel is text-only)
+- [x] `try_copy_file()` returns `NotSupported`
 
 **wl_copy.rs tests:**
-- [ ] `method()` returns `CopyMethod::WlCopy`
-- [ ] `is_available()` checks for wl-copy binary
-- [ ] `can_copy_files()` returns false (wl-copy is text-only for our use)
-- [ ] `try_copy_file()` returns `NotSupported`
+- [x] `method()` returns `CopyMethod::WlCopy`
+- [x] `is_available()` checks for wl-copy binary
+- [x] `can_copy_files()` returns false (wl-copy is text-only for our use)
+- [x] `try_copy_file()` returns `NotSupported`
 
 #### Green Phase
-- [ ] Implement `Xclip` struct with `build_file_uri()` helper
-- [ ] Implement `CopyTool` trait for `Xclip` with `-t text/uri-list` for files
-- [ ] Implement `Xsel` struct
-- [ ] Implement `CopyTool` trait for `Xsel` with `--clipboard --input`
-- [ ] Implement `WlCopy` struct
-- [ ] Implement `CopyTool` trait for `WlCopy` with stdin pipe
-- [ ] Implement `Default` trait for all
-- [ ] Export in `src/clipboard/tools/mod.rs`
+- [x] Implement `Xclip` struct with `build_file_uri()` helper
+- [x] Implement `CopyTool` trait for `Xclip` with `-t text/uri-list` for files
+- [x] Implement `Xsel` struct
+- [x] Implement `CopyTool` trait for `Xsel` with `--clipboard --input`
+- [x] Implement `WlCopy` struct
+- [x] Implement `CopyTool` trait for `WlCopy` with stdin pipe
+- [x] Implement `Default` trait for all
+- [x] Export in `src/clipboard/tools/mod.rs`
 
 **Files**: `src/clipboard/tools/{xclip,xsel,wl_copy}.rs`
 
@@ -192,22 +192,22 @@ struct MockTool {
 #### Red Phase
 
 **tools/mod.rs tests:**
-- [ ] `tool_exists()` returns false for nonexistent tool
-- [ ] `platform_tools()` returns OsaScript, Pbcopy on macOS
-- [ ] `platform_tools()` returns Xclip, Xsel, WlCopy on Linux
-- [ ] `platform_tools()` returns empty vec on other platforms
+- [x] `tool_exists()` returns false for nonexistent tool (implemented per-tool)
+- [x] `platform_tools()` returns OsaScript, Pbcopy on macOS
+- [x] `platform_tools()` returns Xclip, Xsel, WlCopy on Linux
+- [x] `platform_tools()` returns empty vec on other platforms
 
 **mod.rs tests:**
-- [ ] `copy_file_to_clipboard()` returns error for non-existent file
-- [ ] `copy_file_to_clipboard()` delegates to `Copy::new().file()`
+- [x] `copy_file_to_clipboard()` returns error for non-existent file
+- [x] `copy_file_to_clipboard()` delegates to `Copy::new().file()`
 
 #### Green Phase
-- [ ] Implement `tool_exists()` using `which` command
-- [ ] Implement `platform_tools()` with cfg attributes
-- [ ] Wire up `Copy::new()` to use `platform_tools()`
-- [ ] Implement `copy_file_to_clipboard()` convenience function
-- [ ] Ensure all public types are re-exported in `src/clipboard/mod.rs`
-- [ ] Add module documentation
+- [x] Implement `tool_exists()` using `which` command (per-tool implementation)
+- [x] Implement `platform_tools()` with cfg attributes
+- [x] Wire up `Copy::new()` to use `platform_tools()`
+- [x] Implement `copy_file_to_clipboard()` convenience function
+- [x] Ensure all public types are re-exported in `src/clipboard/mod.rs`
+- [x] Add module documentation
 
 **Files**: `src/clipboard/{tools/mod,mod}.rs`
 
@@ -404,11 +404,11 @@ Updated by implementer as work progresses.
 
 | Stage | Status | Notes |
 |-------|--------|-------|
-| 1 | pending | Core types: result, error, tool trait |
-| 2 | pending | Copy orchestrator with MockTool |
-| 3 | pending | macOS: OsaScript + Pbcopy |
-| 4 | pending | Linux: Xclip + Xsel + WlCopy |
-| 5 | pending | Platform selection + public API |
+| 1 | complete | Core types: result, error, tool trait |
+| 2 | complete | Copy orchestrator with MockTool |
+| 3 | complete | macOS: OsaScript + Pbcopy |
+| 4 | complete | Linux: Xclip + Xsel + WlCopy |
+| 5 | complete | Platform selection + public API |
 | 6 | pending | CLI (arg must be named `file` for completions) |
 | 7 | pending | TUI: menu + action + help |
 | 8 | pending | Documentation |
