@@ -93,9 +93,10 @@ agent_installed() {
     command -v "$AGENT" &>/dev/null
 }
 
-# Reset config for clean test state
+# Reset config for clean test state, then recreate CI config with nanosecond timestamps
 reset_config() {
     rm -f "$HOME/.config/agr/config.toml"
+    create_ci_config
 }
 
 # Create config with specific content
