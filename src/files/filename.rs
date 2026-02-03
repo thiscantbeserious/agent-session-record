@@ -409,7 +409,7 @@ pub enum Segment {
 const DEFAULT_DATE_FORMAT: &str = "%y%m%d";
 
 /// Default time format for {time} tag.
-const DEFAULT_TIME_FORMAT: &str = "%H%M";
+const DEFAULT_TIME_FORMAT: &str = "%H%M%S";
 
 /// Default template string.
 const DEFAULT_TEMPLATE: &str = "{directory}_{date}_{time}";

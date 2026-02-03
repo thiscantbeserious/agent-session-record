@@ -208,20 +208,20 @@ directory_max_length = 50                         # Truncate long directory name
 | `{directory}` | Current working directory name | `my-project` |
 | `{date}` | Date in YYMMDD format | `260129` |
 | `{date:FORMAT}` | Date with custom strftime | `{date:%Y-%m-%d}` → `2026-01-29` |
-| `{time}` | Time in HHMM format | `1430` |
+| `{time}` | Time in HHMMSS format | `143022` |
 | `{time:FORMAT}` | Time with custom strftime | `{time:%H:%M}` → `14:30` |
 
 **Example configurations:**
 
 ```toml
-# Default: project_260129_1430.cast
+# Default: project_260129_143022.cast
 filename_template = "{directory}_{date}_{time}"
 
 # ISO date: project_2026-01-29.cast
 filename_template = "{directory}_{date:%Y-%m-%d}"
 
-# Simple timestamp: 260129-143022.cast
-filename_template = "{date:%y%m%d}-{time:%H%M%S}"
+# Simple timestamp: 260129-1430.cast (minutes only)
+filename_template = "{date:%y%m%d}-{time:%H%M}"
 ```
 
 See the [Wiki](../../wiki) for full configuration reference.
