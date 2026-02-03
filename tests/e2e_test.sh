@@ -18,6 +18,9 @@ if ! check_prerequisites; then
     exit 1
 fi
 
+# Create CI-optimized config ONCE at the start (nanosecond timestamps for unique filenames)
+create_ci_config
+
 echo "=== AGR End-to-End Tests ==="
 echo "Test directory: $TEST_DIR"
 echo

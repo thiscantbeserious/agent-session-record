@@ -175,19 +175,8 @@ test_agr_sh() {
 # Re-install shell integration for wrapper tests
 $AGR shell install
 
-# Add CI-optimized recording config (nanosecond timestamps to prevent collisions)
-# Shell install creates agents config - we need to add recording section before it
-CONFIG_FILE="$HOME/.config/agr/config.toml"
-if [ -f "$CONFIG_FILE" ]; then
-    # Prepend recording section to existing config
-    EXISTING=$(cat "$CONFIG_FILE")
-    cat > "$CONFIG_FILE" << EOF
-[recording]
-filename_template = "{directory}_{date}_{time:%H%M%S%f}"
-
-$EXISTING
-EOF
-fi
+# Restore CI-optimized recording config (shell install may have changed it)
+ensure_ci_recording_config
 
 # Test: agr.sh defines _agr_record_session function
 test_header "agr.sh defines _agr_record_session function"

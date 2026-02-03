@@ -10,10 +10,9 @@ if [ -z "$_AGR_E2E_MAIN_RUNNER" ]; then
     check_prerequisites || exit 1
     section "AGR Recording Tests"
     echo "Test directory: $TEST_DIR"
+    # Create CI config when running standalone (main runner does this otherwise)
+    create_ci_config
 fi
-
-# Set up CI-optimized config with millisecond timestamps to prevent filename collisions
-create_ci_config
 
 # Test: Record a simple command
 test_header "Record simple command"
