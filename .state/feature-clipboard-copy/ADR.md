@@ -71,6 +71,8 @@ src/
     └── list_app.rs         # TUI integration (modified)
 ```
 
+**Rationale**: Standalone module follows the existing domain-focused pattern. Each module owns one capability (`shell/` = shell integration, `clipboard/` = clipboard integration).
+
 ### Public Interface
 
 ```rust
