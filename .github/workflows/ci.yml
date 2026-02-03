@@ -12,7 +12,7 @@ env:
 jobs:
   # 1. Build - ensure it compiles
   build:
-    name: Build
+    name: Build (${{ matrix.os == 'ubuntu-latest' && 'Linux' || 'macOS' }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -39,7 +39,7 @@ jobs:
 
   # 2. Unit Tests - verify logic
   unit-tests:
-    name: Unit Tests
+    name: Unit Tests (${{ matrix.os == 'ubuntu-latest' && 'Linux' || 'macOS' }})
     needs: build
     runs-on: ${{ matrix.os }}
     strategy:
@@ -50,6 +50,10 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Install clipboard tools (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xclip xsel xvfb
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -63,6 +67,11 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Run unit tests
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum cargo test --verbose
+
+      - name: Run unit tests
+        if: runner.os == 'macOS'
         run: cargo test --verbose
 
   # 3. Coverage - generate test coverage and upload to Codecov
@@ -77,6 +86,9 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      # Note: No clipboard tools for coverage - tarpaulin instrumentation causes timeouts with xvfb
+      # Clipboard code coverage comes from unit tests with mocks; real tool testing happens in Unit Tests job
 
       - name: Cache cargo registry
         id: cache-registry
