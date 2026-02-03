@@ -154,10 +154,10 @@ jobs:
           version: v11.2.6
           skip_validation: true
 
-  # 4. E2E Tests - verify integration (uses build artifacts)
+  # 4. E2E Tests - verify integration (uses build artifacts, runs parallel with unit tests)
   e2e-tests:
     name: E2E Tests (${{ matrix.os == 'ubuntu-latest' && 'Linux' || 'macOS' }})
-    needs: unit-tests
+    needs: build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

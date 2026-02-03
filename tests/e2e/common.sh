@@ -17,9 +17,17 @@ TESTS_DIR="$(dirname "$SCRIPT_DIR")"
 PROJECT_DIR="$(dirname "$TESTS_DIR")"
 AGR="$PROJECT_DIR/target/release/agr"
 
-# Test directory setup - only create once
+# Detect platform and set shell RC file
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    SHELL_RC=".zshrc"
+else
+    SHELL_RC=".bashrc"
+fi
+export SHELL_RC
+
+# Test directory setup - create unique per job using PID and random suffix
 if [ -z "$_AGR_TEST_DIR_CREATED" ]; then
-    TEST_DIR=$(mktemp -d)
+    TEST_DIR=$(mktemp -d -t "agr-e2e-$$-XXXXXX")
     ORIGINAL_HOME="$HOME"
     export HOME="$TEST_DIR"
     mkdir -p "$HOME/recorded_agent_sessions"
