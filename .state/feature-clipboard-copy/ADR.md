@@ -1,7 +1,7 @@
 # ADR: Clipboard Copy Feature
 
 ## Status
-Proposed
+Accepted (2026-02-03)
 
 ## Context
 
