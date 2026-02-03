@@ -1,0 +1,32 @@
+---
+source: tests/integration/copy_test.rs
+expression: output
+---
+=== agr copy --help ===
+Exit code: 0
+
+--- stdout ---
+Copy a recording file to the system clipboard.
+
+On macOS, the file is copied as a file reference, allowing direct paste
+into Slack, email, or other applications as an attachment. On Linux,
+the file content is copied as text (file copy not supported).
+
+Recordings can be specified by absolute path, short format (agent/file.cast),
+or just filename (fuzzy matches across all agents).
+
+EXAMPLES:
+    agr copy session.cast                 [37mCopy by filename (fuzzy match)[0m
+    agr copy claude/session.cast          [37mCopy using short format[0m
+    agr copy /path/to/session.cast        [37mCopy by absolute path[0m
+
+Usage: agr copy <FILE>
+
+Arguments:
+  <FILE>
+          Path to the .cast recording file
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+--- stderr ---

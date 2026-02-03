@@ -303,16 +303,16 @@ struct MockTool {
 **Goal**: Document copy feature for users.
 
 #### README.md
-- [ ] Add `agr copy` example to Quick Start section
-- [ ] Add copy command documentation section with examples
-- [ ] Document `c` keybinding in TUI controls section
-- [ ] Add note about platform behavior (macOS file copy vs Linux content fallback)
+- [x] Add `agr copy` example to Quick Start section
+- [x] Add copy command documentation section with examples
+- [x] Document `c` keybinding in TUI controls section
+- [x] Add note about platform behavior (macOS file copy vs Linux content fallback)
 
 #### Generated Docs
-- [ ] Run `cargo xtask gen-docs`
-- [ ] Verify copy command appears in `docs/COMMANDS.md`
-- [ ] Verify wiki pages updated if applicable
-- [ ] Review diff for accuracy
+- [x] Run `cargo xtask gen-docs`
+- [x] Verify copy command appears in `docs/COMMANDS.md`
+- [x] Verify wiki pages updated if applicable
+- [x] Review diff for accuracy
 
 **Files**: `README.md`, `docs/COMMANDS.md`, `docs/wiki/*`
 
@@ -325,16 +325,16 @@ struct MockTool {
 **Goal**: End-to-end verification including shell completions.
 
 #### Tests
-- [ ] Create `tests/integration/copy_test.rs`
-- [ ] Test: `agr copy --help` exits 0 and shows usage
-- [ ] Test: `agr copy nonexistent.cast` exits non-zero with helpful error
-- [ ] Test: `agr copy` without arguments shows error
-- [ ] Test: path resolution works with short format
-- [ ] Test: (cfg macos) copy succeeds with temp file
-- [ ] Test: (cfg linux) copy succeeds or fails gracefully based on tools
-- [ ] Test: `agr completions --files` includes test recordings
-- [ ] Test: generated zsh init contains "copy" in `_agr_file_cmds`
-- [ ] Test: generated bash init contains "copy" in `_agr_file_cmds`
+- [x] Create `tests/integration/copy_test.rs`
+- [x] Test: `agr copy --help` exits 0 and shows usage
+- [x] Test: `agr copy nonexistent.cast` exits non-zero with helpful error
+- [x] Test: `agr copy` without arguments shows error
+- [x] Test: path resolution works with short format
+- [x] Test: (cfg macos) copy succeeds with temp file
+- [x] Test: (cfg linux) copy succeeds or fails gracefully based on tools
+- [x] Test: `agr completions --files` includes test recordings
+- [x] Test: generated zsh init contains "copy" in `_agr_file_cmds`
+- [x] Test: generated bash init contains "copy" in `_agr_file_cmds`
 
 **Files**: `tests/integration/copy_test.rs`
 
@@ -411,8 +411,8 @@ Updated by implementer as work progresses.
 | 5 | complete | Platform selection + public API |
 | 6 | complete | CLI (arg must be named `file` for completions) |
 | 7 | complete | TUI: menu + action + help |
-| 8 | pending | Documentation |
-| 9 | pending | Integration tests |
+| 8 | complete | Documentation: README + gen-docs |
+| 9 | complete | Integration tests: CLI + completions |
 | 10 | pending | Manual platform testing |
 
 ---
