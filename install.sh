@@ -48,14 +48,76 @@ echo "asciinema: $(command -v asciinema)"
 echo
 echo "Installing binary..."
 
-if command -v cargo &>/dev/null; then
-    echo "Using cargo install..."
-    cargo install --path . --force
-    INSTALL_DIR="$HOME/.cargo/bin"
-else
+# Minimum Rust version required (edition 2021 support)
+MIN_RUST_VERSION="1.70.0"
+
+if ! command -v cargo &>/dev/null; then
     echo "Error: cargo not found. Please install Rust: https://rustup.rs"
     exit 1
 fi
+
+if ! command -v rustc &>/dev/null; then
+    echo "Error: rustc not found. Please install Rust: https://rustup.rs"
+    exit 1
+fi
+
+# Check Rust version
+RUST_VERSION=$(rustc --version | sed 's/rustc \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
+echo "Detected Rust version: $RUST_VERSION (minimum required: $MIN_RUST_VERSION)"
+
+# Compare versions (returns 0 if $1 >= $2)
+version_ge() {
+    local IFS=.
+    local i
+    local ver1=($1) ver2=($2)
+    for ((i=0; i<${#ver1[@]} || i<${#ver2[@]}; i++)); do
+        local a=${ver1[i]:-0} b=${ver2[i]:-0}
+        if ((10#$a > 10#$b)); then
+            return 0
+        elif ((10#$a < 10#$b)); then
+            return 1
+        fi
+    done
+    return 0
+}
+
+if ! version_ge "$RUST_VERSION" "$MIN_RUST_VERSION"; then
+    echo
+    echo "Error: Rust $MIN_RUST_VERSION or newer is required."
+    echo "Your version: $RUST_VERSION"
+    echo
+    if command -v rustup &>/dev/null; then
+        if [ -t 0 ]; then
+            echo "Would you like to update Rust now? [y/N]"
+            read -r response
+            if [[ "$response" =~ ^[Yy]$ ]]; then
+                echo "Updating Rust..."
+                rustup update stable
+                # Re-check version after update
+                RUST_VERSION=$(rustc --version | sed 's/rustc \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
+                echo "Updated to Rust version: $RUST_VERSION"
+                if ! version_ge "$RUST_VERSION" "$MIN_RUST_VERSION"; then
+                    echo "Error: Update failed to reach minimum version. Please update manually."
+                    exit 1
+                fi
+            else
+                echo "Please update Rust manually: rustup update stable"
+                exit 1
+            fi
+        else
+            echo "Non-interactive environment detected."
+            echo "Please update Rust manually: rustup update stable"
+            exit 1
+        fi
+    else
+        echo "Please update Rust manually or install rustup: https://rustup.rs"
+        exit 1
+    fi
+fi
+
+echo "Using cargo install..."
+cargo install --path . --force
+INSTALL_DIR="$HOME/.cargo/bin"
 
 echo
 echo "Installed binary to: $INSTALL_DIR/agr"
