@@ -74,3 +74,9 @@ mod snapshot_player_test;
 
 #[path = "integration/resize_stress_test.rs"]
 mod resize_stress_test;
+
+#[path = "integration/clipboard_test.rs"]
+mod clipboard_test;
+
+#[path = "integration/copy_test.rs"]
+mod copy_test;

@@ -62,7 +62,7 @@ impl Recorder {
             // Fallback: use directory + timestamp
             let sanitized_dir = filename::sanitize_directory(&dir_name, &filename_config);
             let now = chrono::Local::now();
-            format!("{}_{}.cast", sanitized_dir, now.format("%y%m%d_%H%M"))
+            format!("{}_{}.cast", sanitized_dir, now.format("%y%m%d_%H%M%S"))
         })
     }
 
