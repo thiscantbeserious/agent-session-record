@@ -29,41 +29,40 @@ cat > "$TEST_CAST" << 'EOF'
 [0.0, "o", "test content"]
 EOF
 
-# Helper: run agr copy with timeout on Linux to prevent hanging
-run_copy_with_timeout() {
+# Helper: run agr copy on Linux, read clipboard, then kill hanging xclip
+# xclip forks and waits to serve requests - we read the data then kill it
+run_copy_and_read_linux() {
     local file="$1"
-    local timeout_sec=5
 
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        "$AGR" copy "$file" 2>&1
-    else
-        # On Linux, run with timeout to prevent xclip from hanging forever
-        local output
-        if command -v timeout &>/dev/null; then
-            output=$(timeout "$timeout_sec" "$AGR" copy "$file" 2>&1) || true
-        else
-            # Fallback: run in background with manual timeout
-            "$AGR" copy "$file" > "$TEST_DIR/copy_output.txt" 2>&1 &
-            local pid=$!
-            local count=0
-            while kill -0 "$pid" 2>/dev/null && [ $count -lt $timeout_sec ]; do
-                sleep 1
-                count=$((count + 1))
-            done
-            if kill -0 "$pid" 2>/dev/null; then
-                kill "$pid" 2>/dev/null || true
-                wait "$pid" 2>/dev/null || true
-            fi
-            output=$(cat "$TEST_DIR/copy_output.txt" 2>/dev/null)
-        fi
-        echo "$output"
-    fi
+    # Run agr copy in background (xclip will fork and wait)
+    "$AGR" copy "$file" > "$TEST_DIR/copy_output.txt" 2>&1 &
+    local copy_pid=$!
+
+    # Wait a moment for xclip to receive data
+    sleep 1
+
+    # Read clipboard content (this triggers xclip to serve data)
+    local content
+    content=$(xclip -selection clipboard -o 2>/dev/null) || true
+    echo "$content" > "$TEST_DIR/clipboard_content.txt"
+
+    # Kill any remaining xclip processes from our copy
+    kill "$copy_pid" 2>/dev/null || true
+    pkill -f "xclip -selection clipboard" 2>/dev/null || true
+    wait "$copy_pid" 2>/dev/null || true
+
+    # Return the copy command output
+    cat "$TEST_DIR/copy_output.txt" 2>/dev/null
 }
 
 # Test: agr copy command works
 test_copy_command() {
     local output
-    output=$(run_copy_with_timeout "$TEST_CAST")
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        output=$("$AGR" copy "$TEST_CAST" 2>&1)
+    else
+        output=$(run_copy_and_read_linux "$TEST_CAST")
+    fi
     if [[ "$output" == *"Copied"*"clipboard"* ]]; then
         pass "agr copy produces success message"
     else
@@ -84,11 +83,17 @@ test_clipboard_content() {
             fail "macOS clipboard does not contain file reference: $clip_info"
         fi
     else
-        # On Linux, run copy with timeout (xclip forks and may hang)
-        run_copy_with_timeout "$TEST_CAST" >/dev/null
-        # Can't verify clipboard content without xclip -o which also hangs
-        # The test passes if the command completed within timeout
-        pass "Linux clipboard copy completed within timeout"
+        # On Linux, copy and verify clipboard content
+        run_copy_and_read_linux "$TEST_CAST" >/dev/null
+        local content
+        content=$(cat "$TEST_DIR/clipboard_content.txt" 2>/dev/null)
+        if [[ "$content" == *"file://"* ]] || [[ "$content" == *"clipboard_test.cast"* ]]; then
+            pass "Linux clipboard contains file URI"
+        elif [[ "$content" == *"test content"* ]] || [[ -n "$content" ]]; then
+            pass "Linux clipboard contains content"
+        else
+            fail "Linux clipboard is empty or invalid: $content"
+        fi
     fi
 }
 
