@@ -224,33 +224,33 @@ struct MockTool {
 #### Red Phase
 
 **cli.rs tests:**
-- [ ] `agr copy --help` parses successfully
-- [ ] `agr copy session.cast` parses with correct file argument
-- [ ] `agr copy` without args shows error
+- [x] `agr copy --help` parses successfully
+- [x] `agr copy session.cast` parses with correct file argument
+- [x] `agr copy` without args shows error
 
 **commands/copy.rs tests:**
-- [ ] Handler returns error for non-existent file with helpful message
-- [ ] Handler accepts filename with and without .cast extension
-- [ ] Handler resolves short format paths (agent/file.cast)
+- [x] Handler returns error for non-existent file with helpful message
+- [x] Handler accepts filename with and without .cast extension
+- [x] Handler resolves short format paths (agent/file.cast)
 
 **shell/completions.rs tests:**
-- [ ] `extract_commands()` includes `copy` command
-- [ ] `copy` command has `accepts_file == true`
+- [x] `extract_commands()` includes `copy` command
+- [x] `copy` command has `accepts_file == true`
 
 #### Green Phase
-- [ ] Add `Copy { file: String }` variant to `Commands` enum in `src/cli.rs`
+- [x] Add `Copy { file: String }` variant to `Commands` enum in `src/cli.rs`
   - **Critical**: Name the argument `file`, not `recording`
   - **Note**: `Copy` as variant name is valid but potentially confusing (Rust `Copy` trait exists). Acceptable.
-- [ ] Add help text and long_about with examples
-- [ ] Create `src/commands/copy.rs` with `handle(file: &str) -> Result<()>`
+- [x] Add help text and long_about with examples
+- [x] Create `src/commands/copy.rs` with `handle(file: &str) -> Result<()>`
   - Load config
   - Use `resolve_file_path()` for path resolution
   - Validate file exists with helpful error
   - Call `clipboard::copy_file_to_clipboard()`
   - **Strip `.cast` extension** from filename before calling `result.message()` (it appends `.cast` internally)
   - Print themed result message
-- [ ] Export module in `src/commands/mod.rs`
-- [ ] Add match arm for `Commands::Copy { file }` in `main.rs`
+- [x] Export module in `src/commands/mod.rs`
+- [x] Add match arm for `Commands::Copy { file }` in `main.rs`
 
 **Files**: `src/{cli,main}.rs`, `src/commands/{mod,copy}.rs`
 
@@ -265,32 +265,32 @@ struct MockTool {
 #### Red Phase
 
 **Context menu tests:**
-- [ ] `ContextMenuItem::Copy` exists
-- [ ] `ContextMenuItem::Copy.label()` returns "Copy to clipboard"
-- [ ] `ContextMenuItem::Copy.shortcut()` returns "c"
-- [ ] `ContextMenuItem::ALL` has 6 items
-- [ ] `ContextMenuItem::ALL[1]` is Copy (after Play)
+- [x] `ContextMenuItem::Copy` exists
+- [x] `ContextMenuItem::Copy.label()` returns "Copy to clipboard"
+- [x] `ContextMenuItem::Copy.shortcut()` returns "c"
+- [x] `ContextMenuItem::ALL` has 6 items
+- [x] `ContextMenuItem::ALL[1]` is Copy (after Play)
 
 **Action handler tests:**
-- [ ] `c` key in Normal mode with selection triggers copy
-- [ ] `c` key in ContextMenu mode selects Copy and executes
-- [ ] Copy action sets status message on success
-- [ ] Copy action sets error status message on failure
+- [x] `c` key in Normal mode with selection triggers copy
+- [x] `c` key in ContextMenu mode selects Copy and executes
+- [x] Copy action sets status message on success
+- [x] Copy action sets error status message on failure
 
 **Help text tests:**
-- [ ] Snapshot test: help modal includes "c" and "Copy" text
+- [x] Snapshot test: help modal includes "c" and "Copy" text
 
 #### Green Phase
-- [ ] Add `Copy` variant to `ContextMenuItem` enum
-- [ ] Update `ContextMenuItem::ALL` array (6 items, Copy at index 1)
-- [ ] Implement `label()` match arm: "Copy to clipboard"
-- [ ] Implement `shortcut()` match arm: "c"
-- [ ] Add `copy_to_clipboard(&mut self) -> Result<()>` method to `ListApp`
-- [ ] Add `KeyCode::Char('c')` handling in `handle_normal_key()`
-- [ ] Add `KeyCode::Char('c')` handling in `handle_context_menu_key()`
-- [ ] Wire up `ContextMenuItem::Copy` in `execute_context_menu_action()`
-- [ ] Add copy keybinding line to `render_help_modal()` in Actions section
-- [ ] Update `modal_height` calculation if needed
+- [x] Add `Copy` variant to `ContextMenuItem` enum
+- [x] Update `ContextMenuItem::ALL` array (6 items, Copy at index 1)
+- [x] Implement `label()` match arm: "Copy to clipboard"
+- [x] Implement `shortcut()` match arm: "c"
+- [x] Add `copy_to_clipboard(&mut self) -> Result<()>` method to `ListApp`
+- [x] Add `KeyCode::Char('c')` handling in `handle_normal_key()`
+- [x] Add `KeyCode::Char('c')` handling in `handle_context_menu_key()`
+- [x] Wire up `ContextMenuItem::Copy` in `execute_context_menu_action()`
+- [x] Add copy keybinding line to `render_help_modal()` in Actions section
+- [x] Update `modal_height` calculation if needed
 
 **Files**: `src/tui/list_app.rs`
 
@@ -409,8 +409,8 @@ Updated by implementer as work progresses.
 | 3 | complete | macOS: OsaScript + Pbcopy |
 | 4 | complete | Linux: Xclip + Xsel + WlCopy |
 | 5 | complete | Platform selection + public API |
-| 6 | pending | CLI (arg must be named `file` for completions) |
-| 7 | pending | TUI: menu + action + help |
+| 6 | complete | CLI (arg must be named `file` for completions) |
+| 7 | complete | TUI: menu + action + help |
 | 8 | pending | Documentation |
 | 9 | pending | Integration tests |
 | 10 | pending | Manual platform testing |
