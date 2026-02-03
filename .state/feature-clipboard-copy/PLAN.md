@@ -12,98 +12,85 @@ Implementation challenges for the implementer to resolve:
 
 ---
 
-## Stages
+## TDD Methodology
 
-All stages follow TDD methodology:
+All stages follow TDD:
 - **Red**: Write failing tests first
 - **Green**: Implement minimal code to pass tests
 - **Refactor**: Clean up while keeping tests green
 
 ---
 
-### Stage 1: Core Types (result.rs, error.rs)
+## Stages
 
-**Goal**: Define `CopyResult`, `CopyMethod`, and `ClipboardError` types.
+### Stage 1: Core Types
+
+**Goal**: Define `CopyResult`, `CopyMethod`, `ClipboardError`, `CopyTool` trait, and `CopyToolError`.
 
 #### Red Phase
-- [ ] Create `src/clipboard/mod.rs` with module declarations (empty)
-- [ ] Create `src/clipboard/result.rs` with type stubs
-- [ ] Write test: `CopyMethod::name()` returns correct strings for all variants
-- [ ] Write test: `CopyResult::file_copied()` creates correct variant
-- [ ] Write test: `CopyResult::content_copied()` creates correct variant
-- [ ] Write test: `CopyResult::message()` formats file copy message correctly
-- [ ] Write test: `CopyResult::message()` formats content copy message correctly
-- [ ] Write test: `CopyResult::is_file_copy()` returns true for FileCopied
-- [ ] Write test: `CopyResult::is_file_copy()` returns false for ContentCopied
-- [ ] Create `src/clipboard/error.rs` with error stubs
-- [ ] Write test: `ClipboardError::FileNotFound` displays path in message
-- [ ] Write test: `ClipboardError::NoToolAvailable` has helpful Linux message
+
+**result.rs tests:**
+- [ ] `CopyMethod::name()` returns correct strings for all variants
+- [ ] `CopyResult::file_copied()` creates correct variant
+- [ ] `CopyResult::content_copied()` creates correct variant
+- [ ] `CopyResult::message()` formats file copy message correctly
+- [ ] `CopyResult::message()` formats content copy message correctly
+- [ ] `CopyResult::is_file_copy()` returns true for FileCopied
+- [ ] `CopyResult::is_file_copy()` returns false for ContentCopied
+
+**error.rs tests:**
+- [ ] `ClipboardError::FileNotFound` displays path in message
+- [ ] `ClipboardError::NoToolAvailable` has helpful Linux message
+
+**tool.rs tests:**
+- [ ] `CopyToolError::NotSupported` exists and is Clone
+- [ ] `CopyToolError::Failed` contains message string
+- [ ] `CopyToolError::NotFound` exists
+- [ ] Default `name()` implementation uses `method().name()`
 
 #### Green Phase
-- [ ] Implement `CopyMethod` enum with all variants
-- [ ] Implement `CopyMethod::name()` method
-- [ ] Implement `CopyResult` enum with constructors
-- [ ] Implement `CopyResult::message()` method
-- [ ] Implement `CopyResult::is_file_copy()` method
+- [ ] Create `src/clipboard/mod.rs` with module declarations
+- [ ] Implement `CopyMethod` enum with all variants and `name()` method
+- [ ] Implement `CopyResult` enum with constructors, `message()`, `is_file_copy()`
 - [ ] Implement `ClipboardError` enum with thiserror derives
-- [ ] Export types in `src/clipboard/mod.rs`
+- [ ] Implement `CopyToolError` enum
+- [ ] Implement `CopyTool` trait with all method signatures and default `name()`
 - [ ] Add `pub mod clipboard;` to `src/lib.rs`
 
-**Files**: `src/clipboard/mod.rs`, `src/clipboard/result.rs`, `src/clipboard/error.rs`, `src/lib.rs`
+**Files**: `src/clipboard/{mod,result,error,tool}.rs`, `src/lib.rs`
 
-**Verify**: `cargo test clipboard::result && cargo test clipboard::error`
-
----
-
-### Stage 2: CopyTool Trait (tool.rs)
-
-**Goal**: Define the `CopyTool` trait and `CopyToolError` type.
-
-#### Red Phase
-- [ ] Create `src/clipboard/tool.rs` with trait stub
-- [ ] Write test: `CopyToolError::NotSupported` exists and is Clone
-- [ ] Write test: `CopyToolError::Failed` contains message string
-- [ ] Write test: `CopyToolError::NotFound` exists
-- [ ] Write test: default `name()` implementation uses `method().name()`
-
-#### Green Phase
-- [ ] Implement `CopyToolError` enum
-- [ ] Implement `CopyTool` trait with all method signatures
-- [ ] Implement default `name()` method on trait
-- [ ] Export in `src/clipboard/mod.rs`
-
-**Files**: `src/clipboard/tool.rs`, `src/clipboard/mod.rs`
-
-**Verify**: `cargo test clipboard::tool`
+**Verify**: `cargo test clipboard::result && cargo test clipboard::error && cargo test clipboard::tool`
 
 ---
 
-### Stage 3: Copy Orchestrator (copy.rs)
+### Stage 2: Copy Orchestrator
 
 **Goal**: Implement the `Copy` struct that tries tools in order.
 
 #### Red Phase
-- [ ] Create `src/clipboard/copy.rs` with struct stub
-- [ ] Create mock tool for testing:
-  ```rust
-  struct MockTool {
-      method: CopyMethod,
-      available: bool,
-      can_files: bool,
-      file_result: Result<(), CopyToolError>,
-      text_result: Result<(), CopyToolError>,
-  }
-  ```
-- [ ] Write test: `Copy::with_tools()` accepts empty vec
-- [ ] Write test: `file()` returns `FileNotFound` for non-existent path
-- [ ] Write test: `file()` tries file copy first when tool supports it
-- [ ] Write test: `file()` returns `FileCopied` when file copy succeeds
-- [ ] Write test: `file()` falls back to content copy when file copy fails
-- [ ] Write test: `file()` returns `ContentCopied` when content copy succeeds
-- [ ] Write test: `file()` skips unavailable tools
-- [ ] Write test: `file()` skips tools that don't support file copy (for file phase)
-- [ ] Write test: `file()` returns `NoToolAvailable` when all tools fail
-- [ ] Write test: `file()` tries tools in order (first available wins)
+
+Create MockTool for testing:
+```rust
+struct MockTool {
+    method: CopyMethod,
+    available: bool,
+    can_files: bool,
+    file_result: Result<(), CopyToolError>,
+    text_result: Result<(), CopyToolError>,
+}
+```
+
+**Tests:**
+- [ ] `Copy::with_tools()` accepts empty vec
+- [ ] `file()` returns `FileNotFound` for non-existent path
+- [ ] `file()` tries file copy first when tool supports it
+- [ ] `file()` returns `FileCopied` when file copy succeeds
+- [ ] `file()` falls back to content copy when file copy fails
+- [ ] `file()` returns `ContentCopied` when content copy succeeds
+- [ ] `file()` skips unavailable tools
+- [ ] `file()` skips tools that don't support file copy (for file phase)
+- [ ] `file()` returns `NoToolAvailable` when all tools fail
+- [ ] `file()` tries tools in order (first available wins)
 
 #### Green Phase
 - [ ] Implement `Copy` struct with `tools` field
@@ -111,369 +98,230 @@ All stages follow TDD methodology:
 - [ ] Implement `Copy::file()` with file copy phase
 - [ ] Implement `Copy::file()` with content copy fallback phase
 - [ ] Implement `Default` trait for `Copy`
-- [ ] Export in `src/clipboard/mod.rs`
 
-**Files**: `src/clipboard/copy.rs`, `src/clipboard/mod.rs`
+**Files**: `src/clipboard/copy.rs`
 
 **Verify**: `cargo test clipboard::copy`
 
 ---
 
-### Stage 4: OsaScript Tool (tools/osascript.rs)
+### Stage 3: macOS Tools
 
-**Goal**: Implement macOS file copy via osascript.
+**Goal**: Implement OsaScript (file copy) and Pbcopy (content copy) for macOS.
 
 #### Red Phase
+
+**osascript.rs tests:**
+- [ ] `escape_path()` handles simple path unchanged
+- [ ] `escape_path()` escapes double quotes
+- [ ] `escape_path()` escapes backslashes
+- [ ] `escape_path()` handles path with spaces (no escape needed)
+- [ ] `build_file_script()` creates correct AppleScript
+- [ ] `method()` returns `CopyMethod::OsaScript`
+- [ ] `is_available()` returns true on macOS cfg
+- [ ] `can_copy_files()` returns true
+- [ ] `try_copy_text()` returns `NotSupported`
+
+**pbcopy.rs tests:**
+- [ ] `method()` returns `CopyMethod::Pbcopy`
+- [ ] `is_available()` returns true on macOS cfg
+- [ ] `can_copy_files()` returns false
+- [ ] `try_copy_file()` returns `NotSupported`
+
+#### Green Phase
 - [ ] Create `src/clipboard/tools/mod.rs` with module declarations
-- [ ] Create `src/clipboard/tools/osascript.rs` with struct stub
-- [ ] Write test: `escape_path()` handles simple path unchanged
-- [ ] Write test: `escape_path()` escapes double quotes
-- [ ] Write test: `escape_path()` escapes backslashes
-- [ ] Write test: `escape_path()` handles path with spaces (no escape needed)
-- [ ] Write test: `build_file_script()` creates correct AppleScript
-- [ ] Write test: `method()` returns `CopyMethod::OsaScript`
-- [ ] Write test: `is_available()` returns true on macOS cfg
-- [ ] Write test: `can_copy_files()` returns true
-- [ ] Write test: `try_copy_text()` returns `NotSupported`
-
-#### Green Phase
-- [ ] Implement `OsaScript` struct
-- [ ] Implement `OsaScript::escape_path()` helper
-- [ ] Implement `OsaScript::build_file_script()` helper
-- [ ] Implement `OsaScript::run_script()` helper
+- [ ] Implement `OsaScript` struct with `escape_path()`, `build_file_script()`, `run_script()`
 - [ ] Implement `CopyTool` trait for `OsaScript`
-- [ ] Implement `Default` trait
-- [ ] Export in `src/clipboard/tools/mod.rs`
-
-**Files**: `src/clipboard/tools/mod.rs`, `src/clipboard/tools/osascript.rs`
-
-**Verify**: `cargo test clipboard::tools::osascript`
-
----
-
-### Stage 5: Pbcopy Tool (tools/pbcopy.rs)
-
-**Goal**: Implement macOS content copy via pbcopy.
-
-#### Red Phase
-- [ ] Create `src/clipboard/tools/pbcopy.rs` with struct stub
-- [ ] Write test: `method()` returns `CopyMethod::Pbcopy`
-- [ ] Write test: `is_available()` returns true on macOS cfg
-- [ ] Write test: `can_copy_files()` returns false
-- [ ] Write test: `try_copy_file()` returns `NotSupported`
-
-#### Green Phase
 - [ ] Implement `Pbcopy` struct
-- [ ] Implement `CopyTool` trait for `Pbcopy`
-- [ ] Implement `try_copy_text()` using stdin pipe to pbcopy
-- [ ] Implement `Default` trait
+- [ ] Implement `CopyTool` trait for `Pbcopy` with stdin pipe to pbcopy
+- [ ] Implement `Default` trait for both
 - [ ] Export in `src/clipboard/tools/mod.rs`
 
-**Files**: `src/clipboard/tools/pbcopy.rs`, `src/clipboard/tools/mod.rs`
+**Files**: `src/clipboard/tools/{mod,osascript,pbcopy}.rs`
 
-**Verify**: `cargo test clipboard::tools::pbcopy`
+**Verify**: `cargo test clipboard::tools::osascript && cargo test clipboard::tools::pbcopy`
 
 ---
 
-### Stage 6: Xclip Tool (tools/xclip.rs)
+### Stage 4: Linux Tools
 
-**Goal**: Implement Linux X11 clipboard via xclip.
-
-#### Red Phase
-- [ ] Create `src/clipboard/tools/xclip.rs` with struct stub
-- [ ] Write test: `build_file_uri()` creates correct file:// URI
-- [ ] Write test: `build_file_uri()` handles paths with spaces (URI encoding)
-- [ ] Write test: `method()` returns `CopyMethod::Xclip`
-- [ ] Write test: `is_available()` checks for xclip binary
-- [ ] Write test: `can_copy_files()` returns true
-
-#### Green Phase
-- [ ] Implement `Xclip` struct
-- [ ] Implement `Xclip::build_file_uri()` helper
-- [ ] Implement `CopyTool` trait for `Xclip`
-- [ ] Implement `try_copy_file()` using `-t text/uri-list`
-- [ ] Implement `try_copy_text()` using `-selection clipboard`
-- [ ] Implement `Default` trait
-- [ ] Export in `src/clipboard/tools/mod.rs`
-
-**Files**: `src/clipboard/tools/xclip.rs`, `src/clipboard/tools/mod.rs`
-
-**Verify**: `cargo test clipboard::tools::xclip`
-
----
-
-### Stage 7: Xsel Tool (tools/xsel.rs)
-
-**Goal**: Implement Linux X11 alternative via xsel.
+**Goal**: Implement Xclip, Xsel, and WlCopy for Linux.
 
 #### Red Phase
-- [ ] Create `src/clipboard/tools/xsel.rs` with struct stub
-- [ ] Write test: `method()` returns `CopyMethod::Xsel`
-- [ ] Write test: `is_available()` checks for xsel binary
-- [ ] Write test: `can_copy_files()` returns false (xsel is text-only)
-- [ ] Write test: `try_copy_file()` returns `NotSupported`
+
+**xclip.rs tests:**
+- [ ] `build_file_uri()` creates correct file:// URI
+- [ ] `build_file_uri()` handles paths with spaces (URI encoding)
+- [ ] `method()` returns `CopyMethod::Xclip`
+- [ ] `is_available()` checks for xclip binary
+- [ ] `can_copy_files()` returns true
+
+**xsel.rs tests:**
+- [ ] `method()` returns `CopyMethod::Xsel`
+- [ ] `is_available()` checks for xsel binary
+- [ ] `can_copy_files()` returns false (xsel is text-only)
+- [ ] `try_copy_file()` returns `NotSupported`
+
+**wl_copy.rs tests:**
+- [ ] `method()` returns `CopyMethod::WlCopy`
+- [ ] `is_available()` checks for wl-copy binary
+- [ ] `can_copy_files()` returns false (wl-copy is text-only for our use)
+- [ ] `try_copy_file()` returns `NotSupported`
 
 #### Green Phase
+- [ ] Implement `Xclip` struct with `build_file_uri()` helper
+- [ ] Implement `CopyTool` trait for `Xclip` with `-t text/uri-list` for files
 - [ ] Implement `Xsel` struct
-- [ ] Implement `CopyTool` trait for `Xsel`
-- [ ] Implement `try_copy_text()` using `--clipboard --input`
-- [ ] Implement `Default` trait
-- [ ] Export in `src/clipboard/tools/mod.rs`
-
-**Files**: `src/clipboard/tools/xsel.rs`, `src/clipboard/tools/mod.rs`
-
-**Verify**: `cargo test clipboard::tools::xsel`
-
----
-
-### Stage 8: WlCopy Tool (tools/wl_copy.rs)
-
-**Goal**: Implement Linux Wayland clipboard via wl-copy.
-
-#### Red Phase
-- [ ] Create `src/clipboard/tools/wl_copy.rs` with struct stub
-- [ ] Write test: `method()` returns `CopyMethod::WlCopy`
-- [ ] Write test: `is_available()` checks for wl-copy binary
-- [ ] Write test: `can_copy_files()` returns false (wl-copy is text-only for our use)
-- [ ] Write test: `try_copy_file()` returns `NotSupported`
-
-#### Green Phase
+- [ ] Implement `CopyTool` trait for `Xsel` with `--clipboard --input`
 - [ ] Implement `WlCopy` struct
-- [ ] Implement `CopyTool` trait for `WlCopy`
-- [ ] Implement `try_copy_text()` using stdin pipe
-- [ ] Implement `Default` trait
+- [ ] Implement `CopyTool` trait for `WlCopy` with stdin pipe
+- [ ] Implement `Default` trait for all
 - [ ] Export in `src/clipboard/tools/mod.rs`
 
-**Files**: `src/clipboard/tools/wl_copy.rs`, `src/clipboard/tools/mod.rs`
+**Files**: `src/clipboard/tools/{xclip,xsel,wl_copy}.rs`
 
-**Verify**: `cargo test clipboard::tools::wl_copy`
+**Verify**: `cargo test clipboard::tools::xclip && cargo test clipboard::tools::xsel && cargo test clipboard::tools::wl_copy`
 
 ---
 
-### Stage 9: Platform Tool Selection (tools/mod.rs)
+### Stage 5: Platform Selection & Public API
 
-**Goal**: Implement `platform_tools()` and `tool_exists()` helpers.
+**Goal**: Implement `platform_tools()`, `tool_exists()`, wire up `Copy::new()`, and expose public API.
 
 #### Red Phase
-- [ ] Write test: `tool_exists()` returns false for nonexistent tool
-- [ ] Write test: `platform_tools()` returns OsaScript, Pbcopy on macOS
-- [ ] Write test: `platform_tools()` returns Xclip, Xsel, WlCopy on Linux
-- [ ] Write test: `platform_tools()` returns empty vec on other platforms
+
+**tools/mod.rs tests:**
+- [ ] `tool_exists()` returns false for nonexistent tool
+- [ ] `platform_tools()` returns OsaScript, Pbcopy on macOS
+- [ ] `platform_tools()` returns Xclip, Xsel, WlCopy on Linux
+- [ ] `platform_tools()` returns empty vec on other platforms
+
+**mod.rs tests:**
+- [ ] `copy_file_to_clipboard()` returns error for non-existent file
+- [ ] `copy_file_to_clipboard()` delegates to `Copy::new().file()`
 
 #### Green Phase
 - [ ] Implement `tool_exists()` using `which` command
 - [ ] Implement `platform_tools()` with cfg attributes
 - [ ] Wire up `Copy::new()` to use `platform_tools()`
-
-**Files**: `src/clipboard/tools/mod.rs`, `src/clipboard/copy.rs`
-
-**Verify**: `cargo test clipboard::tools`
-
----
-
-### Stage 10: Public API (mod.rs)
-
-**Goal**: Expose clean public API `copy_file_to_clipboard()`.
-
-#### Red Phase
-- [ ] Write test: `copy_file_to_clipboard()` returns error for non-existent file
-- [ ] Write test: `copy_file_to_clipboard()` delegates to `Copy::new().file()`
-
-#### Green Phase
-- [ ] Implement `copy_file_to_clipboard()` function
-- [ ] Ensure all public types are re-exported
+- [ ] Implement `copy_file_to_clipboard()` convenience function
+- [ ] Ensure all public types are re-exported in `src/clipboard/mod.rs`
 - [ ] Add module documentation
 
-**Files**: `src/clipboard/mod.rs`
+**Files**: `src/clipboard/{tools/mod,mod}.rs`
 
 **Verify**: `cargo test clipboard && cargo doc --no-deps`
 
 ---
 
-### Stage 11: CLI Command Definition
+### Stage 6: CLI Integration
 
-**Goal**: Add `agr copy` command to CLI with shell completion support.
+**Goal**: Add `agr copy` command with handler and dispatch.
 
-**Important**: The argument MUST be named `file` (not `recording`) to enable automatic shell completion detection. The existing `has_file_argument()` function in `src/shell/completions.rs` checks for `arg.get_id() == "file"`.
+**Important**: The argument MUST be named `file` (not `recording`) to enable automatic shell completion detection.
 
 #### Red Phase
-- [ ] Write test: `agr copy --help` parses successfully
-- [ ] Write test: `agr copy session.cast` parses with correct file argument
-- [ ] Write test: `agr copy` without args shows error
-- [ ] Write test: `extract_commands()` includes `copy` command
-- [ ] Write test: `copy` command has `accepts_file == true` (completion detection)
+
+**cli.rs tests:**
+- [ ] `agr copy --help` parses successfully
+- [ ] `agr copy session.cast` parses with correct file argument
+- [ ] `agr copy` without args shows error
+
+**commands/copy.rs tests:**
+- [ ] Handler returns error for non-existent file with helpful message
+- [ ] Handler accepts filename with and without .cast extension
+- [ ] Handler resolves short format paths (agent/file.cast)
+
+**shell/completions.rs tests:**
+- [ ] `extract_commands()` includes `copy` command
+- [ ] `copy` command has `accepts_file == true`
 
 #### Green Phase
 - [ ] Add `Copy { file: String }` variant to `Commands` enum in `src/cli.rs`
   - **Critical**: Name the argument `file`, not `recording`
-- [ ] Add help text and examples
-- [ ] Verify help displays correctly
-- [ ] Verify `extract_commands()` detects `copy` as file-accepting
-
-**Files**: `src/cli.rs`
-
-**Verify**: `cargo test cli` + `cargo test shell::completions` + `cargo run -- copy --help`
-
----
-
-### Stage 12: CLI Command Handler
-
-**Goal**: Implement the copy command handler.
-
-#### Red Phase
-- [ ] Create `src/commands/copy.rs` with function stub
-- [ ] Write test: handler returns error for non-existent file with helpful message
-- [ ] Write test: handler accepts filename with and without .cast extension
-- [ ] Write test: handler resolves short format paths (agent/file.cast)
-
-#### Green Phase
-- [ ] Implement `handle(file: &str) -> Result<()>`
+- [ ] Add help text and long_about with examples
+- [ ] Create `src/commands/copy.rs` with `handle(file: &str) -> Result<()>`
   - Load config
   - Use `resolve_file_path()` for path resolution
   - Validate file exists with helpful error
   - Call `clipboard::copy_file_to_clipboard()`
   - Print themed result message
 - [ ] Export module in `src/commands/mod.rs`
-
-**Files**: `src/commands/copy.rs`, `src/commands/mod.rs`
-
-**Verify**: `cargo test commands::copy`
-
----
-
-### Stage 13: CLI Main Dispatch
-
-**Goal**: Wire up command in main.rs.
-
-#### Red Phase
-- [ ] Write test: `Commands::Copy` variant exists and matches correctly
-
-#### Green Phase
 - [ ] Add match arm for `Commands::Copy { file }` in `main.rs`
-- [ ] Call `commands::copy::handle(&file)`
 
-**Files**: `src/main.rs`
+**Files**: `src/{cli,main}.rs`, `src/commands/{mod,copy}.rs`
 
-**Verify**: `cargo build && cargo run -- copy --help`
+**Verify**: `cargo test cli && cargo test commands::copy && cargo test shell::completions && cargo run -- copy --help`
 
 ---
 
-### Stage 14: TUI Context Menu Item
+### Stage 7: TUI Integration
 
-**Goal**: Add Copy to context menu.
+**Goal**: Add Copy to context menu with keybinding and help text.
 
 #### Red Phase
-- [ ] Write test: `ContextMenuItem::Copy` exists
-- [ ] Write test: `ContextMenuItem::Copy.label()` returns "Copy to clipboard"
-- [ ] Write test: `ContextMenuItem::Copy.shortcut()` returns "c"
-- [ ] Write test: `ContextMenuItem::ALL` has 6 items
-- [ ] Write test: `ContextMenuItem::ALL[1]` is Copy (after Play)
+
+**Context menu tests:**
+- [ ] `ContextMenuItem::Copy` exists
+- [ ] `ContextMenuItem::Copy.label()` returns "Copy to clipboard"
+- [ ] `ContextMenuItem::Copy.shortcut()` returns "c"
+- [ ] `ContextMenuItem::ALL` has 6 items
+- [ ] `ContextMenuItem::ALL[1]` is Copy (after Play)
+
+**Action handler tests:**
+- [ ] `c` key in Normal mode with selection triggers copy
+- [ ] `c` key in ContextMenu mode selects Copy and executes
+- [ ] Copy action sets status message on success
+- [ ] Copy action sets error status message on failure
+
+**Help text tests:**
+- [ ] Snapshot test: help modal includes "c" and "Copy" text
 
 #### Green Phase
 - [ ] Add `Copy` variant to `ContextMenuItem` enum
 - [ ] Update `ContextMenuItem::ALL` array (6 items, Copy at index 1)
-- [ ] Implement `label()` match arm
-- [ ] Implement `shortcut()` match arm
-
-**Files**: `src/tui/list_app.rs`
-
-**Verify**: `cargo test tui::list_app::context_menu`
-
----
-
-### Stage 15: TUI Action Handler
-
-**Goal**: Implement copy action in TUI.
-
-#### Red Phase
-- [ ] Write test: `c` key in Normal mode with selection triggers copy
-- [ ] Write test: `c` key in ContextMenu mode selects Copy and executes
-- [ ] Write test: copy action sets status message on success
-- [ ] Write test: copy action sets error status message on failure
-
-#### Green Phase
+- [ ] Implement `label()` match arm: "Copy to clipboard"
+- [ ] Implement `shortcut()` match arm: "c"
 - [ ] Add `copy_to_clipboard(&mut self) -> Result<()>` method to `ListApp`
 - [ ] Add `KeyCode::Char('c')` handling in `handle_normal_key()`
 - [ ] Add `KeyCode::Char('c')` handling in `handle_context_menu_key()`
 - [ ] Wire up `ContextMenuItem::Copy` in `execute_context_menu_action()`
-
-**Files**: `src/tui/list_app.rs`
-
-**Verify**: `cargo test tui::list_app`
-
----
-
-### Stage 16: TUI Help Text
-
-**Goal**: Document copy keybinding in TUI help.
-
-#### Red Phase
-- [ ] Write snapshot test: help modal includes "c" and "Copy" text
-
-#### Green Phase
 - [ ] Add copy keybinding line to `render_help_modal()` in Actions section
-- [ ] Update `modal_height` calculation (now 27 lines)
+- [ ] Update `modal_height` calculation if needed
 
 **Files**: `src/tui/list_app.rs`
 
-**Verify**: `cargo test snapshot` + visual verification
+**Verify**: `cargo test tui::list_app && cargo test snapshot`
 
 ---
 
-### Stage 17: README Documentation
+### Stage 8: Documentation
 
 **Goal**: Document copy feature for users.
 
+#### README.md
 - [ ] Add `agr copy` example to Quick Start section
 - [ ] Add copy command documentation section with examples
-- [ ] Document `c` keybinding in TUI help or controls section
+- [ ] Document `c` keybinding in TUI controls section
 - [ ] Add note about platform behavior (macOS file copy vs Linux content fallback)
 
-**Files**: `README.md`
-
-**Verify**: Manual review
-
----
-
-### Stage 18: Generated Documentation
-
-**Goal**: Update generated docs.
-
+#### Generated Docs
 - [ ] Run `cargo xtask gen-docs`
 - [ ] Verify copy command appears in `docs/COMMANDS.md`
 - [ ] Verify wiki pages updated if applicable
 - [ ] Review diff for accuracy
 
-**Files**: `docs/COMMANDS.md`, `docs/wiki/*`
+**Files**: `README.md`, `docs/COMMANDS.md`, `docs/wiki/*`
 
 **Verify**: `cargo xtask gen-docs && git diff docs/`
 
 ---
 
-### Stage 19: Shell Completion Verification
+### Stage 9: Integration Tests
 
-**Goal**: Verify shell completion detects and supports the `copy` command.
+**Goal**: End-to-end verification including shell completions.
 
-#### Red Phase
-- [ ] Write test: `extract_commands()` includes "copy" in returned commands
-- [ ] Write test: `copy` command has `accepts_file == true`
-- [ ] Write test: generated zsh init contains "copy" in `_agr_file_cmds`
-- [ ] Write test: generated bash init contains "copy" in `_agr_file_cmds`
-
-#### Green Phase
-- [ ] Verify existing tests pass (no code changes needed if arg named `file`)
-- [ ] If tests fail, ensure CLI argument is named `file` not `recording`
-
-**Files**: `src/shell/completions.rs` (tests only, no implementation changes)
-
-**Verify**: `cargo test shell::completions`
-
----
-
-### Stage 20: Integration Tests
-
-**Goal**: End-to-end CLI verification.
-
+#### Tests
 - [ ] Create `tests/integration/copy_test.rs`
 - [ ] Test: `agr copy --help` exits 0 and shows usage
 - [ ] Test: `agr copy nonexistent.cast` exits non-zero with helpful error
@@ -482,6 +330,8 @@ All stages follow TDD methodology:
 - [ ] Test: (cfg macos) copy succeeds with temp file
 - [ ] Test: (cfg linux) copy succeeds or fails gracefully based on tools
 - [ ] Test: `agr completions --files` includes test recordings
+- [ ] Test: generated zsh init contains "copy" in `_agr_file_cmds`
+- [ ] Test: generated bash init contains "copy" in `_agr_file_cmds`
 
 **Files**: `tests/integration/copy_test.rs`
 
@@ -489,18 +339,26 @@ All stages follow TDD methodology:
 
 ---
 
-### Stage 21: Manual Platform Testing
+### Stage 10: Manual Platform Testing
 
-**Goal**: Verify real-world behavior.
+**Goal**: Verify real-world behavior on all supported platforms.
 
-- [ ] **macOS**: Run `agr copy <file>`, paste into Slack, verify file attachment works
-- [ ] **macOS**: Run `agr ls`, press `c`, paste into Slack
-- [ ] **macOS**: Test `agr copy <TAB>` shows recording completions
-- [ ] **Linux X11**: Test with xclip installed
-- [ ] **Linux X11**: Test with only xsel installed
-- [ ] **Linux Wayland**: Test with wl-copy installed
-- [ ] **Linux no tools**: Verify helpful error message
-- [ ] **Linux**: Test `agr copy <TAB>` shows recording completions
+#### macOS
+- [ ] Run `agr copy <file>`, paste into Slack, verify file attachment works
+- [ ] Run `agr ls`, press `c`, paste into Slack
+- [ ] Test `agr copy <TAB>` shows recording completions
+- [ ] Test fallback: temporarily rename osascript, verify pbcopy content copy works
+
+#### Linux X11
+- [ ] Test with xclip installed
+- [ ] Test with only xsel installed (content fallback)
+- [ ] Test `agr copy <TAB>` shows recording completions
+
+#### Linux Wayland
+- [ ] Test with wl-copy installed
+
+#### Linux (no tools)
+- [ ] Verify helpful error message when no clipboard tools installed
 
 **Verify**: Manual testing on each platform
 
@@ -509,50 +367,31 @@ All stages follow TDD methodology:
 ## Dependencies
 
 ```
-Stage 1 (Types) ──> Stage 2 (Trait) ──> Stage 3 (Copy) ──────────────────────────────────┐
-                                             │                                            │
-                    ┌────────────────────────┼────────────────────────┐                   │
-                    v                        v                        v                   │
-              Stage 4 (osascript)    Stage 6 (xclip)           Stage 8 (wl-copy)         │
-                    │                        │                        │                   │
-                    v                        v                        v                   │
-              Stage 5 (pbcopy)       Stage 7 (xsel)                   │                   │
-                    │                        │                        │                   │
-                    └────────────────────────┴────────────────────────┘                   │
-                                             │                                            │
-                                             v                                            │
-                                      Stage 9 (platform_tools) ──> Stage 10 (Public API) ─┘
-                                                                          │
-                              ┌───────────────────────────────────────────┤
-                              │                                           │
-                              v                                           v
-                       Stage 11 (CLI Def)                         Stage 14 (TUI Menu)
-                              │                                           │
-                              v                                           v
-                       Stage 12 (CLI Handler)                     Stage 15 (TUI Action)
-                              │                                           │
-                              v                                           v
-                       Stage 13 (Main Dispatch)                   Stage 16 (TUI Help)
-                              │                                           │
-                              └─────────────────┬─────────────────────────┘
-                                                │
-                                                v
-                                         Stage 17 (README)
-                                                │
-                                                v
-                                         Stage 18 (Gen Docs)
-                                                │
-                                                v
-                                         Stage 19 (Completions) ──> Stage 20 (Integration)
-                                                                          │
-                                                                          v
-                                                                   Stage 21 (Manual Test)
+Stage 1 (Types) ──> Stage 2 (Orchestrator) ──┬──> Stage 3 (macOS Tools)
+                                              └──> Stage 4 (Linux Tools)
+                                                        │
+                                              ┌─────────┴─────────┐
+                                              v                   v
+                                       Stage 5 (API) ─────────────┤
+                                              │                   │
+                              ┌───────────────┴───────────────┐   │
+                              v                               v   │
+                       Stage 6 (CLI)                   Stage 7 (TUI)
+                              │                               │
+                              └───────────┬───────────────────┘
+                                          v
+                                   Stage 8 (Documentation)
+                                          │
+                                          v
+                                   Stage 9 (Integration Tests)
+                                          │
+                                          v
+                                   Stage 10 (Manual Testing)
 ```
 
 **Parallelization opportunities:**
-- Stages 4-5 (macOS tools) can run in parallel with Stages 6-8 (Linux tools)
-- Stages 11-13 (CLI) can run in parallel with Stages 14-16 (TUI) after Stage 10
-- Stage 19 (Completions) can run in parallel with Stage 17-18 after Stage 13
+- Stages 3+4 (macOS + Linux tools) can run in parallel
+- Stages 6+7 (CLI + TUI) can run in parallel after Stage 5
 
 ---
 
@@ -562,55 +401,36 @@ Updated by implementer as work progresses.
 
 | Stage | Status | Notes |
 |-------|--------|-------|
-| 1 | pending | Core types |
-| 2 | pending | CopyTool trait |
-| 3 | pending | Copy orchestrator |
-| 4 | pending | OsaScript tool |
-| 5 | pending | Pbcopy tool |
-| 6 | pending | Xclip tool |
-| 7 | pending | Xsel tool |
-| 8 | pending | WlCopy tool |
-| 9 | pending | Platform selection |
-| 10 | pending | Public API |
-| 11 | pending | CLI definition (arg must be named `file` for completions) |
-| 12 | pending | CLI handler |
-| 13 | pending | Main dispatch |
-| 14 | pending | TUI menu item |
-| 15 | pending | TUI action handler |
-| 16 | pending | TUI help text |
-| 17 | pending | README docs |
-| 18 | pending | Generated docs |
-| 19 | pending | Shell completion verification |
-| 20 | pending | Integration tests |
-| 21 | pending | Manual testing |
+| 1 | pending | Core types: result, error, tool trait |
+| 2 | pending | Copy orchestrator with MockTool |
+| 3 | pending | macOS: OsaScript + Pbcopy |
+| 4 | pending | Linux: Xclip + Xsel + WlCopy |
+| 5 | pending | Platform selection + public API |
+| 6 | pending | CLI (arg must be named `file` for completions) |
+| 7 | pending | TUI: menu + action + help |
+| 8 | pending | Documentation |
+| 9 | pending | Integration tests |
+| 10 | pending | Manual platform testing |
 
 ---
 
 ## Test Commands
 
 ```bash
-# Run all tests
-cargo test
+# Run all clipboard tests
+cargo test clipboard
 
 # Run specific module tests
 cargo test clipboard::result
 cargo test clipboard::error
 cargo test clipboard::tool
 cargo test clipboard::copy
-cargo test clipboard::tools::osascript
-cargo test clipboard::tools::pbcopy
-cargo test clipboard::tools::xclip
-cargo test clipboard::tools::xsel
-cargo test clipboard::tools::wl_copy
 cargo test clipboard::tools
 
-# Run CLI tests
+# Run CLI/TUI tests
 cargo test cli
-
-# Run TUI tests
+cargo test commands::copy
 cargo test tui::list_app
-
-# Run shell completion tests
 cargo test shell::completions
 
 # Run integration tests

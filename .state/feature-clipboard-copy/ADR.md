@@ -602,6 +602,50 @@ Because we name the argument `file`, the existing completion infrastructure hand
 
 ---
 
+## Implementation Stages
+
+See `PLAN.md` for detailed checklists. High-level flow:
+
+```
+Stage 1 (Types) ──> Stage 2 (Orchestrator) ──┬──> Stage 3 (macOS Tools)
+                                              └──> Stage 4 (Linux Tools)
+                                                        │
+                                              ┌─────────┴─────────┐
+                                              v                   v
+                                       Stage 5 (API) ─────────────┤
+                                              │                   │
+                              ┌───────────────┴───────────────┐   │
+                              v                               v   │
+                       Stage 6 (CLI)                   Stage 7 (TUI)
+                              │                               │
+                              └───────────┬───────────────────┘
+                                          v
+                                   Stage 8 (Documentation)
+                                          │
+                                          v
+                                   Stage 9 (Integration Tests)
+                                          │
+                                          v
+                                   Stage 10 (Manual Testing)
+```
+
+| Stage | Focus | Files |
+|-------|-------|-------|
+| 1 | Core types: result, error, tool trait | `clipboard/{result,error,tool}.rs` |
+| 2 | Copy orchestrator with MockTool tests | `clipboard/copy.rs` |
+| 3 | macOS tools: OsaScript + Pbcopy | `clipboard/tools/{osascript,pbcopy}.rs` |
+| 4 | Linux tools: Xclip + Xsel + WlCopy | `clipboard/tools/{xclip,xsel,wl_copy}.rs` |
+| 5 | Platform selection + public API | `clipboard/{tools/mod,mod}.rs` |
+| 6 | CLI: definition + handler + dispatch | `cli.rs`, `commands/copy.rs`, `main.rs` |
+| 7 | TUI: menu + action + help | `tui/list_app.rs` |
+| 8 | Documentation | `README.md`, `docs/` |
+| 9 | Integration tests + completions | `tests/integration/copy_test.rs` |
+| 10 | Manual platform testing | N/A |
+
+**Parallelization:** Stages 3+4 can run in parallel. Stages 6+7 can run in parallel after Stage 5.
+
+---
+
 ## Decision History
 
 | Decision | Choice | Rationale |
@@ -613,3 +657,4 @@ Because we name the argument `file`, the existing completion infrastructure hand
 | Naming scheme | Action-centric | Natural reading: `Copy::new().file(path)` |
 | Module structure | Trait-based with tools/ | Clean separation, excellent testability |
 | CLI argument name | `file` (not `recording`) | Enables automatic shell completion via existing detection |
+| Stage consolidation | 10 stages (from 21) | Reduced bloat while preserving TDD detail |
