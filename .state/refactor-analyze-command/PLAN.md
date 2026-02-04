@@ -38,41 +38,46 @@ Goal: Implement content extraction using the existing Transform trait pattern.
 
 - [ ] Create `src/analyzer/mod.rs` with module structure
 - [ ] Create `tests/fixtures/` with sample events from real cast files (Section 1.7 of SPEC.md)
-- [ ] **StripAnsiCodes**:
-  - [ ] Write snapshot test with real ANSI sequences → fails
-  - [ ] Implement transform → passes
-- [ ] **StripControlCharacters**:
-  - [ ] Write snapshot test → fails
-  - [ ] Implement transform → passes
-- [ ] **StripBoxDrawing**:
-  - [ ] Write unit test for box chars (─│┌┐└┘├┤┬┴┼╭╮╰╯═) → fails
-  - [ ] Implement transform → passes
-- [ ] **StripSpinnerChars**:
-  - [ ] Write unit test for Claude spinners (✻✳✢✶✽) → fails
-  - [ ] Write unit test for Gemini braille (⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) → fails
-  - [ ] Implement transform → passes
-- [ ] **StripProgressBlocks**:
-  - [ ] Write unit test for block chars (█░▒▓) → fails
-  - [ ] Implement transform → passes
-- [ ] **DeduplicateProgressLines**:
-  - [ ] Write snapshot test with \r-based progress → fails
-  - [ ] Implement transform (see ADR algorithm) → passes
-- [ ] **NormalizeWhitespace**:
-  - [ ] Write unit tests → fails
-  - [ ] Implement transform → passes
-- [ ] **FilterEmptyEvents**:
-  - [ ] Write unit tests → fails
-  - [ ] Implement transform → passes
-- [ ] **TokenEstimator**:
-  - [ ] Write unit test for chars/4 estimation → fails
-  - [ ] Implement `TokenEstimator` struct → passes
-- [ ] **StatsCollector**:
-  - [ ] Write unit test for stats accumulation → fails
-  - [ ] Implement `StatsCollector` → passes
-- [ ] **Full Pipeline**:
-  - [ ] Write integration snapshot test → fails
-  - [ ] Create `ExtractionConfig` with `build_pipeline()` method
-  - [ ] Create `ContentExtractor` with segment creation → passes
+
+**ContentCleaner (Optimized Single-Pass - see ADR Performance section):**
+- [ ] Write unit tests for ANSI stripping (CSI, OSC, simple escapes) → fails
+- [ ] Write unit tests for control char stripping → fails
+- [ ] Write unit tests for box drawing removal → fails
+- [ ] Write unit tests for spinner removal (Claude, Gemini, Codex) → fails
+- [ ] Write unit tests for **semantic char preservation** (✓✔✕⚠ℹ☐☑) → fails
+- [ ] Write unit tests for progress block removal → fails
+- [ ] Implement `ContentCleaner` with state machine → all pass
+- [ ] Benchmark: verify single-pass is 5x+ faster than naive approach
+
+**DeduplicateProgressLines** (separate transform, runs after ContentCleaner):
+- [ ] Write snapshot test with \r-based progress → fails
+- [ ] Write test for timestamp preservation → fails
+- [ ] Write test for marker preservation → fails
+- [ ] Implement transform (see ADR algorithm) → passes
+
+**NormalizeWhitespace:**
+- [ ] Write unit tests → fails
+- [ ] Implement transform → passes
+
+**FilterEmptyEvents:**
+- [ ] Write unit tests (preserves markers) → fails
+- [ ] Implement transform → passes
+
+**TokenEstimator:**
+- [ ] Write unit test for chars/4 estimation → fails
+- [ ] Write test for estimation AFTER cleanup → fails
+- [ ] Implement `TokenEstimator` struct → passes
+
+**StatsCollector:**
+- [ ] Write unit test for stats accumulation → fails
+- [ ] Implement `StatsCollector` → passes
+
+**Full Pipeline:**
+- [ ] Write integration snapshot test → fails
+- [ ] Create `ExtractionConfig` with `build_pipeline()` method
+- [ ] Create `ContentExtractor` with segment creation → passes
+- [ ] **Benchmark with real 70MB+ cast file** - target <5s extraction time
+
 - [ ] Create `AnalysisSegment` struct with start_time, end_time, content, estimated_tokens
 - [ ] Verify compression ratios match SPEC.md expectations (55-89% reduction)
 

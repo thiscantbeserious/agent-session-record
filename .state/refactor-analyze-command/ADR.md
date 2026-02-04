@@ -644,7 +644,171 @@ Each transform implements the existing `Transform` trait from `src/asciicast/tra
 | 6 | `StripBoxDrawing` | Remove decorative box characters | Unicode ranges (see below) |
 | 7 | `StripSpinnerChars` | Remove spinner/progress indicators | From SPEC.md Section 1 |
 
-#### Transform Algorithms
+#### Performance Considerations
+
+The naive approach of separate transforms with multiple passes is inefficient for 100MB+ files:
+- 7 passes × 500K events = 3.5M iterations
+- String allocations per event per transform
+- Regex overhead for ANSI stripping
+
+**Optimized Approach: Single-Pass Byte Processing**
+
+```rust
+/// Combined single-pass content cleaner for performance.
+/// Processes bytes directly, avoids multiple allocations.
+pub struct ContentCleaner {
+    /// Output buffer, reused across events
+    buffer: Vec<u8>,
+    /// State machine for ANSI sequence detection
+    ansi_state: AnsiParseState,
+    /// Lookup table for characters to strip (256 bytes for ASCII, HashMap for Unicode)
+    strip_ascii: [bool; 128],
+    strip_unicode: HashSet<char>,
+    /// Characters with semantic meaning (never strip)
+    semantic_chars: HashSet<char>,
+}
+
+#[derive(Default)]
+enum AnsiParseState {
+    #[default]
+    Normal,
+    Escape,          // Saw \x1b
+    Csi,             // Saw \x1b[
+    CsiParams,       // In CSI parameters
+    Osc,             // In OSC sequence
+}
+
+impl ContentCleaner {
+    pub fn new(config: &ExtractionConfig) -> Self {
+        let mut strip_ascii = [false; 128];
+        let mut strip_unicode = HashSet::new();
+        let mut semantic_chars = HashSet::new();
+
+        // Control characters (ASCII)
+        for c in 0x00..=0x08 { strip_ascii[c] = true; }
+        for c in 0x0B..=0x0C { strip_ascii[c] = true; }
+        for c in 0x0E..=0x1F { strip_ascii[c] = true; }
+        strip_ascii[0x7F] = true;
+
+        // Box drawing, spinners, etc (Unicode)
+        if config.strip_box_drawing {
+            for c in '\u{2500}'..='\u{257F}' { strip_unicode.insert(c); }
+            for c in '\u{2580}'..='\u{259F}' { strip_unicode.insert(c); }
+        }
+        if config.strip_spinner_chars {
+            // Spinners only - NOT semantic chars
+            for c in ['✻', '✳', '✢', '✶', '✽'] { strip_unicode.insert(c); }
+            for c in ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] {
+                strip_unicode.insert(c);
+            }
+        }
+
+        // Semantic chars - NEVER strip
+        for c in ['✓', '✔', '✕', '⚠', 'ℹ', '☐', '☑'] {
+            semantic_chars.insert(c);
+        }
+
+        Self {
+            buffer: Vec::with_capacity(4096),
+            ansi_state: AnsiParseState::Normal,
+            strip_ascii,
+            strip_unicode,
+            semantic_chars,
+        }
+    }
+
+    /// Process event data in single pass, returns cleaned bytes
+    pub fn clean(&mut self, data: &str) -> String {
+        self.buffer.clear();
+
+        for byte in data.bytes() {
+            match (&self.ansi_state, byte) {
+                // ANSI escape start
+                (AnsiParseState::Normal, 0x1b) => {
+                    self.ansi_state = AnsiParseState::Escape;
+                }
+                // CSI sequence start
+                (AnsiParseState::Escape, b'[') => {
+                    self.ansi_state = AnsiParseState::Csi;
+                }
+                // OSC sequence start
+                (AnsiParseState::Escape, b']') => {
+                    self.ansi_state = AnsiParseState::Osc;
+                }
+                // CSI final byte (ends sequence)
+                (AnsiParseState::Csi | AnsiParseState::CsiParams, b'A'..=b'Z' | b'a'..=b'z') => {
+                    self.ansi_state = AnsiParseState::Normal;
+                }
+                // CSI parameters
+                (AnsiParseState::Csi, b'0'..=b'9' | b';' | b'?') => {
+                    self.ansi_state = AnsiParseState::CsiParams;
+                }
+                (AnsiParseState::CsiParams, b'0'..=b'9' | b';' | b'?') => {}
+                // OSC terminator
+                (AnsiParseState::Osc, 0x07) => {
+                    self.ansi_state = AnsiParseState::Normal;
+                }
+                // Normal character processing
+                (AnsiParseState::Normal, _) => {
+                    // Fast path: ASCII
+                    if byte < 128 {
+                        if !self.strip_ascii[byte as usize] {
+                            self.buffer.push(byte);
+                        }
+                    } else {
+                        // Slow path: Unicode (need to decode)
+                        // This is simplified - real impl needs proper UTF-8 handling
+                        self.buffer.push(byte);
+                    }
+                }
+                // Inside escape sequence - skip
+                _ => {}
+            }
+        }
+
+        // Handle incomplete sequences
+        if !matches!(self.ansi_state, AnsiParseState::Normal) {
+            self.ansi_state = AnsiParseState::Normal;
+        }
+
+        String::from_utf8_lossy(&self.buffer).into_owned()
+    }
+}
+
+impl Transform for ContentCleaner {
+    fn transform(&mut self, events: &mut Vec<Event>) {
+        for event in events.iter_mut() {
+            if event.is_output() {
+                if let Some(data) = event.data_mut() {
+                    *data = self.clean(data);
+                }
+            }
+        }
+    }
+}
+```
+
+**Performance comparison:**
+
+| Approach | Passes | Allocations | Est. Time (100MB) |
+|----------|--------|-------------|-------------------|
+| Naive (7 transforms) | 7 | ~3.5M | ~15-30s |
+| Single-pass state machine | 1 | ~500K | ~2-5s |
+
+**Key optimizations:**
+1. **Single pass** - Process all stripping rules in one iteration
+2. **Byte-level processing** - Avoid UTF-8 decode for ASCII (most ANSI codes)
+3. **State machine for ANSI** - No regex overhead, O(1) per byte
+4. **Lookup tables** - O(1) character classification
+5. **Buffer reuse** - Single allocation per event, reused across events
+
+**Trade-off:** More complex code, but 5-10x faster for large files.
+
+---
+
+#### Individual Transform Algorithms (Reference)
+
+The following are conceptual algorithms. The actual implementation should use the optimized `ContentCleaner` above.
 
 **StripControlCharacters**: Remove non-printable control characters.
 ```rust
