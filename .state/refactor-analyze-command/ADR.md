@@ -686,7 +686,8 @@ impl Transform for StripBoxDrawing {
 }
 ```
 
-**StripSpinnerChars**: Remove spinner characters per SPEC.md Section 1.2-1.4.
+**StripSpinnerChars**: Remove spinner animation characters ONLY. Keep semantic indicators!
+
 ```rust
 impl Transform for StripSpinnerChars {
     fn transform(&mut self, events: &mut Vec<Event>) {
@@ -694,22 +695,34 @@ impl Transform for StripSpinnerChars {
             if event.is_output() {
                 if let Some(data) = event.data_mut() {
                     data.retain(|c| !matches!(c,
-                        // Claude spinners (Section 1.2)
+                        // Claude spinners ONLY (animation frames)
                         '✻' | '✳' | '✢' | '✶' | '✽' |
-                        // Claude indicators
-                        '⎿' | '⏺' | '⏸' | '⏵' |
-                        // Gemini braille spinner (Section 1.4)
+                        // Gemini braille spinner ONLY (animation frames)
                         '⠋' | '⠙' | '⠹' | '⠸' | '⠼' | '⠴' | '⠦' | '⠧' | '⠇' | '⠏' |
-                        // Gemini indicators
-                        '✦' | '✓' | '✕' | 'ℹ' | '☐' |
-                        // Codex indicators (Section 1.3)
-                        '•' | '›' | '◦' | '✔' | '⋮'
+                        // Visual-only bullets (no semantic meaning)
+                        '•' | '›' | '◦' | '⋮'
                     ));
+                    // NOTE: DO NOT strip semantic indicators!
+                    // KEEP: ✓ ✔ (success), ✕ (failure), ⚠ (warning), ℹ (info), ☐ ☑ (checkbox)
+                    // These help the LLM understand success/failure moments.
                 }
             }
         }
     }
 }
+```
+
+**CRITICAL: Semantic vs Visual Characters**
+
+| STRIP (visual only) | KEEP (semantic meaning) |
+|---------------------|------------------------|
+| `✻✳✢✶✽` (spinner frames) | `✓` `✔` (success/pass) |
+| `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` (braille spinner) | `✕` (failure/error) |
+| `•›◦⋮` (bullets) | `⚠` (warning) |
+| | `ℹ` (information) |
+| | `☐` `☑` (checkbox state) |
+
+The LLM needs semantic indicators to identify success/failure moments (R3, AC3).
 ```
 
 **StripProgressBlocks**: Remove progress bar block characters.
@@ -1457,6 +1470,109 @@ src/
 
 ---
 
+## Existing Marker Handling (R9)
+
+When analyzing a file that already has markers:
+
+```rust
+impl AnalyzerService {
+    pub fn analyze(&self, path: &Path, options: &AnalyzeOptions) -> Result<AnalysisResult> {
+        let cast = AsciicastFile::read(path)?;
+
+        // Check for existing markers (R9)
+        let existing_markers: Vec<_> = cast.events.iter()
+            .filter(|e| e.is_marker())
+            .collect();
+
+        if !existing_markers.is_empty() {
+            eprintln!(
+                "⚠ Warning: File already contains {} marker(s). New markers will be added alongside existing ones.",
+                existing_markers.len()
+            );
+        }
+
+        // Proceed with analysis...
+    }
+}
+```
+
+**Behavior:**
+- Warn user if file has existing markers
+- Do NOT prevent re-analysis (just warn)
+- New markers are added alongside existing ones
+- No automatic deduplication with existing markers (keep it simple per R9)
+
+---
+
+## Token Tracking & Visibility (R6)
+
+Track resource usage and provide visibility:
+
+```rust
+/// Tracks token usage across analysis for visibility and smart decisions
+pub struct TokenTracker {
+    /// Tokens used per chunk
+    chunk_usage: Vec<ChunkUsage>,
+    /// Running total
+    total_tokens_estimated: usize,
+    /// Start time for duration tracking
+    start_time: Instant,
+}
+
+pub struct ChunkUsage {
+    pub chunk_id: usize,
+    pub estimated_tokens: usize,
+    pub actual_response_tokens: Option<usize>,  // If agent reports it
+    pub duration: Duration,
+    pub success: bool,
+}
+
+impl TokenTracker {
+    /// Report usage summary to user (R6: visibility)
+    pub fn report_summary(&self) {
+        eprintln!("\n📊 Analysis Summary:");
+        eprintln!("   Chunks processed: {}", self.chunk_usage.len());
+        eprintln!("   Estimated tokens: ~{}", self.total_tokens_estimated);
+        eprintln!("   Total duration: {:?}", self.start_time.elapsed());
+
+        let success_rate = self.chunk_usage.iter()
+            .filter(|c| c.success)
+            .count() as f64 / self.chunk_usage.len() as f64 * 100.0;
+        eprintln!("   Success rate: {:.0}%", success_rate);
+    }
+
+    /// Inform retry decisions (R8: smart retry)
+    pub fn should_retry_chunk(&self, chunk_id: usize) -> bool {
+        // Prefer retrying smaller chunks first
+        if let Some(usage) = self.chunk_usage.iter().find(|c| c.chunk_id == chunk_id) {
+            usage.estimated_tokens < 50_000  // Retry small chunks
+        } else {
+            true
+        }
+    }
+}
+```
+
+**Visibility output example:**
+```
+⚠ Warning: File already contains 3 marker(s). New markers will be added alongside existing ones.
+Analyzing session... (4 chunks, ~380K tokens)
+  [1/4] ████████████████████ done (32s)
+  [2/4] ████████████████████ done (28s)
+  [3/4] ████████████████████ done (31s)
+  [4/4] ████████████████████ done (29s)
+
+📊 Analysis Summary:
+   Chunks processed: 4
+   Estimated tokens: ~380,000
+   Total duration: 2m 0s
+   Success rate: 100%
+
+✓ Added 12 markers to session.cast
+```
+
+---
+
 ## Testing Strategy
 
 All implementation follows **Test-Driven Development (TDD)**:
@@ -1474,7 +1590,7 @@ All implementation follows **Test-Driven Development (TDD)**:
 | **StripAnsiCodes** | CSI color codes, cursor movement, OSC hyperlinks, nested sequences, partial sequences at boundaries, UTF-8 + ANSI mix |
 | **StripControlCharacters** | BEL (0x07), BS (0x08), NUL, preserves \t \n \r, C1 controls |
 | **StripBoxDrawing** | All box chars (─│┌┐└┘), rounded corners (╭╮╰╯), block elements (▖▗▘▝), preserves normal text |
-| **StripSpinnerChars** | Claude spinners (✻✳✢✶✽), Gemini braille (⠋⠙⠹...), Codex indicators (›•◦), preserves similar-looking content |
+| **StripSpinnerChars** | Claude spinners (✻✳✢✶✽), Gemini braille (⠋⠙⠹...), **PRESERVES semantic chars** (✓✔✕⚠ℹ☐☑) |
 | **StripProgressBlocks** | Full blocks (█), shaded (░▒▓), triangles (▼▲), preserves text |
 | **DeduplicateProgressLines** | Simple \r overwrite, multiple \r in sequence, \r without \n, preserves markers, timestamp correctness |
 | **NormalizeWhitespace** | Multiple spaces → single, multiple \n → max 2, mixed whitespace |

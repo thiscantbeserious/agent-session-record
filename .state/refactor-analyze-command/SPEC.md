@@ -124,25 +124,37 @@ Analysis performed on:
 | `⠇` | U+2807 | 592 |
 | `⠏` | U+280F | 613 |
 
-### 1.5 Summary: What to Strip
+### 1.5 Summary: What to Strip vs Keep
+
+#### STRIP (Visual Only - No Semantic Value)
 
 **All Agents:**
 - ANSI escape sequences (colors, cursor movement, erase)
 - Box drawing characters (`─│┌┐└┘├┤┬┴┼╭╮╰╯═`)
-- Block characters (`█░▒▓`)
+- Block characters for progress bars (`█░▒▓`)
 
 **Claude-specific:**
-- Cerebrating spinner: `· ✢ ✳ ✶ ✻ ✽`
+- Cerebrating spinner: `✢ ✳ ✶ ✻ ✽`
 - Logo blocks: `▖▗▘▝`
-- Indicators: `⏺ ⏸ ⏵ ⎿`
 
 **Codex-specific:**
-- Indicators: `› • ◦ ⋮`
+- Visual bullets: `› • ◦ ⋮`
 
 **Gemini-specific:**
 - Braille spinner: `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`
-- Progress blocks: `█░`
-- Indicators: `✦ ✓ ✕ ● ▼ ▲ ℹ ☐`
+
+#### KEEP (Semantic Meaning - Helps LLM Understand)
+
+| Character | Meaning | Why Keep |
+|-----------|---------|----------|
+| `✓` `✔` | Success/Pass | LLM needs to identify success moments |
+| `✕` | Failure/Error | LLM needs to identify failure moments |
+| `⚠` | Warning | Indicates issues worth noting |
+| `ℹ` | Information | Contextual info marker |
+| `☐` `☑` | Unchecked/Checked | Task completion state |
+| `❯` | Prompt | May indicate user input context |
+
+**Rationale**: The LLM uses these semantic indicators to understand success/failure workflow moments (R3, AC3). Stripping them removes critical information for marker quality.
 
 ### 1.6 Progress/Status Patterns
 
