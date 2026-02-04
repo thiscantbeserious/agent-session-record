@@ -131,59 +131,90 @@ Considerations:
 
 ### Stage 5: Result Aggregation & Marker Writing
 
-Goal: Merge results from parallel analysis and write markers.
+Goal: Merge results from parallel analysis and write markers (Builder pattern).
 
-- [ ] Implement `ResultAggregator` to collect chunk results
-- [ ] Implement timestamp adjustment (relative to absolute)
-- [ ] Implement marker deduplication (within time window)
+- [ ] Implement `ResultAggregator` to collect chunk results (Builder pattern)
+- [ ] Implement timestamp resolution using `AnalysisChunk::resolve_marker_timestamp()`
+- [ ] Implement marker deduplication (configurable time window, e.g., 0.5s)
 - [ ] Implement marker sorting by timestamp
-- [ ] Create `ValidatedMarker` with validation logic
-- [ ] Integrate with existing `MarkerManager` for writing
+- [ ] Create `ValidatedMarker` struct with timestamp, label, category
+- [ ] Implement marker validation (timestamp in range, non-empty label)
+- [ ] Integrate with existing `MarkerManager` from `src/asciicast/marker.rs`
+- [ ] Warn user if file already has markers (R9 - idempotency)
 - [ ] Test full pipeline end-to-end
 
 Files: `src/analyzer/result.rs`
 
+References:
+- Existing marker code: `src/asciicast/marker.rs`
+- Marker format: `[timestamp, "m", "label"]` (asciicast v3)
+
 Considerations:
-- Edge case: Overlapping chunks produce duplicate markers
-- Edge case: Markers at exact same timestamp
-- Watch out for: Preserving existing markers (R9)
+- Edge case: Overlapping chunks produce duplicate markers (dedupe by time window)
+- Edge case: Markers at exact same timestamp (keep first or merge labels)
+- Edge case: Marker timestamp outside recording duration (filter out)
+- Watch out for: Preserving existing markers when re-analyzing (R9)
 
 ### Stage 6: Error Handling & Smart Retry
 
-Goal: Implement robust error handling with token-informed retry.
+Goal: Implement robust error handling with token-informed retry (Observer pattern for tracking).
 
-- [ ] Define `AnalysisError` enum with all failure modes
-- [ ] Implement user-friendly error messages
-- [ ] Implement `RetryCoordinator` with retry logic
-- [ ] Add fallback from parallel to sequential
-- [ ] Implement `TokenTracker` for usage metrics
+- [ ] Define `AnalysisError` enum with all failure modes:
+  - `AgentNotAvailable { agent: AgentType }`
+  - `AgentTimeout { chunk_id: usize, timeout_secs: u64 }`
+  - `JsonParseError { chunk_id: usize, response: String }`
+  - `ChunkFailed { chunk_id: usize, reason: String }`
+  - `AllChunksFailed { errors: Vec<AnalysisError> }`
+  - `RateLimited { retry_after_secs: Option<u64> }`
+- [ ] Implement user-friendly error messages (no stack traces)
+- [ ] Implement `RetryCoordinator` with configurable retry count and backoff
+- [ ] Add fallback from parallel to sequential on repeated failures
+- [ ] Implement `TokenTracker` (Observer pattern) for usage metrics:
+  - Track tokens per chunk, per agent
+  - Track success/failure rates
+  - Inform retry decisions (e.g., retry small chunks first)
 - [ ] Connect retry decisions to token tracking
 - [ ] Test error scenarios and retry behavior
 
 Files: `src/analyzer/error.rs`, `src/analyzer/tracker.rs`
 
 Considerations:
-- Edge case: Rate limiting from agent
-- Edge case: Network timeout
-- Watch out for: Infinite retry loops
+- Edge case: Rate limiting from agent (detect via error message patterns)
+- Edge case: Network timeout (configurable, default 60s per chunk)
+- Edge case: Partial success (some chunks succeed, some fail)
+- Watch out for: Infinite retry loops (max 3 retries per chunk)
+- Watch out for: Exponential backoff to avoid hammering agents
 
 ### Stage 7: CLI Integration & Cleanup
 
-Goal: Wire everything together and update CLI.
+Goal: Wire everything together with AnalyzerService facade.
 
-- [ ] Update `src/commands/analyze.rs` to use new `AnalyzerService`
-- [ ] Add CLI flags for worker count override
-- [ ] Add CLI flags for agent selection
+- [ ] Create `AnalyzerService` facade in `src/analyzer/mod.rs`
+  - Simple public API: `analyze(path, options) -> Result<AnalysisResult>`
+  - Hide all internal complexity
+- [ ] Update `src/commands/analyze.rs` to use `AnalyzerService`
+- [ ] Add CLI flags:
+  - `--workers N` - Override worker count (default: auto-scale)
+  - `--agent <claude|codex|gemini>` - Select agent (default: claude)
+  - `--timeout N` - Chunk timeout in seconds (default: 60)
+  - `--no-parallel` - Disable parallelism (sequential mode)
 - [ ] Remove old `src/analyzer.rs`
-- [ ] Update lib.rs exports
-- [ ] Run full e2e tests
-- [ ] Update documentation
+- [ ] Update `src/lib.rs` exports for new analyzer module
+- [ ] Run full e2e tests with real cast files
+- [ ] Verify acceptance criteria:
+  - AC1: Automatic marker addition works
+  - AC2: File integrity preserved
+  - AC3: Marker quality (engineering categories)
+  - AC4: Performance (<10 min for large files)
+  - AC5: User experience (clear errors, warnings)
+  - AC6: Architecture (clean, extensible)
 
-Files: `src/commands/analyze.rs`, `src/lib.rs`, `src/analyzer.rs` (delete)
+Files: `src/analyzer/mod.rs`, `src/commands/analyze.rs`, `src/lib.rs`, `src/analyzer.rs` (delete)
 
 Considerations:
-- Watch out for: Breaking existing CLI interface
-- Watch out for: Config file compatibility
+- Watch out for: Breaking existing CLI interface (analyze subcommand)
+- Watch out for: Config file compatibility (if any)
+- Watch out for: Backwards compatibility for marker format
 
 ## Dependencies
 
