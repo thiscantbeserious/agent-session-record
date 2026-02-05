@@ -573,8 +573,7 @@ mod tests {
             "--no-parallel",
             "--curate",
             "--debug",
-            "--output",
-            "debug.txt",
+            "--output=debug.txt",
         ])
         .unwrap();
         match cli.command {

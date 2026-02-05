@@ -53,10 +53,10 @@ Options:
           Auto-curate to 8-12 markers without prompting
 
       --debug
-          Save cleaned content to a file and stop before analysis
+          Enable debug mode (required for --output)
 
-  -o, --output <FILE>
-          Path to save cleaned content
+  -o, --output[=<FILE>]
+          Save cleaned content and exit (optionally specify filename)
 
   -h, --help
           Print help (see a summary with '-h')

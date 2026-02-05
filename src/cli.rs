@@ -185,15 +185,18 @@ SUPPORTED AGENTS:
         /// Auto-curate markers without prompting (reduces to 8-12 best markers)
         #[arg(long, help = "Auto-curate to 8-12 markers without prompting")]
         curate: bool,
-        /// Debug mode: Save cleaned content to a file and stop before analysis
-        #[arg(long, help = "Save cleaned content to a file and stop before analysis")]
+        /// Debug mode: required for --output to work
+        #[arg(long, help = "Enable debug mode (required for --output)")]
         debug: bool,
-        /// Path to save cleaned content (implies --debug if --output is used alone)
+        /// Save cleaned content and exit (requires --debug). Optionally specify filename.
         #[arg(
             long,
             short,
             value_name = "FILE",
-            help = "Path to save cleaned content"
+            num_args = 0..=1,
+            default_missing_value = "",
+            require_equals = true,
+            help = "Save cleaned content and exit (optionally specify filename)"
         )]
         output: Option<String>,
     },

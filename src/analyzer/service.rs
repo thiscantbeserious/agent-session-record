@@ -207,15 +207,18 @@ impl AnalyzerService {
             return Err(AnalysisError::NoContent);
         }
 
-        // Handle debug output if requested
-        if self.options.debug || self.options.output_path.is_some() {
-            let output_path = if let Some(path_str) = &self.options.output_path {
-                path_str.clone()
-            } else {
-                path.file_stem()
+        // Handle debug output if requested (--debug AND --output flags)
+        // --debug is required, --output triggers the save-and-exit behavior
+        let save_debug_output = self.options.debug && self.options.output_path.is_some();
+        if save_debug_output {
+            // Use provided path, or auto-derive from input if empty
+            let output_path = match &self.options.output_path {
+                Some(p) if !p.is_empty() => p.clone(),
+                _ => path
+                    .file_stem()
                     .and_then(|s| s.to_str())
                     .map(|s| format!("{}.txt", s))
-                    .expect("Path must have a filename")
+                    .expect("Path must have a filename"),
             };
 
             std::fs::write(&output_path, content.text()).map_err(|e| AnalysisError::IoError {
@@ -251,8 +254,24 @@ impl AnalyzerService {
             );
         }
 
-        // Return early if in debug mode
-        if self.options.debug {
+        // 4. Calculate chunks (Stage 2)
+        let calculator = ChunkCalculator::for_agent(self.options.agent);
+        let chunks = calculator.calculate_chunks(&content);
+
+        // 5. Execute analysis (Stage 3+4)
+        let timeout = Duration::from_secs(self.options.timeout_secs);
+        let worker_count = self.calculate_worker_count(chunks.len(), content.total_tokens);
+
+        // Return early if in debug output mode (after showing useful info)
+        if save_debug_output {
+            if !self.options.quiet {
+                eprintln!(
+                    "Analysis would use {} chunks, {} tokens, {} workers",
+                    chunks.len(),
+                    content.total_tokens,
+                    worker_count
+                );
+            }
             return Ok(AnalysisResult {
                 markers: vec![],
                 write_report: WriteReport::default(),
@@ -262,14 +281,6 @@ impl AnalyzerService {
                 total_duration: content.total_duration,
             });
         }
-
-        // 4. Calculate chunks (Stage 2)
-        let calculator = ChunkCalculator::for_agent(self.options.agent);
-        let chunks = calculator.calculate_chunks(&content);
-
-        // 5. Execute analysis (Stage 3+4)
-        let timeout = Duration::from_secs(self.options.timeout_secs);
-        let worker_count = self.calculate_worker_count(chunks.len(), content.total_tokens);
 
         // Progress reporting
         let progress = if self.options.quiet {
