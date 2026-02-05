@@ -23,12 +23,14 @@
 //! - [`backend`] - Agent backend implementations (Strategy pattern)
 //! - [`worker`] - Parallel execution using Rayon
 //! - [`progress`] - Progress reporting for analysis
+//! - [`result`] - Result aggregation and marker writing
 
 pub mod backend;
 pub mod chunk;
 mod config;
 mod extractor;
 pub mod progress;
+pub mod result;
 mod transforms;
 mod types;
 pub mod worker;
@@ -51,3 +53,9 @@ pub use transforms::{
 };
 pub use types::{AnalysisContent, AnalysisSegment, ExtractionStats, TokenEstimator};
 pub use worker::{ChunkResult, ParallelExecutor, ProgressReporter, WorkerConfig, WorkerScaler};
+
+// Re-export result types
+pub use result::{
+    resolve_timestamp, AggregationReport, MarkerWriter, ResultAggregator, ValidatedMarker,
+    WriteReport,
+};

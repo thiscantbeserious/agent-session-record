@@ -293,12 +293,12 @@ Considerations:
 **Output:** Modified `AsciicastFile` with markers inserted, `AnalysisReport`
 
 **Definition of Done:**
-- [ ] All tests pass
-- [ ] Markers deduplicated within time window
-- [ ] Markers sorted by timestamp
-- [ ] Existing markers preserved (R9)
-- [ ] Warning shown if file has existing markers
-- [ ] File integrity preserved (playback works)
+- [x] All tests pass
+- [x] Markers deduplicated within time window
+- [x] Markers sorted by timestamp
+- [x] Existing markers preserved (R9)
+- [x] Warning shown if file has existing markers
+- [x] File integrity preserved (playback works)
 
 **Public API:** See ADR.md for:
 - "Existing Marker Handling (R9)" - warning logic
@@ -314,17 +314,17 @@ See SPEC.md Section 5.1 for deduplication algorithm.
 
 **TDD Order:**
 
-- [ ] 🔴 Write test: single chunk result aggregates correctly
-- [ ] 🔴 Write test: multiple chunks merge markers in order
-- [ ] 🔴 Write test: deduplication removes markers within window
-- [ ] 🔴 Write test: timestamp resolution from relative to absolute
-- [ ] 🔴 Write test: invalid markers filtered (out of range, empty label)
-- [ ] 🔴 Write test: existing markers warning (R9)
-- [ ] 🔴 Write test: markers written to correct position in event stream
-- [ ] 🟢 Implement `ResultAggregator` with Builder pattern
-- [ ] 🟢 Implement `ValidatedMarker` with validation
-- [ ] 🟢 Implement `MarkerWriter` integrating with `MarkerManager`
-- [ ] 🔵 Refactor and verify file integrity with playback test
+- [x] 🔴 Write test: single chunk result aggregates correctly
+- [x] 🔴 Write test: multiple chunks merge markers in order
+- [x] 🔴 Write test: deduplication removes markers within window
+- [x] 🔴 Write test: timestamp resolution from relative to absolute
+- [x] 🔴 Write test: invalid markers filtered (out of range, empty label)
+- [x] 🔴 Write test: existing markers warning (R9)
+- [x] 🔴 Write test: markers written to correct position in event stream
+- [x] 🟢 Implement `ResultAggregator` with Builder pattern
+- [x] 🟢 Implement `ValidatedMarker` with validation
+- [x] 🟢 Implement `MarkerWriter` integrating with `MarkerManager`
+- [x] 🔵 Refactor and verify file integrity with playback test
 
 Files: `src/analyzer/result.rs`
 
@@ -471,6 +471,6 @@ Updated by implementer as work progresses.
 | 2 | **complete** | TokenBudget, ChunkCalculator, AnalysisChunk, TimeRange implemented. 22 unit tests passing. Overlap strategy (10% default, min 500 tokens). NDJSON boundary alignment preserved. |
 | 3 | **complete** | AgentBackend trait (Strategy pattern), BackendError with RateLimitInfo, ClaudeBackend, CodexBackend, GeminiBackend. 44 tests passing. JSON extraction handles direct/embedded/code-block formats. |
 | 4 | **complete** | WorkerScaler, ParallelExecutor, ProgressReporter, ChunkResult implemented. 27 tests passing (22 worker + 5 progress). Rayon thread pool with automatic cleanup. Single-chunk optimization. |
-| 5 | pending | |
+| 5 | **complete** | ValidatedMarker, ResultAggregator (Builder pattern), MarkerWriter implemented. 25 tests passing. Deduplication within 2s window + same category. Timestamp resolution: absolute = chunk.start + relative. Integrates with existing MarkerManager. |
 | 6 | pending | |
 | 7 | pending | |
