@@ -718,11 +718,38 @@ pub fn detect_rate_limit(agent: AgentType, stderr: &str, exit_code: i32) -> bool
 
 **Agent-specific patterns:**
 
-| Agent | Rate Limit Indicators |
-|-------|----------------------|
-| Claude | `"rate limit"`, `"429"`, `"Too many requests"`, `"quota exceeded"` in stderr |
-| Codex | `"rate limit"`, `"throttled"` in stderr, or exit code 429 |
-| Gemini | `"RESOURCE_EXHAUSTED"`, `"rate limit"`, `"quota"` in stderr |
+| Agent | Rate Limit Indicators | Retry-After Format |
+|-------|----------------------|-------------------|
+| Claude | `"rate limit"`, `"429"`, `"Too many requests"`, `"quota exceeded"` | `"Retry after 45 seconds"`, `"retry_after_seconds: 45"` |
+| Codex | `"rate limit"`, `"throttled"`, exit code 429 | `"retry in 30s"`, `"throttled, retry in Xs"` |
+| Gemini | `"RESOURCE_EXHAUSTED"`, `"rate limit"`, `"quota"` | `"retryDelay: 60s"` |
+
+**Extracting retry-after time:**
+
+```rust
+/// Extract retry delay from stderr output (various formats)
+fn extract_retry_seconds(stderr: &str) -> Option<u64> {
+    let patterns = [
+        r"retry.?after.?(\d+)\s*s",      // "retry after 45 seconds"
+        r"retry.?in.?(\d+)\s*s",         // "retry in 30s"
+        r"retryDelay:\s*(\d+)\s*s",      // "retryDelay: 60s"
+        r"(\d+)\s*seconds?\s*(?:remain|left|wait)", // "45 seconds remaining"
+    ];
+
+    for pattern in patterns {
+        if let Ok(re) = regex::Regex::new(pattern) {
+            if let Some(caps) = re.captures(&stderr.to_lowercase()) {
+                if let Some(m) = caps.get(1) {
+                    return m.as_str().parse().ok();
+                }
+            }
+        }
+    }
+    None
+}
+```
+
+**Behavior:** When rate limited, the system waits for the agent-specified duration before retrying. If no duration is provided, exponential backoff is used (1s → 2s → 4s, capped at 60s).
 
 ---
 

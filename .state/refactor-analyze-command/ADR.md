@@ -1724,12 +1724,12 @@ pub struct PartialSuccessReport {
 **Automatic retry for failed chunks:**
 
 ```rust
-/// Automatic retry with exponential backoff
+/// Automatic retry with rate limit awareness
 pub struct RetryPolicy {
     pub max_attempts: usize,     // Default: 3
     pub initial_delay_ms: u64,   // Default: 1000
     pub backoff_multiplier: f64, // Default: 2.0
-    pub max_delay_ms: u64,       // Default: 30000
+    pub max_delay_ms: u64,       // Default: 60000 (1 minute)
 }
 
 impl Default for RetryPolicy {
@@ -1738,12 +1738,86 @@ impl Default for RetryPolicy {
             max_attempts: 3,
             initial_delay_ms: 1000,
             backoff_multiplier: 2.0,
-            max_delay_ms: 30000,
+            max_delay_ms: 60000,
         }
     }
 }
 
-/// Retry failed chunks automatically before reporting partial success
+/// Rate limit information extracted from agent response
+#[derive(Debug, Clone)]
+pub struct RateLimitInfo {
+    /// When the rate limit resets (if provided by agent)
+    pub retry_after: Option<Duration>,
+    /// Human-readable message
+    pub message: String,
+}
+
+/// Backend error with optional rate limit info
+#[derive(Debug)]
+pub enum BackendError {
+    RateLimited(RateLimitInfo),
+    Timeout(Duration),
+    ExitCode { code: i32, stderr: String },
+    JsonParse(serde_json::Error),
+    Io(std::io::Error),
+}
+
+impl BackendError {
+    /// Extract wait duration - use agent-provided retry_after if available
+    pub fn wait_duration(&self, fallback_ms: u64) -> Duration {
+        match self {
+            BackendError::RateLimited(info) => {
+                info.retry_after.unwrap_or(Duration::from_millis(fallback_ms))
+            }
+            _ => Duration::from_millis(fallback_ms),
+        }
+    }
+}
+
+/// Parse rate limit info from agent CLI stderr
+pub fn parse_rate_limit_info(agent: AgentType, stderr: &str) -> Option<RateLimitInfo> {
+    // Claude: "Rate limited. Retry after 45 seconds" or "retry_after_seconds: 45"
+    // Codex: "throttled, retry in 30s"
+    // Gemini: "RESOURCE_EXHAUSTED... retryDelay: 60s"
+
+    let retry_after = extract_retry_seconds(stderr).map(Duration::from_secs);
+
+    if stderr.contains("rate limit") || stderr.contains("throttled") ||
+       stderr.contains("RESOURCE_EXHAUSTED") || stderr.contains("429") {
+        Some(RateLimitInfo {
+            retry_after,
+            message: stderr.lines().next().unwrap_or("Rate limited").to_string(),
+        })
+    } else {
+        None
+    }
+}
+
+/// Extract retry delay from various formats
+fn extract_retry_seconds(stderr: &str) -> Option<u64> {
+    // Pattern: "retry after X seconds" or "retry_after_seconds: X" or "retry in Xs"
+    let patterns = [
+        r"retry.?after.?(\d+)\s*s",      // "retry after 45 seconds", "retry_after_seconds: 45"
+        r"retry.?in.?(\d+)\s*s",         // "retry in 30s"
+        r"retryDelay:\s*(\d+)\s*s",      // "retryDelay: 60s"
+        r"(\d+)\s*seconds?\s*(?:remain|left|wait)", // "45 seconds remaining"
+    ];
+
+    for pattern in patterns {
+        if let Ok(re) = regex::Regex::new(pattern) {
+            if let Some(caps) = re.captures(&stderr.to_lowercase()) {
+                if let Some(m) = caps.get(1) {
+                    if let Ok(secs) = m.as_str().parse() {
+                        return Some(secs);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Retry failed chunks automatically, respecting rate limit wait times
 pub fn analyze_with_retry(
     chunks: Vec<AnalysisChunk>,
     backend: &dyn AgentBackend,
@@ -1762,14 +1836,21 @@ pub fn analyze_with_retry(
                     break;
                 }
                 Err(e) => {
-                    last_error = Some(e);
+                    // Use agent-provided retry_after if available, otherwise exponential backoff
+                    let wait = e.wait_duration(delay_ms).min(Duration::from_millis(policy.max_delay_ms));
+
                     if attempt < policy.max_attempts {
-                        eprintln!("  Chunk {} failed (attempt {}/{}), retrying in {}ms...",
-                            chunk.id, attempt, policy.max_attempts, delay_ms);
-                        std::thread::sleep(Duration::from_millis(delay_ms));
-                        delay_ms = (delay_ms as f64 * policy.backoff_multiplier)
-                            .min(policy.max_delay_ms as f64) as u64;
+                        eprintln!("  Chunk {} failed (attempt {}/{}), waiting {:?}...",
+                            chunk.id, attempt, policy.max_attempts, wait);
+                        std::thread::sleep(wait);
+
+                        // Only apply exponential backoff if no retry_after was provided
+                        if !matches!(&e, BackendError::RateLimited(info) if info.retry_after.is_some()) {
+                            delay_ms = (delay_ms as f64 * policy.backoff_multiplier)
+                                .min(policy.max_delay_ms as f64) as u64;
+                        }
                     }
+                    last_error = Some(e);
                 }
             }
         }
