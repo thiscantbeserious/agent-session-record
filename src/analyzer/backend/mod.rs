@@ -5,9 +5,9 @@
 //!
 //! # Supported Agents
 //!
-//! - **Claude**: `claude --print --output-format json`
-//! - **Codex**: `codex exec --full-auto` (JSON extracted from text)
-//! - **Gemini**: `gemini --output-format json`
+//! - **Claude**: `claude --print --output-format json --json-schema --tools ""`
+//! - **Codex**: `codex exec --output-schema` (structured JSON output)
+//! - **Gemini**: `gemini --output-format json --approval-mode plan`
 //!
 //! # Design
 //!
@@ -24,8 +24,28 @@ pub use gemini::GeminiBackend;
 
 use crate::analyzer::chunk::TokenBudget;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::time::Duration;
 use thiserror::Error;
+
+/// JSON Schema for marker output (minified, for inline CLI args like Claude's --json-schema).
+pub const MARKER_JSON_SCHEMA: &str = r#"{"type":"object","properties":{"markers":{"type":"array","items":{"type":"object","properties":{"timestamp":{"type":"number"},"label":{"type":"string"},"category":{"type":"string","enum":["planning","design","implementation","success","failure"]}},"required":["timestamp","label","category"]}}},"required":["markers"]}"#;
+
+/// Get the path to the marker schema JSON file (for CLIs that need a file path like Codex).
+///
+/// Returns the path relative to the binary's location or falls back to a temp file.
+pub fn get_schema_file_path() -> std::io::Result<PathBuf> {
+    // Write schema to temp file for CLIs that require file paths
+    let temp_dir = std::env::temp_dir();
+    let schema_path = temp_dir.join("agr_marker_schema.json");
+
+    // Write schema if it doesn't exist or is stale
+    if !schema_path.exists() {
+        std::fs::write(&schema_path, MARKER_JSON_SCHEMA)?;
+    }
+
+    Ok(schema_path)
+}
 
 /// Result type for agent backend operations.
 pub type BackendResult<T> = Result<T, BackendError>;
@@ -215,13 +235,16 @@ pub struct AnalysisResponse {
 /// Claude CLI wrapper format when using `--output-format json`.
 ///
 /// Claude wraps the actual response in a metadata envelope:
-/// `{"type":"result","result":"...","is_error":false,...}`
+/// - Without schema: `{"type":"result","result":"...","is_error":false,...}`
+/// - With schema: `{"type":"result","result":"","structured_output":{...},"is_error":false,...}`
 #[derive(Debug, Deserialize)]
 struct ClaudeWrapper {
     #[serde(rename = "type")]
     response_type: Option<String>,
     result: Option<String>,
     is_error: Option<bool>,
+    /// When using --json-schema, structured output appears here instead of result
+    structured_output: Option<serde_json::Value>,
 }
 
 /// Extract JSON from a potentially wrapped text response.
@@ -243,7 +266,8 @@ pub fn extract_json(response: &str) -> BackendResult<AnalysisResponse> {
     let trimmed = response.trim();
 
     // Try Claude CLI wrapper format first
-    // Claude returns: {"type":"result","result":"```json\n{...}\n```",...}
+    // Without schema: {"type":"result","result":"```json\n{...}\n```",...}
+    // With schema: {"type":"result","result":"","structured_output":{...},...}
     if let Ok(wrapper) = serde_json::from_str::<ClaudeWrapper>(trimmed) {
         if wrapper.response_type.as_deref() == Some("result") {
             // Check for error response
@@ -255,9 +279,17 @@ pub fn extract_json(response: &str) -> BackendResult<AnalysisResponse> {
                 });
             }
 
-            // Extract the inner result and parse it
+            // Check for structured_output first (when using --json-schema)
+            if let Some(structured) = wrapper.structured_output {
+                // Parse the structured output directly
+                return serde_json::from_value(structured).map_err(BackendError::JsonParse);
+            }
+
+            // Fall back to result field (without --json-schema)
             if let Some(inner) = wrapper.result {
-                return extract_json_inner(&inner);
+                if !inner.is_empty() {
+                    return extract_json_inner(&inner);
+                }
             }
         }
     }
@@ -585,6 +617,16 @@ Done."#;
         let result = extract_json(response).unwrap();
         assert_eq!(result.markers.len(), 1);
         assert_eq!(result.markers[0].category, MarkerCategory::Planning);
+    }
+
+    #[test]
+    fn extract_json_claude_wrapper_structured_output() {
+        // Claude wrapper with structured_output (when using --json-schema)
+        let response = r#"{"type":"result","subtype":"success","is_error":false,"result":"","structured_output":{"markers":[{"timestamp":10.0,"label":"Schema output","category":"success"}]}}"#;
+        let result = extract_json(response).unwrap();
+        assert_eq!(result.markers.len(), 1);
+        assert_eq!(result.markers[0].label, "Schema output");
+        assert_eq!(result.markers[0].category, MarkerCategory::Success);
     }
 
     #[test]

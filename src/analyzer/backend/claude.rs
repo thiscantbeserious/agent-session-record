@@ -1,10 +1,12 @@
 //! Claude backend implementation.
 //!
-//! Invokes the Claude CLI with `--print --output-format json --tools ""` for analysis.
-//! Disabling tools ensures Claude responds directly without trying to execute commands.
+//! Invokes the Claude CLI with `--print --output-format json --json-schema --tools ""`
+//! for structured JSON analysis. The JSON schema enforces marker output format,
+//! and disabling tools ensures Claude responds directly without executing commands.
 
 use super::{
     extract_json, parse_rate_limit_info, AgentBackend, BackendError, BackendResult, RawMarker,
+    MARKER_JSON_SCHEMA,
 };
 use crate::analyzer::TokenBudget;
 use serde::Deserialize;
@@ -13,8 +15,8 @@ use std::time::Duration;
 
 /// Backend for Claude CLI.
 ///
-/// Uses `claude --print --output-format json --tools ""` for non-interactive analysis.
-/// Tools are disabled to ensure Claude just responds with text/JSON.
+/// Uses `claude --print --output-format json --json-schema --tools ""`
+/// for non-interactive analysis with structured JSON output.
 #[derive(Debug, Clone, Default)]
 pub struct ClaudeBackend;
 
@@ -47,9 +49,18 @@ impl AgentBackend for ClaudeBackend {
         }
 
         // Use --tools "" to disable all tools and get direct text responses.
-        // This prevents Claude from trying to execute tools and speeds up responses.
+        // Use --json-schema to enforce structured marker output format.
         let mut child = Command::new(Self::command())
-            .args(["--print", "--output-format", "json", "--tools", "", "-p"])
+            .args([
+                "--print",
+                "--output-format",
+                "json",
+                "--json-schema",
+                MARKER_JSON_SCHEMA,
+                "--tools",
+                "",
+                "-p",
+            ])
             .arg(prompt)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

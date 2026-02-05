@@ -1,10 +1,11 @@
 //! Codex backend implementation.
 //!
-//! Invokes the Codex CLI with `exec --full-auto` for analysis.
-//! Note: Codex doesn't support native JSON output, so we extract JSON from text.
+//! Invokes the Codex CLI with `exec --output-schema` for structured JSON analysis.
+//! Does NOT use `--full-auto` to prevent tool execution - analysis is read-only.
 
 use super::{
-    extract_json, parse_rate_limit_info, AgentBackend, BackendError, BackendResult, RawMarker,
+    extract_json, get_schema_file_path, parse_rate_limit_info, AgentBackend, BackendError,
+    BackendResult, RawMarker,
 };
 use crate::analyzer::TokenBudget;
 use std::process::{Command, Stdio};
@@ -12,9 +13,9 @@ use std::time::Duration;
 
 /// Backend for Codex CLI.
 ///
-/// Uses `codex exec --full-auto` for non-interactive analysis.
-/// Since Codex doesn't support JSON output mode, responses need
-/// JSON extraction from text.
+/// Uses `codex exec --output-schema` for non-interactive analysis.
+/// The schema enforces structured JSON marker output.
+/// No `--full-auto` flag - prevents tool execution for read-only analysis.
 #[derive(Debug, Clone, Default)]
 pub struct CodexBackend;
 
@@ -46,8 +47,14 @@ impl AgentBackend for CodexBackend {
             ));
         }
 
+        // Get schema file path for --output-schema flag
+        let schema_path = get_schema_file_path()?;
+
+        // Use --output-schema for structured JSON output
+        // Do NOT use --full-auto to prevent tool execution (read-only analysis)
         let mut child = Command::new(Self::command())
-            .args(["exec", "--full-auto"])
+            .args(["exec", "--output-schema"])
+            .arg(&schema_path)
             .arg(prompt)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

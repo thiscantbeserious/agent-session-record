@@ -1,6 +1,7 @@
 //! Gemini backend implementation.
 //!
-//! Invokes the Gemini CLI with `--output-format json` for analysis.
+//! Invokes the Gemini CLI with `--output-format json --approval-mode plan` for analysis.
+//! The `--approval-mode plan` flag enables read-only mode (no tool execution).
 
 use super::{
     extract_json, parse_rate_limit_info, AgentBackend, BackendError, BackendResult, RawMarker,
@@ -11,8 +12,8 @@ use std::time::Duration;
 
 /// Backend for Gemini CLI.
 ///
-/// Uses `gemini --output-format json` for non-interactive analysis.
-/// No permission bypass flags needed - the agent only processes text.
+/// Uses `gemini --output-format json --approval-mode plan` for non-interactive analysis.
+/// The `--approval-mode plan` ensures read-only operation (no tool execution).
 #[derive(Debug, Clone, Default)]
 pub struct GeminiBackend;
 
@@ -44,8 +45,16 @@ impl AgentBackend for GeminiBackend {
             ));
         }
 
+        // Use --approval-mode plan for read-only operation (no tool execution)
+        // Use --prompt for non-interactive mode
         let mut child = Command::new(Self::command())
-            .args(["--output-format", "json"])
+            .args([
+                "--output-format",
+                "json",
+                "--approval-mode",
+                "plan",
+                "--prompt",
+            ])
             .arg(prompt)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
