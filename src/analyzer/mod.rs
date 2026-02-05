@@ -15,15 +15,18 @@
 //!
 //! # Module Structure
 //!
-//! - [`content`] - Content cleaning transforms and segment creation
+//! - [`config`] - Pipeline configuration
+//! - [`transforms`] - Individual content cleaning transforms
+//! - [`extractor`] - Pipeline orchestration and segment creation
 //! - [`types`] - Data structures for analysis content and segments
 
-mod content;
+mod config;
+mod extractor;
+mod transforms;
 mod types;
 
 // Re-export main types
-pub use content::{
-    ContentCleaner, DeduplicateProgressLines, ExtractionConfig, FilterEmptyEvents,
-    NormalizeWhitespace,
-};
+pub use config::ExtractionConfig;
+pub use extractor::ContentExtractor;
+pub use transforms::{ContentCleaner, DeduplicateProgressLines, FilterEmptyEvents, NormalizeWhitespace};
 pub use types::{AnalysisContent, AnalysisSegment, ExtractionStats, TokenEstimator};
