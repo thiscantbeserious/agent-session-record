@@ -128,10 +128,10 @@ Considerations:
 **Output:** `Vec<AnalysisChunk>` ready for parallel processing
 
 **Definition of Done:**
-- [ ] All unit tests pass
-- [ ] Property tests pass (timestamp resolution always valid)
-- [ ] Chunk count matches SPEC.md scaling table
-- [ ] Overlap logic produces correct deduplication windows
+- [x] All unit tests pass
+- [x] Property tests pass (timestamp resolution always valid)
+- [x] Chunk count matches SPEC.md scaling table
+- [x] Overlap logic produces correct deduplication windows
 
 **Public API:** See ADR.md "Chunking Strategy" section for:
 - `TokenBudget` - agent-specific limits and safety margins
@@ -143,25 +143,25 @@ See SPEC.md Section 3 for chunk count calculation and scaling table.
 
 **TDD Order:**
 
-- [ ] **TokenBudget**:
-  - [ ] Write unit tests for budget calculation → fails
-  - [ ] Create `TokenBudget` struct with agent-specific limits → passes
-- [ ] **Token Estimation**:
-  - [ ] Write property test (chars/4 ≈ tokens) → fails
-  - [ ] Implement estimation with safety margin → passes
-- [ ] **Chunk Calculation**:
-  - [ ] Write test: single chunk when content < budget → fails
-  - [ ] Write test: multi-chunk when content > budget → fails
-  - [ ] Write test: verify chunks match SPEC.md scaling table → fails
-  - [ ] Implement `ChunkCalculator` → passes
-- [ ] Create `AnalysisChunk` struct with id, time_range, segments, text, estimated_tokens
-- [ ] Create `TimeRange` struct for chunk boundaries
-- [ ] **Overlap Logic**:
-  - [ ] Write test for overlap percentage → fails
-  - [ ] Implement `AnalysisChunk::from_content()` with overlap → passes
-- [ ] **Timestamp Resolution**:
-  - [ ] Write property test: absolute timestamp always in valid range → fails
-  - [ ] Implement `resolve_marker_timestamp()` → passes
+- [x] **TokenBudget**:
+  - [x] Write unit tests for budget calculation → fails
+  - [x] Create `TokenBudget` struct with agent-specific limits → passes
+- [x] **Token Estimation**:
+  - [x] Write property test (chars/4 ≈ tokens) → fails
+  - [x] Implement estimation with safety margin → passes
+- [x] **Chunk Calculation**:
+  - [x] Write test: single chunk when content < budget → fails
+  - [x] Write test: multi-chunk when content > budget → fails
+  - [x] Write test: verify chunks match SPEC.md scaling table → fails
+  - [x] Implement `ChunkCalculator` → passes
+- [x] Create `AnalysisChunk` struct with id, time_range, segments, text, estimated_tokens
+- [x] Create `TimeRange` struct for chunk boundaries
+- [x] **Overlap Logic**:
+  - [x] Write test for overlap percentage → fails
+  - [x] Implement `AnalysisChunk::from_content()` with overlap → passes
+- [x] **Timestamp Resolution**:
+  - [x] Write property test: absolute timestamp always in valid range → fails
+  - [x] Implement `resolve_marker_timestamp()` → passes
 
 Files: `src/analyzer/chunk.rs`
 
@@ -468,7 +468,7 @@ Updated by implementer as work progresses.
 | Stage | Status | Notes |
 |-------|--------|-------|
 | 1 | **complete** | All transforms implemented. 33 unit tests + 10 integration tests + 3 performance tests passing. 70.8% compression, <0.5s/15MB in release mode. |
-| 2 | pending | |
+| 2 | **complete** | TokenBudget, ChunkCalculator, AnalysisChunk, TimeRange implemented. 22 unit tests passing. Overlap strategy (10% default, min 500 tokens). NDJSON boundary alignment preserved. |
 | 3 | pending | |
 | 4 | pending | |
 | 5 | pending | |
