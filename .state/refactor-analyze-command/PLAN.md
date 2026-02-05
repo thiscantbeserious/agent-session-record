@@ -179,10 +179,10 @@ Considerations:
 **Output:** `Vec<RawMarker>` parsed from agent JSON response
 
 **Definition of Done:**
-- [ ] All mock response tests pass
-- [ ] JSON extraction handles Codex text wrapping
-- [ ] `is_available()` correctly detects installed CLIs
-- [ ] Prompt template produces valid marker categories
+- [x] All mock response tests pass
+- [x] JSON extraction handles Codex text wrapping
+- [x] `is_available()` correctly detects installed CLIs
+- [x] Prompt template produces valid marker categories
 
 **Public API:** See ADR.md "AgentBackend Trait Definition" section for:
 - `AgentBackend` trait - Strategy pattern interface
@@ -197,26 +197,26 @@ See SPEC.md Section 2 for:
 
 **TDD Order:**
 
-- [ ] Create `src/analyzer/backend/mod.rs` with `AgentBackend` trait and `AgentType` enum
-- [ ] **JSON Parsing** (test with mock responses):
-  - [ ] Write tests for valid JSON parsing → fails
-  - [ ] Write tests for Codex text extraction (SPEC.md Section 2.4) → fails
-  - [ ] Write tests for malformed JSON handling → fails
-  - [ ] Implement `extract_json()` and Rust types → passes
-- [ ] Create `RawMarker` struct for parsing agent responses
-- [ ] **ClaudeBackend**:
-  - [ ] Write mock response test → fails
-  - [ ] Implement in `src/analyzer/backend/claude.rs` → passes
-- [ ] **CodexBackend**:
-  - [ ] Write mock response test (text with embedded JSON) → fails
-  - [ ] Implement in `src/analyzer/backend/codex.rs` → passes
-- [ ] **GeminiBackend**:
-  - [ ] Write mock response test → fails
-  - [ ] Implement in `src/analyzer/backend/gemini.rs` → passes
-- [ ] **Availability Check**:
-  - [ ] Write tests for `is_available()` → fails
-  - [ ] Implement per-backend availability → passes
-- [ ] Define analysis prompt template with engineering-focused categories
+- [x] Create `src/analyzer/backend/mod.rs` with `AgentBackend` trait and `AgentType` enum
+- [x] **JSON Parsing** (test with mock responses):
+  - [x] Write tests for valid JSON parsing → fails
+  - [x] Write tests for Codex text extraction (SPEC.md Section 2.4) → fails
+  - [x] Write tests for malformed JSON handling → fails
+  - [x] Implement `extract_json()` and Rust types → passes
+- [x] Create `RawMarker` struct for parsing agent responses
+- [x] **ClaudeBackend**:
+  - [x] Write mock response test → fails
+  - [x] Implement in `src/analyzer/backend/claude.rs` → passes
+- [x] **CodexBackend**:
+  - [x] Write mock response test (text with embedded JSON) → fails
+  - [x] Implement in `src/analyzer/backend/codex.rs` → passes
+- [x] **GeminiBackend**:
+  - [x] Write mock response test → fails
+  - [x] Implement in `src/analyzer/backend/gemini.rs` → passes
+- [x] **Availability Check**:
+  - [x] Write tests for `is_available()` → fails
+  - [x] Implement per-backend availability → passes
+- [x] Define analysis prompt template with engineering-focused categories
 
 Files: `src/analyzer/backend/mod.rs`, `src/analyzer/backend/claude.rs`,
        `src/analyzer/backend/codex.rs`, `src/analyzer/backend/gemini.rs`
@@ -469,7 +469,7 @@ Updated by implementer as work progresses.
 |-------|--------|-------|
 | 1 | **complete** | All transforms implemented. 33 unit tests + 10 integration tests + 3 performance tests passing. 70.8% compression, <0.5s/15MB in release mode. |
 | 2 | **complete** | TokenBudget, ChunkCalculator, AnalysisChunk, TimeRange implemented. 22 unit tests passing. Overlap strategy (10% default, min 500 tokens). NDJSON boundary alignment preserved. |
-| 3 | pending | |
+| 3 | **complete** | AgentBackend trait (Strategy pattern), BackendError with RateLimitInfo, ClaudeBackend, CodexBackend, GeminiBackend. 44 tests passing. JSON extraction handles direct/embedded/code-block formats. |
 | 4 | pending | |
 | 5 | pending | |
 | 6 | pending | |

@@ -20,15 +20,25 @@
 //! - [`extractor`] - Pipeline orchestration and segment creation
 //! - [`types`] - Data structures for analysis content and segments
 //! - [`chunk`] - Token budget and chunking for parallel analysis
+//! - [`backend`] - Agent backend implementations (Strategy pattern)
 
+pub mod backend;
 pub mod chunk;
 mod config;
 mod extractor;
 mod transforms;
 mod types;
 
-// Re-export main types
-pub use chunk::{AgentType, AnalysisChunk, ChunkCalculator, ChunkConfig, TimeRange, TokenBudget};
+// Re-export main types from backend
+pub use backend::{
+    extract_json, AgentBackend, AgentType, AnalysisResponse, BackendError, BackendResult,
+    ClaudeBackend, CodexBackend, GeminiBackend, MarkerCategory, RateLimitInfo, RawMarker,
+};
+
+// Re-export chunk types (AgentType moved to backend)
+pub use chunk::{AnalysisChunk, ChunkCalculator, ChunkConfig, TimeRange, TokenBudget};
+
+// Re-export other types
 pub use config::ExtractionConfig;
 pub use extractor::ContentExtractor;
 pub use transforms::{

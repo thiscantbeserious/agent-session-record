@@ -10,26 +10,8 @@
 //! - `AnalysisChunk` represents a chunk ready for LLM analysis
 //! - Overlap strategy ensures context continuity between chunks
 
+use crate::analyzer::backend::AgentType;
 use crate::analyzer::types::{AnalysisContent, AnalysisSegment};
-
-/// Agent types supported for analysis.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AgentType {
-    Claude,
-    Codex,
-    Gemini,
-}
-
-impl AgentType {
-    /// Get the token budget for this agent type.
-    pub fn token_budget(&self) -> TokenBudget {
-        match self {
-            AgentType::Claude => TokenBudget::claude(),
-            AgentType::Codex => TokenBudget::codex(),
-            AgentType::Gemini => TokenBudget::gemini(),
-        }
-    }
-}
 
 /// Token budget configuration for an agent.
 ///
