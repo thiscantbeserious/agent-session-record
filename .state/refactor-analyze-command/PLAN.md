@@ -242,11 +242,11 @@ Considerations:
 **Output:** `Vec<ChunkResult>` with markers or errors per chunk
 
 **Definition of Done:**
-- [ ] All tests pass with mock backend
-- [ ] Progress callback fires for each chunk
-- [ ] Worker count scales per SPEC.md table
-- [ ] Threads cleaned up on success AND failure
-- [ ] Single-chunk case doesn't create thread pool
+- [x] All tests pass with mock backend
+- [x] Progress callback fires for each chunk
+- [x] Worker count scales per SPEC.md table
+- [x] Threads cleaned up on success AND failure
+- [x] Single-chunk case doesn't create thread pool
 
 **Public API:** See ADR.md "Parallelism Options" and "Worker Scaling" sections for:
 - `WorkerScaler` - content-based heuristic scaling
@@ -262,16 +262,16 @@ See SPEC.md Section 3.3-3.4 for parallel execution flow and fallback logic.
 
 **TDD Order:**
 
-- [ ] 🔴 Write test: single chunk returns result without thread pool
-- [ ] 🔴 Write test: multiple chunks processed in parallel
-- [ ] 🔴 Write test: progress callback called for each chunk
-- [ ] 🔴 Write test: worker count scales with token count
-- [ ] 🔴 Write test: partial failure (some chunks fail, some succeed)
-- [ ] 🟢 Add `rayon` dependency to Cargo.toml
-- [ ] 🟢 Implement `WorkerScaler` with content-based heuristic
-- [ ] 🟢 Implement `ParallelExecutor` using `ThreadPoolBuilder` and `par_iter()`
-- [ ] 🟢 Implement `ProgressReporter` with `Arc<AtomicUsize>`
-- [ ] 🔵 Verify thread cleanup on success and failure
+- [x] 🔴 Write test: single chunk returns result without thread pool
+- [x] 🔴 Write test: multiple chunks processed in parallel
+- [x] 🔴 Write test: progress callback called for each chunk
+- [x] 🔴 Write test: worker count scales with token count
+- [x] 🔴 Write test: partial failure (some chunks fail, some succeed)
+- [x] 🟢 Add `rayon` dependency to Cargo.toml
+- [x] 🟢 Implement `WorkerScaler` with content-based heuristic
+- [x] 🟢 Implement `ParallelExecutor` using `ThreadPoolBuilder` and `par_iter()`
+- [x] 🟢 Implement `ProgressReporter` with `Arc<AtomicUsize>`
+- [x] 🔵 Verify thread cleanup on success and failure
 
 Files: `src/analyzer/worker.rs`, `src/analyzer/progress.rs`, `Cargo.toml`
 
@@ -470,7 +470,7 @@ Updated by implementer as work progresses.
 | 1 | **complete** | All transforms implemented. 33 unit tests + 10 integration tests + 3 performance tests passing. 70.8% compression, <0.5s/15MB in release mode. |
 | 2 | **complete** | TokenBudget, ChunkCalculator, AnalysisChunk, TimeRange implemented. 22 unit tests passing. Overlap strategy (10% default, min 500 tokens). NDJSON boundary alignment preserved. |
 | 3 | **complete** | AgentBackend trait (Strategy pattern), BackendError with RateLimitInfo, ClaudeBackend, CodexBackend, GeminiBackend. 44 tests passing. JSON extraction handles direct/embedded/code-block formats. |
-| 4 | pending | |
+| 4 | **complete** | WorkerScaler, ParallelExecutor, ProgressReporter, ChunkResult implemented. 27 tests passing (22 worker + 5 progress). Rayon thread pool with automatic cleanup. Single-chunk optimization. |
 | 5 | pending | |
 | 6 | pending | |
 | 7 | pending | |

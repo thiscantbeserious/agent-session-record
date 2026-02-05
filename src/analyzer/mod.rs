@@ -21,13 +21,17 @@
 //! - [`types`] - Data structures for analysis content and segments
 //! - [`chunk`] - Token budget and chunking for parallel analysis
 //! - [`backend`] - Agent backend implementations (Strategy pattern)
+//! - [`worker`] - Parallel execution using Rayon
+//! - [`progress`] - Progress reporting for analysis
 
 pub mod backend;
 pub mod chunk;
 mod config;
 mod extractor;
+pub mod progress;
 mod transforms;
 mod types;
+pub mod worker;
 
 // Re-export main types from backend
 pub use backend::{
@@ -41,7 +45,9 @@ pub use chunk::{AnalysisChunk, ChunkCalculator, ChunkConfig, TimeRange, TokenBud
 // Re-export other types
 pub use config::ExtractionConfig;
 pub use extractor::ContentExtractor;
+pub use progress::DefaultProgressReporter;
 pub use transforms::{
     ContentCleaner, DeduplicateProgressLines, FilterEmptyEvents, NormalizeWhitespace,
 };
 pub use types::{AnalysisContent, AnalysisSegment, ExtractionStats, TokenEstimator};
+pub use worker::{ChunkResult, ParallelExecutor, ProgressReporter, WorkerConfig, WorkerScaler};
