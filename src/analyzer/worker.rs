@@ -95,11 +95,12 @@ impl WorkerScaler {
             .map(|p| p.get())
             .unwrap_or(4);
 
+        // Calculate effective bounds (CPU count may limit max below configured min)
+        let effective_max = self.config.max_workers.min(cpu_count);
+        let effective_min = self.config.min_workers.min(effective_max);
+
         // Clamp to reasonable bounds
-        scaled.clamp(
-            self.config.min_workers,
-            self.config.max_workers.min(cpu_count),
-        )
+        scaled.clamp(effective_min, effective_max)
     }
 }
 
@@ -610,9 +611,13 @@ mod tests {
         let scaler = WorkerScaler::with_defaults();
 
         // 100K-500K tokens, scale 1.0
-        // 3 chunks * 1.0 = 3 workers
+        // 3 chunks * 1.0 = 3 workers (but may be capped by CPU count on CI)
         let workers = scaler.calculate_workers(3, 300_000);
-        assert_eq!(workers, 3);
+        let cpu_count = std::thread::available_parallelism()
+            .map(|p| p.get())
+            .unwrap_or(4);
+        let expected = 3.min(cpu_count).min(8);
+        assert_eq!(workers, expected);
     }
 
     #[test]
@@ -666,9 +671,13 @@ mod tests {
         };
         let scaler = WorkerScaler::new(config);
 
-        // Even with tiny content, should get min_workers
+        // Even with tiny content, should get min_workers (or CPU count if lower)
         let workers = scaler.calculate_workers(1, 1_000);
-        assert!(workers >= 2);
+        let cpu_count = std::thread::available_parallelism()
+            .map(|p| p.get())
+            .unwrap_or(4);
+        let effective_min = 2.min(cpu_count);
+        assert!(workers >= effective_min);
     }
 
     #[test]
