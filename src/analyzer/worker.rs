@@ -679,6 +679,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Miri struggles with thread spawning
     fn progress_reporter_thread_safe() {
         let reporter = Arc::new(ProgressReporter::new(100));
         let mut handles = Vec::new();
@@ -731,6 +732,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Rayon thread pool unsupported in Miri
     fn parallel_executor_multiple_chunks_processed() {
         let backend = MockBackend::new(vec![
             Ok(r#"{"markers": []}"#.to_string()),
@@ -756,6 +758,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Rayon thread pool unsupported in Miri
     fn parallel_executor_progress_called_for_each_chunk() {
         let backend = MockBackend::new(vec![]);
         let call_count = Arc::new(AtomicUsize::new(0));
@@ -779,6 +782,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Rayon thread pool unsupported in Miri
     fn parallel_executor_partial_failure() {
         let backend = MockBackend::new(vec![
             Ok(r#"{"markers": []}"#.to_string()),
@@ -822,6 +826,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Rayon thread pool unsupported in Miri
     fn parallel_executor_all_failures() {
         let backend = MockBackend::new(vec![
             Err(BackendError::Timeout(Duration::from_secs(60))),
@@ -842,6 +847,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Rayon thread pool unsupported in Miri
     fn parallel_executor_preserves_chunk_ids() {
         let backend = MockBackend::new(vec![]);
         let executor = ParallelExecutor::new(&backend, Duration::from_secs(60), 2, true);
@@ -865,6 +871,7 @@ mod tests {
     // ============================================
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Rayon thread pool unsupported in Miri
     fn worker_scaling_affects_executor() {
         let scaler = WorkerScaler::with_defaults();
         let backend = MockBackend::new(vec![]);
@@ -978,6 +985,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // Rayon thread pool unsupported in Miri
     fn retry_executor_tracks_usage() {
         let backend = MockBackend::new(vec![
             Ok(r#"{"markers": []}"#.to_string()),
