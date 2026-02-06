@@ -135,6 +135,58 @@ impl Default for AnalysisConfig {
     }
 }
 
+impl AnalysisConfig {
+    /// Validate configuration values.
+    ///
+    /// Returns `Ok(())` if all values are within acceptable bounds,
+    /// or an error describing the first invalid value found.
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(ref agent) = self.default_agent {
+            let valid = ["claude", "codex", "gemini"];
+            if !valid.contains(&agent.as_str()) {
+                return Err(format!(
+                    "Unknown default_agent '{}'. Valid: {}",
+                    agent,
+                    valid.join(", ")
+                ));
+            }
+        }
+        if let Some(0) = self.timeout {
+            return Err("analysis.timeout must be > 0".to_string());
+        }
+        if let Some(t) = self.timeout {
+            if t > 3600 {
+                return Err(format!(
+                    "analysis.timeout {} exceeds maximum (3600s)",
+                    t
+                ));
+            }
+        }
+        if let Some(0) = self.workers {
+            return Err("analysis.workers must be > 0".to_string());
+        }
+        if let Some(w) = self.workers {
+            if w > 32 {
+                return Err(format!(
+                    "analysis.workers {} exceeds maximum (32)",
+                    w
+                ));
+            }
+        }
+        for (name, agent_config) in &self.agents {
+            if let Some(budget) = agent_config.token_budget {
+                if budget < 1000 {
+                    return Err(format!(
+                        "agents.{}.token_budget {} is below minimum (1000)",
+                        name, budget
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Per-agent analysis configuration.
 ///
 /// Allows customizing extra CLI arguments and token budgets for individual agents.

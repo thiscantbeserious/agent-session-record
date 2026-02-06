@@ -545,52 +545,54 @@ impl WindowedLineDeduplicator {
             return;
         }
 
-        let mut lines = Vec::new();
-        while let Some(line_info) = self.line_buffer.pop_front() {
-            lines.push(line_info);
+        let lines: Vec<_> = self.line_buffer.drain(..).collect();
+
+        // Build a map of trimmed_end -> last index for O(1) repeat detection
+        let mut last_occurrence: HashMap<&str, usize> = HashMap::with_capacity(lines.len());
+        for (i, (ref line, _)) in lines.iter().enumerate() {
+            let trimmed = line.trim_end();
+            if !trimmed.trim().is_empty() {
+                last_occurrence.insert(trimmed, i);
+            }
         }
 
         let mut current_data = String::new();
         let mut current_time = 0.0;
 
-        for i in 0..lines.len() {
-            let (ref line_text, time) = lines[i];
+        for (i, (ref line_text, time)) in lines.iter().enumerate() {
             let trimmed = line_text.trim();
-            
+
             if trimmed.is_empty() {
                 current_data.push_str(line_text);
-                current_time += time;
+                current_time += *time;
                 continue;
             }
 
             let line_trimmed_end = line_text.trim_end();
 
-            // Skip if this line is a prefix of any LATER line in the window
-            // (filters out typing increments)
-            let mut is_prefix = false;
-            for (ref later_line, _) in &lines[(i + 1)..] {
-                let later_trimmed_end = later_line.trim_end();
-                if later_trimmed_end.starts_with(line_trimmed_end) && later_trimmed_end.len() > line_trimmed_end.len() {
-                    is_prefix = true;
-                    break;
-                }
-            }
+            // O(1) repeat detection via HashMap
+            let is_repeated = last_occurrence
+                .get(line_trimmed_end)
+                .map(|&last| last > i)
+                .unwrap_or(false);
 
-            // Skip if this line is repeated later in the window
-            let mut is_repeated = false;
-            for (ref later_line, _) in &lines[(i + 1)..] {
-                if later_line.trim_end() == line_trimmed_end {
-                    is_repeated = true;
-                    break;
-                }
-            }
+            // O(n) prefix detection only when line is not already a repeat
+            let is_prefix = if !is_repeated {
+                lines[(i + 1)..].iter().any(|(later, _)| {
+                    let later_trimmed = later.trim_end();
+                    later_trimmed.starts_with(line_trimmed_end)
+                        && later_trimmed.len() > line_trimmed_end.len()
+                })
+            } else {
+                false
+            };
 
             if !is_prefix && !is_repeated {
                 current_data.push_str(line_text);
-                current_time += time;
+                current_time += *time;
             } else {
                 self.total_deduped += 1;
-                current_time += time;
+                current_time += *time;
             }
         }
 

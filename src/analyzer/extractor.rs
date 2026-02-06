@@ -33,6 +33,12 @@ impl ContentExtractor {
 
         let stats = self.apply_transforms(events, cols, rows, original_bytes, original_event_count);
 
+        // Redistribute artificially concentrated time from the transform pipeline.
+        // TerminalTransform accumulates time from filtered events and dumps it on the
+        // next emitted event, creating huge gaps that distort segment time ranges and
+        // cause LLM marker timestamps to cluster at the end of the recording.
+        Self::redistribute_time(events, self.config.segment_time_gap);
+
         // Create segments from events
         self.create_segments(events, stats)
     }
@@ -159,6 +165,56 @@ impl ContentExtractor {
             normalizer.transform(events);
         }
         FilterEmptyEvents.transform(events);
+    }
+
+    /// Smooth out artificially large time gaps from the transform pipeline.
+    ///
+    /// Caps individual output event times at `max_gap` and distributes the
+    /// excess evenly across normal-duration output events. This preserves
+    /// total recording duration while preventing segment time ranges from
+    /// clustering at the end.
+    fn redistribute_time(events: &mut [Event], max_gap: f64) {
+        let mut excess = 0.0;
+        let mut normal_output_count = 0usize;
+
+        // First pass: measure excess
+        for event in events.iter() {
+            if event.is_output() {
+                if event.time > max_gap {
+                    excess += event.time - max_gap;
+                } else {
+                    normal_output_count += 1;
+                }
+            }
+        }
+
+        if excess <= 0.0 {
+            return;
+        }
+
+        let bonus = if normal_output_count > 0 {
+            excess / normal_output_count as f64
+        } else {
+            0.0
+        };
+
+        // Second pass: cap large events, distribute excess to normal ones
+        for event in events.iter_mut() {
+            if event.is_output() {
+                if event.time > max_gap {
+                    event.time = max_gap;
+                } else {
+                    event.time += bonus;
+                }
+            }
+        }
+
+        // If no normal output events exist, add remaining to last event
+        if normal_output_count == 0 {
+            if let Some(last) = events.last_mut() {
+                last.time += excess;
+            }
+        }
     }
 
     /// Group events into segments based on time gaps.

@@ -7,8 +7,13 @@
 
 use crate::asciicast::{Event, EventType, Transform};
 use crate::terminal::TerminalBuffer;
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::hash::{Hash, Hasher};
+
+/// Maximum number of line hashes to retain. Limits memory for long sessions
+/// while still catching redraws within a ~50K-line window. Each entry is 8
+/// bytes, so 50 000 entries ≈ 400 KB.
+const MAX_STORY_HASHES: usize = 50_000;
 
 /// A transform that renders events through a virtual terminal and extracts
 /// a clean, deduplicated chronological "story" of the session.
@@ -20,6 +25,8 @@ pub struct TerminalTransform {
     last_cursor_pos: (usize, usize),
     /// Hashes of lines already included in the stable story to prevent duplicates from redraws
     story_hashes: HashSet<u64>,
+    /// Insertion order for FIFO eviction of story_hashes
+    story_hash_order: VecDeque<u64>,
 }
 
 impl TerminalTransform {
@@ -29,7 +36,8 @@ impl TerminalTransform {
             buffer: TerminalBuffer::new(width, height),
             stable_lines_count: 0,
             last_cursor_pos: (0, 0),
-            story_hashes: HashSet::new(),
+            story_hashes: HashSet::with_capacity(MAX_STORY_HASHES),
+            story_hash_order: VecDeque::with_capacity(MAX_STORY_HASHES),
         }
     }
 
@@ -69,6 +77,21 @@ impl TerminalTransform {
         hasher.finish()
     }
 
+    /// Insert a hash with bounded FIFO eviction.
+    fn insert_hash(&mut self, h: u64) -> bool {
+        if !self.story_hashes.insert(h) {
+            return false; // already seen
+        }
+        self.story_hash_order.push_back(h);
+        // Evict oldest when over capacity
+        while self.story_hashes.len() > MAX_STORY_HASHES {
+            if let Some(old) = self.story_hash_order.pop_front() {
+                self.story_hashes.remove(&old);
+            }
+        }
+        true
+    }
+
     /// Helper to filter and emit lines while updating story_hashes.
     fn filter_new_lines(&mut self, lines: Vec<String>) -> Vec<String> {
         let mut result = Vec::new();
@@ -77,7 +100,7 @@ impl TerminalTransform {
                 continue;
             }
             let h = Self::hash_line(&line);
-            if self.story_hashes.insert(h) {
+            if self.insert_hash(h) {
                 result.push(line);
             }
         }
@@ -104,7 +127,8 @@ impl Transform for TerminalTransform {
                     accumulated_time += event.time;
 
                     // 1. Emit lines that were scrolled off the screen immediately
-                    if !scrolled_lines.is_empty() {
+                    let had_scroll = !scrolled_lines.is_empty();
+                    if had_scroll {
                         let new_lines = self.filter_new_lines(scrolled_lines);
                         if !new_lines.is_empty() {
                             output_events.push(Event::output(
@@ -117,50 +141,56 @@ impl Transform for TerminalTransform {
 
                     let current_cursor =
                         (self.buffer.cursor_row(), self.buffer.cursor_col());
-                    let current_display = self.buffer.to_string();
-                    let current_lines: Vec<String> =
-                        current_display.lines().map(|s| s.to_string()).collect();
 
-                    // Logic: lines ABOVE the cursor are considered stable and finished.
-                    let mut lines_to_emit = Vec::new();
+                    // Optimization: only snapshot the buffer when something
+                    // interesting happened (cursor moved, scroll, newline, or
+                    // long pause). Skipping to_string() for typing-within-line
+                    // events eliminates the dominant cost on large files.
+                    let cursor_moved = current_cursor != self.last_cursor_pos;
+                    let has_newline = event.data.contains('\n');
+                    let long_pause = event.time > 2.0;
 
-                    // 2. Identify lines that the cursor has moved past
-                    while self.stable_lines_count < current_cursor.0
-                        && self.stable_lines_count < current_lines.len()
-                    {
-                        lines_to_emit
-                            .push(current_lines[self.stable_lines_count].clone());
-                        self.stable_lines_count += 1;
-                    }
+                    if cursor_moved || had_scroll || has_newline || long_pause {
+                        let current_display = self.buffer.to_string();
+                        let current_lines: Vec<String> =
+                            current_display.lines().map(|s| s.to_string()).collect();
 
-                    // 3. Emit the current line IF it was finalized or we hit a long pause
-                    // We only consider it stable if:
-                    // - A newline was just processed
-                    // - The cursor moved to a PREVIOUS row (indicates command finish or clear)
-                    // - A significant pause occurred
-                    let is_stable = event.data.contains('\n')
-                        || current_cursor.0 < self.last_cursor_pos.0
-                        || event.time > 2.0;
+                        // Logic: lines ABOVE the cursor are considered stable and finished.
+                        let mut lines_to_emit = Vec::new();
 
-                    if is_stable
-                        && current_cursor.0 < current_lines.len()
-                        && self.stable_lines_count <= current_cursor.0
-                    {
-                        lines_to_emit
-                            .push(current_lines[current_cursor.0].clone());
-                        if event.data.contains('\n') {
-                            self.stable_lines_count = current_cursor.0 + 1;
+                        // 2. Identify lines that the cursor has moved past
+                        while self.stable_lines_count < current_cursor.0
+                            && self.stable_lines_count < current_lines.len()
+                        {
+                            lines_to_emit
+                                .push(current_lines[self.stable_lines_count].clone());
+                            self.stable_lines_count += 1;
                         }
-                    }
 
-                    if !lines_to_emit.is_empty() {
-                        let new_lines = self.filter_new_lines(lines_to_emit);
-                        if !new_lines.is_empty() {
-                            output_events.push(Event::output(
-                                accumulated_time,
-                                new_lines.join("\n"),
-                            ));
-                            accumulated_time = 0.0;
+                        // 3. Emit the current line IF it was finalized
+                        let is_stable =
+                            has_newline || current_cursor.0 < self.last_cursor_pos.0 || long_pause;
+
+                        if is_stable
+                            && current_cursor.0 < current_lines.len()
+                            && self.stable_lines_count <= current_cursor.0
+                        {
+                            lines_to_emit
+                                .push(current_lines[current_cursor.0].clone());
+                            if has_newline {
+                                self.stable_lines_count = current_cursor.0 + 1;
+                            }
+                        }
+
+                        if !lines_to_emit.is_empty() {
+                            let new_lines = self.filter_new_lines(lines_to_emit);
+                            if !new_lines.is_empty() {
+                                output_events.push(Event::output(
+                                    accumulated_time,
+                                    new_lines.join("\n"),
+                                ));
+                                accumulated_time = 0.0;
+                            }
                         }
                     }
 
