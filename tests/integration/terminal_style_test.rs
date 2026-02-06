@@ -185,7 +185,7 @@ fn styled_lines_all_basic_foreground_colors() {
     ];
     for (seq, expected) in colors {
         let mut buf = TerminalBuffer::new(80, 24);
-        buf.process(&format!("{}X", seq));
+        buf.process(&format!("{}X", seq), None);
         let lines = buf.styled_lines();
         assert!(
             lines[0].cells.iter().any(|c| c.style.fg == expected),
@@ -210,7 +210,7 @@ fn styled_lines_all_basic_background_colors() {
     ];
     for (seq, expected) in colors {
         let mut buf = TerminalBuffer::new(80, 24);
-        buf.process(&format!("{}X", seq));
+        buf.process(&format!("{}X", seq), None);
         let lines = buf.styled_lines();
         assert!(
             lines[0].cells.iter().any(|c| c.style.bg == expected),
@@ -348,7 +348,7 @@ fn all_bright_foreground_colors() {
     ];
     for (seq, expected) in colors {
         let mut buf = TerminalBuffer::new(80, 24);
-        buf.process(&format!("{}X", seq));
+        buf.process(&format!("{}X", seq), None);
         let lines = buf.styled_lines();
         assert!(
             lines[0].cells.iter().any(|c| c.style.fg == expected),
@@ -373,7 +373,7 @@ fn all_bright_background_colors() {
     ];
     for (seq, expected) in colors {
         let mut buf = TerminalBuffer::new(80, 24);
-        buf.process(&format!("{}X", seq));
+        buf.process(&format!("{}X", seq), None);
         let lines = buf.styled_lines();
         assert!(
             lines[0].cells.iter().any(|c| c.style.bg == expected),

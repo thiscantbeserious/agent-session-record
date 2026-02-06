@@ -13,7 +13,7 @@ fn new_buffer_is_empty() {
 #[test]
 fn process_simple_text() {
     let mut buf = TerminalBuffer::new(80, 24);
-    buf.process("Hello, World!");
+    buf.process("Hello, World!", None);
     assert_eq!(buf.to_string(), "Hello, World!");
 }
 

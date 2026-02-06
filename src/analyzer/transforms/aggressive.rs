@@ -568,8 +568,8 @@ impl WindowedLineDeduplicator {
             // Skip if this line is a prefix of any LATER line in the window
             // (filters out typing increments)
             let mut is_prefix = false;
-            for j in (i + 1)..lines.len() {
-                let later_trimmed_end = lines[j].0.trim_end();
+            for (ref later_line, _) in &lines[(i + 1)..] {
+                let later_trimmed_end = later_line.trim_end();
                 if later_trimmed_end.starts_with(line_trimmed_end) && later_trimmed_end.len() > line_trimmed_end.len() {
                     is_prefix = true;
                     break;
@@ -578,8 +578,8 @@ impl WindowedLineDeduplicator {
 
             // Skip if this line is repeated later in the window
             let mut is_repeated = false;
-            for j in (i + 1)..lines.len() {
-                if lines[j].0.trim_end() == line_trimmed_end {
+            for (ref later_line, _) in &lines[(i + 1)..] {
+                if later_line.trim_end() == line_trimmed_end {
                     is_repeated = true;
                     break;
                 }

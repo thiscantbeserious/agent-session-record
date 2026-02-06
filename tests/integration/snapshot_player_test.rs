@@ -743,7 +743,7 @@ fn snapshot_viewport_with_highlight() {
 fn snapshot_viewport_scrolled() {
     let mut buffer = TerminalBuffer::new(100, 30);
     for i in 0..30 {
-        buffer.process(&format!("Line {} - some content here with offset\r\n", i));
+        buffer.process(&format!("Line {} - some content here with offset\r\n", i), None);
     }
 
     let output = render_viewport_snapshot(&buffer, 10, 5, 10, 40, None);
@@ -758,7 +758,7 @@ fn snapshot_viewport_scrolled() {
 fn snapshot_viewport_free_mode_highlight() {
     let mut buffer = TerminalBuffer::new(80, 24);
     for i in 0..15 {
-        buffer.process(&format!("Line {}: content\r\n", i));
+        buffer.process(&format!("Line {}: content\r\n", i), None);
     }
 
     // Free mode with highlight at line 7
@@ -973,7 +973,7 @@ fn snapshot_full_frame_with_markers() {
 fn snapshot_full_frame_viewport_mode() {
     let mut buffer = TerminalBuffer::new(120, 48);
     for i in 0..48 {
-        buffer.process(&format!("Line {}: This is a long line of content that extends beyond the viewport width for testing\r\n", i));
+        buffer.process(&format!("Line {}: This is a long line of content that extends beyond the viewport width for testing\r\n", i), None);
     }
 
     let output = render_full_player_frame(
@@ -1004,7 +1004,7 @@ fn snapshot_full_frame_viewport_mode() {
 fn snapshot_full_frame_free_mode() {
     let mut buffer = TerminalBuffer::new(80, 24);
     for i in 0..20 {
-        buffer.process(&format!("Line {}: content here\r\n", i));
+        buffer.process(&format!("Line {}: content here\r\n", i), None);
     }
 
     let output = render_full_player_frame(
