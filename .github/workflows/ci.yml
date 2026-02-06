@@ -133,7 +133,7 @@ jobs:
 
       - name: Run Miri tests
         env:
-          MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-num-cpus=4"
+          MIRIFLAGS: "-Zmiri-disable-isolation"
         run: |
           # Only run lib tests - integration tests spawn processes which Miri doesn't support
           # Skip modules that are Miri-incompatible:
