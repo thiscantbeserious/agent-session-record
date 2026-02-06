@@ -99,7 +99,7 @@ jobs:
   miri:
     name: "Final Check: Undefined Behavior (Miri)"
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-cores
     if: >
       github.event_name == 'push' ||
       contains(github.event.pull_request.labels.*.name, 'ready-to-merge')
