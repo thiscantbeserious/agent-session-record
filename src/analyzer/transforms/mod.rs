@@ -15,6 +15,7 @@
 mod aggressive;
 mod cleaner;
 mod dedupe;
+mod noise;
 mod normalize;
 mod terminal;
 

@@ -4,7 +4,15 @@
 //! sequences and carriage return overwrites correctly. This produces a
 //! "rendered" version of the terminal state, which is much cleaner for
 //! TUI sessions and preserves spatial layout (indentation).
+//!
+//! Noise detection uses two layers:
+//! 1. **Behavioral**: Tracks how many times each terminal row is rewritten.
+//!    Rows with high rewrite counts (spinners, progress bars, status bars)
+//!    are classified as noise without examining content.
+//! 2. **Structural fallback**: [`super::noise::NoiseClassifier`] catches
+//!    one-shot noise (tips, hints, update banners) that appear exactly once.
 
+use super::noise::NoiseClassifier;
 use crate::asciicast::{Event, EventType, Transform};
 use crate::terminal::TerminalBuffer;
 use std::collections::{HashSet, VecDeque};
@@ -14,6 +22,11 @@ use std::hash::{Hash, Hasher};
 /// while still catching redraws within a ~50K-line window. Each entry is 8
 /// bytes, so 50 000 entries ≈ 400 KB.
 const MAX_STORY_HASHES: usize = 50_000;
+
+/// Minimum number of writes to a terminal row before its content is
+/// classified as noise. Normal content writes each row once; spinners and
+/// status bars rewrite the same row many times.
+const NOISE_REWRITE_THRESHOLD: usize = 3;
 
 /// A transform that renders events through a virtual terminal and extracts
 /// a clean, deduplicated chronological "story" of the session.
@@ -27,6 +40,10 @@ pub struct TerminalTransform {
     story_hashes: HashSet<u64>,
     /// Insertion order for FIFO eviction of story_hashes
     story_hash_order: VecDeque<u64>,
+    /// Per-row write counter. Indexed by terminal row; length = terminal height.
+    /// Rows with count >= NOISE_REWRITE_THRESHOLD are considered noise (spinners,
+    /// progress bars, status bars that rewrite in-place).
+    row_write_counts: Vec<usize>,
 }
 
 impl TerminalTransform {
@@ -38,35 +55,26 @@ impl TerminalTransform {
             last_cursor_pos: (0, 0),
             story_hashes: HashSet::with_capacity(MAX_STORY_HASHES),
             story_hash_order: VecDeque::with_capacity(MAX_STORY_HASHES),
+            row_write_counts: vec![0; height],
         }
     }
 
-    /// Check if a line is "razzle dazzle" thinking noise or status bar.
-    fn is_noise(line: &str) -> bool {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            return false;
-        }
+    /// Returns `true` if the given row has been rewritten enough times to be
+    /// considered noise (behavioral detection).
+    fn is_noisy_row(&self, row: usize) -> bool {
+        self.row_write_counts
+            .get(row)
+            .copied()
+            .unwrap_or(0)
+            >= NOISE_REWRITE_THRESHOLD
+    }
 
-        // Target specific TUI status patterns
-        trimmed.contains("Shimmying…")
-            || trimmed.contains("Orbiting…")
-            || trimmed.contains("Improvising…")
-            || trimmed.contains("Whatchamacalliting…")
-            || trimmed.contains("Churning…")
-            || trimmed.contains("Clauding…")
-            || trimmed.contains("Razzle-dazzling…")
-            || trimmed.contains("Wibbling…")
-            || trimmed.contains("Bloviating…")
-            || trimmed.contains("Herding…")
-            || trimmed.contains("Channeling…")
-            || trimmed.contains("Unfurling…")
-            || trimmed.contains("accept edits on (shift+Tab to cycle)")
-            || trimmed.contains("Context left until auto-compact")
-            || trimmed.contains("thinking")
-            || trimmed.contains("Tip:")
-            || trimmed.contains("Update available!")
-            || (trimmed.contains("Done") && trimmed.contains("tool uses"))
+    /// Shift row_write_counts after `n` lines scrolled off the top.
+    fn shift_row_counts(&mut self, n: usize) {
+        let drain = n.min(self.row_write_counts.len());
+        self.row_write_counts.drain(0..drain);
+        self.row_write_counts
+            .resize(self.buffer.height(), 0);
     }
 
     fn hash_line(line: &str) -> u64 {
@@ -92,13 +100,23 @@ impl TerminalTransform {
         true
     }
 
-    /// Helper to filter and emit lines while updating story_hashes.
-    fn filter_new_lines(&mut self, lines: Vec<String>) -> Vec<String> {
+    /// Filter lines through noise detection and deduplication.
+    ///
+    /// Each line is paired with a `bool` indicating whether it came from a
+    /// behaviorally noisy row. Lines that pass both noise checks are then
+    /// hash-deduplicated against the story.
+    fn filter_new_lines(&mut self, lines: Vec<(String, bool)>) -> Vec<String> {
         let mut result = Vec::new();
-        for line in lines {
-            if Self::is_noise(&line) {
+        for (line, behaviorally_noisy) in lines {
+            // Layer 1: behavioral — row was rewritten many times
+            if behaviorally_noisy {
                 continue;
             }
+            // Layer 2: structural fallback — one-shot noise patterns
+            if NoiseClassifier::is_noise(&line) {
+                continue;
+            }
+            // Hash dedup against the story
             let h = Self::hash_line(&line);
             if self.insert_hash(h) {
                 result.push(line);
@@ -119,17 +137,42 @@ impl Transform for TerminalTransform {
                     let mut scrolled_lines = Vec::new();
                     {
                         let mut scroll_cb = |cells: Vec<crate::terminal::Cell>| {
-                            let line: String = cells.iter().map(|c| c.char).collect();
-                            scrolled_lines.push(line);
+                            let line: String = cells
+                                .iter()
+                                .map(|c| c.char)
+                                .collect::<String>();
+                            scrolled_lines.push(line.trim_end().to_string());
                         };
                         self.buffer.process(&event.data, Some(&mut scroll_cb));
                     }
                     accumulated_time += event.time;
 
+                    // Track which row the cursor landed on after processing
+                    let cursor_row = self.buffer.cursor_row();
+                    if cursor_row < self.row_write_counts.len() {
+                        self.row_write_counts[cursor_row] += 1;
+                    }
+
                     // 1. Emit lines that were scrolled off the screen immediately
                     let had_scroll = !scrolled_lines.is_empty();
+                    let scroll_count = scrolled_lines.len();
                     if had_scroll {
-                        let new_lines = self.filter_new_lines(scrolled_lines);
+                        // Tag each scrolled line with its row's noise status
+                        // before shifting counts. Scrolled lines come from the
+                        // top rows (0..scroll_count).
+                        let tagged: Vec<(String, bool)> = scrolled_lines
+                            .into_iter()
+                            .enumerate()
+                            .map(|(i, line)| {
+                                let noisy = self.is_noisy_row(i);
+                                (line, noisy)
+                            })
+                            .collect();
+
+                        // Shift row counts now that those rows are gone
+                        self.shift_row_counts(scroll_count);
+
+                        let new_lines = self.filter_new_lines(tagged);
                         if !new_lines.is_empty() {
                             output_events.push(Event::output(
                                 accumulated_time,
@@ -156,14 +199,16 @@ impl Transform for TerminalTransform {
                             current_display.lines().map(|s| s.to_string()).collect();
 
                         // Logic: lines ABOVE the cursor are considered stable and finished.
-                        let mut lines_to_emit = Vec::new();
+                        let mut lines_to_emit: Vec<(String, bool)> = Vec::new();
 
                         // 2. Identify lines that the cursor has moved past
                         while self.stable_lines_count < current_cursor.0
                             && self.stable_lines_count < current_lines.len()
                         {
+                            let row = self.stable_lines_count;
+                            let noisy = self.is_noisy_row(row);
                             lines_to_emit
-                                .push(current_lines[self.stable_lines_count].clone());
+                                .push((current_lines[row].clone(), noisy));
                             self.stable_lines_count += 1;
                         }
 
@@ -175,8 +220,10 @@ impl Transform for TerminalTransform {
                             && current_cursor.0 < current_lines.len()
                             && self.stable_lines_count <= current_cursor.0
                         {
+                            let row = current_cursor.0;
+                            let noisy = self.is_noisy_row(row);
                             lines_to_emit
-                                .push(current_lines[current_cursor.0].clone());
+                                .push((current_lines[row].clone(), noisy));
                             if has_newline {
                                 self.stable_lines_count = current_cursor.0 + 1;
                             }
@@ -199,6 +246,7 @@ impl Transform for TerminalTransform {
                 EventType::Resize => {
                     if let Some((w, h)) = event.parse_resize() {
                         self.buffer.resize(w as usize, h as usize);
+                        self.row_write_counts.resize(h as usize, 0);
                         let mut e = event;
                         e.time += accumulated_time;
                         accumulated_time = 0.0;
@@ -220,9 +268,11 @@ impl Transform for TerminalTransform {
             .lines()
             .map(|s| s.trim_end().to_string())
             .collect();
-        let mut final_lines = Vec::new();
+        let mut final_lines: Vec<(String, bool)> = Vec::new();
         while self.stable_lines_count < current_lines.len() {
-            final_lines.push(current_lines[self.stable_lines_count].clone());
+            let row = self.stable_lines_count;
+            let noisy = self.is_noisy_row(row);
+            final_lines.push((current_lines[row].clone(), noisy));
             self.stable_lines_count += 1;
         }
         if let Some(text) = {

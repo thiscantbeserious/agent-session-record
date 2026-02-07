@@ -46,10 +46,12 @@ pub fn get_schema_file_path() -> std::io::Result<PathBuf> {
     Ok(schema_path)
 }
 
-/// Wait for child process with timeout.
+/// Wait for child process with timeout, draining pipes concurrently.
 ///
-/// Uses a simple polling approach since std::process doesn't have
-/// native timeout support. Includes proper process reaping to prevent zombies.
+/// Spawns reader threads for stdout/stderr to prevent pipe buffer deadlocks.
+/// Without concurrent reading, a child that produces more than the OS pipe
+/// buffer (~16KB on macOS) will block on write while the parent blocks
+/// waiting for exit.
 pub(crate) fn wait_with_timeout(
     child: &mut std::process::Child,
     timeout_secs: u64,
@@ -58,31 +60,38 @@ pub(crate) fn wait_with_timeout(
     use std::thread;
     use std::time::Instant;
 
+    // Take ownership of pipes and drain them in background threads.
+    // This prevents the child from blocking on a full pipe buffer.
+    let stdout_handle = child.stdout.take().map(|pipe| {
+        thread::spawn(move || {
+            let mut buf = Vec::new();
+            let mut pipe = pipe;
+            pipe.read_to_end(&mut buf).ok();
+            buf
+        })
+    });
+
+    let stderr_handle = child.stderr.take().map(|pipe| {
+        thread::spawn(move || {
+            let mut buf = Vec::new();
+            let mut pipe = pipe;
+            pipe.read_to_end(&mut buf).ok();
+            buf
+        })
+    });
+
     let start = Instant::now();
     let poll_interval = Duration::from_millis(100);
 
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                // Process finished - collect output
-                let stdout = child
-                    .stdout
-                    .take()
-                    .map(|mut s| {
-                        let mut buf = Vec::new();
-                        s.read_to_end(&mut buf).ok();
-                        buf
-                    })
+                // Process finished — join reader threads
+                let stdout = stdout_handle
+                    .and_then(|h| h.join().ok())
                     .unwrap_or_default();
-
-                let stderr = child
-                    .stderr
-                    .take()
-                    .map(|mut s| {
-                        let mut buf = Vec::new();
-                        s.read_to_end(&mut buf).ok();
-                        buf
-                    })
+                let stderr = stderr_handle
+                    .and_then(|h| h.join().ok())
                     .unwrap_or_default();
 
                 return Ok(std::process::Output {
@@ -92,7 +101,7 @@ pub(crate) fn wait_with_timeout(
                 });
             }
             Ok(None) => {
-                // Still running - check timeout
+                // Still running — check timeout
                 if start.elapsed().as_secs() >= timeout_secs {
                     // Kill and reap to prevent zombie process
                     let _ = child.kill();

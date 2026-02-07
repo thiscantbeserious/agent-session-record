@@ -266,14 +266,16 @@ impl AnalyzerService {
             // Use provided path, or auto-derive from input if empty
             let output_path = match &self.options.output_path {
                 Some(p) if !p.is_empty() => p.clone(),
-                _ => path
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .map(|s| format!("{}.txt", s))
-                    .ok_or_else(|| AnalysisError::IoError {
-                        operation: "deriving debug output path".to_string(),
-                        message: "Path does not have a valid filename".to_string(),
-                    })?,
+                _ => {
+                    let stem = path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .ok_or_else(|| AnalysisError::IoError {
+                            operation: "deriving debug output path".to_string(),
+                            message: "Path does not have a valid filename".to_string(),
+                        })?;
+                    format!("/tmp/{}.txt", stem)
+                }
             };
 
             std::fs::write(&output_path, content.text()).map_err(|e| AnalysisError::IoError {
@@ -779,12 +781,14 @@ mod tests {
     // Test Helpers
     // ============================================
 
+    /// Create a realistic test cast file with diverse, multi-line content
+    /// that survives the full extraction pipeline (TerminalTransform + dedup).
     fn create_test_cast_file() -> NamedTempFile {
         let mut file = NamedTempFile::new().unwrap();
         let header = Header {
             version: 3,
-            width: Some(80),
-            height: Some(24),
+            width: Some(120),
+            height: Some(10),
             timestamp: None,
             duration: None,
             title: None,
@@ -794,13 +798,55 @@ mod tests {
             idle_time_limit: None,
         };
         let mut cast = AsciicastFile::new(header);
-        // Use enough unique, multi-line content to survive the TerminalTransform pipeline.
-        // Each event must contain \n to be considered "stable" by the terminal transform.
-        for i in 0..30 {
-            cast.events.push(Event::output(
-                0.1,
-                format!("Line {}: Building component {} with optimizations enabled\n", i, i),
-            ));
+
+        // Simulate a realistic multi-phase agent session with natural timing.
+        // Content is varied and phases are separated by meaningful time gaps
+        // to survive the full extraction pipeline (coalescing, dedup, burst filter).
+        let phases: &[(&[&str], f64)] = &[
+            // Phase 1: Build (t=0)
+            (&[
+                "$ cargo build --release\n",
+                "   Compiling serde v1.0.200\n",
+                "   Compiling agr v0.1.0 (/home/user/project)\n",
+                "    Finished release [optimized] target(s) in 14.32s\n",
+            ], 0.0),
+            // Phase 2: Tests (t=5)
+            (&[
+                "$ cargo test --lib\n",
+                "running 42 tests\n",
+                "test config::tests::load_default_config ... ok\n",
+                "test parser::tests::parse_asciicast_header ... ok\n",
+                "test result: ok. 42 passed; 0 failed; 0 ignored\n",
+            ], 5.0),
+            // Phase 3: Git operations (t=12)
+            (&[
+                "$ git add -A && git commit -m 'feat: add clipboard support'\n",
+                "[main abc1234] feat: add clipboard support\n",
+                " 3 files changed, 150 insertions(+), 12 deletions(-)\n",
+            ], 12.0),
+            // Phase 4: Deploy (t=20)
+            (&[
+                "$ git push origin main\n",
+                "Enumerating objects: 8, done.\n",
+                "To github.com:user/project.git\n",
+                "   def5678..abc1234  main -> main\n",
+            ], 20.0),
+            // Phase 5: Verification (t=30)
+            (&[
+                "$ curl -s https://api.example.com/health | jq .\n",
+                "{\n",
+                "  \"status\": \"healthy\",\n",
+                "  \"version\": \"1.2.3\",\n",
+                "  \"uptime\": \"2h 15m\"\n",
+                "}\n",
+            ], 30.0),
+        ];
+
+        for (lines, phase_start) in phases {
+            for (i, line) in lines.iter().enumerate() {
+                let time = if i == 0 { *phase_start } else { 0.1 };
+                cast.events.push(Event::output(time, *line));
+            }
         }
 
         let content = cast.to_string().unwrap();
@@ -809,9 +855,11 @@ mod tests {
     }
 
     fn mock_response_with_markers() -> String {
+        // Timestamps are relative to the chunk start. Use 0.0 so they resolve
+        // to exactly time_range.start, guaranteed to be within recording duration.
         r#"{"markers": [
-            {"timestamp": 0.3, "label": "Started build process", "category": "implementation"},
-            {"timestamp": 1.0, "label": "Build completed successfully", "category": "success"}
+            {"timestamp": 0.0, "label": "Started build process", "category": "implementation"},
+            {"timestamp": 0.01, "label": "Build completed successfully", "category": "success"}
         ]}"#
         .to_string()
     }
@@ -909,23 +957,21 @@ mod tests {
     fn analyzer_service_analyze_small_file() {
         let file = create_test_cast_file();
         let opts = AnalyzeOptions::default().quiet();
-        // Provide enough mock responses for potential retries
         let backend = Box::new(MockBackend::new(vec![
-            Ok(mock_response_with_markers()),
-            Ok(mock_response_with_markers()),
             Ok(mock_response_with_markers()),
         ]));
         let service = AnalyzerService::with_backend(opts, backend);
 
         let result = service.analyze(file.path());
 
-        // After TerminalTransform, small synthetic test content may be reduced.
-        // We verify the pipeline doesn't panic and produces either a valid result
-        // or an expected NoContent error.
+        // The test fixture has enough diverse content to survive the full
+        // extraction pipeline. Verify the mock backend's markers are returned.
+        let analysis = result.unwrap_or_else(|e| panic!(
+            "Analysis should succeed with realistic test content, got: {:?}", e
+        ));
         assert!(
-            result.is_ok() || matches!(result, Err(AnalysisError::NoContent)),
-            "Expected Ok or NoContent, got: {:?}",
-            result
+            !analysis.markers.is_empty(),
+            "Expected markers from mock backend, got none"
         );
     }
 
