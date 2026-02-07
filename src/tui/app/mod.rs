@@ -214,7 +214,6 @@ impl Drop for App {
 /// Provides a shared event loop (`run`) and requires each app to implement
 /// its own key handling and drawing logic. Shared key handling and state
 /// are delegated to `SharedState` and `handle_shared_key()`.
-#[allow(dead_code)]
 pub trait TuiApp {
     /// Access the terminal lifecycle manager.
     fn app(&mut self) -> &mut App;

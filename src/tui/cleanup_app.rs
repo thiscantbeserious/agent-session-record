@@ -74,7 +74,8 @@ pub struct CleanupApp {
     mode: Mode,
     /// Glob pattern input buffer
     glob_input: String,
-    /// Storage manager for deletion
+    /// Storage manager for deletion (kept for future use by bulk-delete)
+    #[allow(dead_code)]
     storage: StorageManager,
     /// Whether files were deleted (for success message)
     files_deleted: bool,

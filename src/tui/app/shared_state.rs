@@ -10,7 +10,6 @@ use crate::tui::widgets::{FileExplorer, FileItem};
 ///
 /// Each app owns a `SharedState` and passes `&mut SharedState` to
 /// shared handler functions (keybindings, layout, rendering).
-#[allow(dead_code)]
 pub struct SharedState {
     /// File explorer widget (navigation, selection, sorting, filtering)
     pub explorer: FileExplorer,
@@ -26,7 +25,6 @@ pub struct SharedState {
     pub preview_cache: PreviewCache,
 }
 
-#[allow(dead_code)]
 impl SharedState {
     /// Create a new `SharedState` from a list of file items.
     ///

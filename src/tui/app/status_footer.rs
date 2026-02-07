@@ -17,7 +17,6 @@ use crate::theme::current_theme;
 ///
 /// Displays the text in the secondary text color of the current theme.
 /// Each app computes its own mode-aware status text and passes it here.
-#[allow(dead_code)]
 pub fn render_status_line(frame: &mut Frame, area: Rect, text: &str) {
     let theme = current_theme();
     let status = Paragraph::new(text.to_string()).style(Style::default().fg(theme.text_secondary));
@@ -69,7 +68,6 @@ fn build_footer_spans(keys: &[(&str, &str)], theme: &crate::theme::Theme) -> Vec
 ///
 /// Simpler alternative to `render_footer` when the footer text is already
 /// composed (e.g., from a mode-specific string literal).
-#[allow(dead_code)]
 pub fn render_footer_text(frame: &mut Frame, area: Rect, text: &str) {
     let theme = current_theme();
     let footer = Paragraph::new(text.to_string())

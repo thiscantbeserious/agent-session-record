@@ -40,7 +40,6 @@ pub fn clear_area(frame: &mut Frame, area: Rect) {
 /// Shows the filename and y/n confirmation prompt. Extracted from
 /// `list_app.rs` `render_confirm_delete_modal`. The cleanup app uses
 /// a different bulk-delete modal, so it keeps its own version.
-#[allow(dead_code)]
 pub fn render_confirm_delete_modal(frame: &mut Frame, area: Rect, filename: &str) {
     let theme = current_theme();
     let modal_area = center_modal(area, 50, 7);

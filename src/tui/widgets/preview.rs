@@ -268,7 +268,6 @@ impl SessionPreview {
 /// Collects up to 3 paths (current selection, previous with wrap,
 /// next with wrap) and submits them to the cache for background loading.
 /// Extracted from `list_app.rs` and `cleanup_app.rs` which had identical logic.
-#[allow(dead_code)]
 pub fn prefetch_adjacent_previews(
     explorer: &super::FileExplorer,
     cache: &mut crate::tui::lru_cache::PreviewCache,

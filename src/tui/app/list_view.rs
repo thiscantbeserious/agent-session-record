@@ -13,7 +13,6 @@ use crate::tui::widgets::{FileExplorer, FileExplorerWidget, SessionPreview};
 /// Both `list_app` and `cleanup_app` use this with different flag combinations:
 /// - `show_checkboxes`: true for cleanup (multi-select), false for list
 /// - `has_backup`: true when the selected file has a backup (list only)
-#[allow(dead_code)]
 pub fn render_explorer_list(
     frame: &mut Frame,
     area: Rect,

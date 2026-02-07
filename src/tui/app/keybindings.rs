@@ -13,7 +13,6 @@ use super::shared_state::SharedState;
 /// Each app wraps these in its own `Mode` enum and adds
 /// app-specific variants (e.g., ContextMenu, GlobSelect).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum SharedMode {
     /// Normal browsing mode
     Normal,
@@ -33,7 +32,6 @@ pub enum SharedMode {
 /// `NotConsumed` means the app should process the key itself.
 /// `EnterMode` signals that a mode transition should occur (caller decides).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum KeyResult {
     /// Key was handled by shared logic
     Consumed,
@@ -49,7 +47,6 @@ pub enum KeyResult {
 /// `KeyResult::NotConsumed`, the app runs its own mode-specific logic.
 /// If it returns `KeyResult::EnterMode`, the app should transition
 /// to the requested mode.
-#[allow(dead_code)]
 pub fn handle_shared_key(mode: &SharedMode, key: KeyEvent, state: &mut SharedState) -> KeyResult {
     match mode {
         SharedMode::Search => handle_search_key(key, state),
