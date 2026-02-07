@@ -58,18 +58,12 @@ impl AgentBackend for CodexBackend {
 
         // Build command: run in /tmp to avoid loading project skills/context.
         // --skip-git-repo-check prevents git repo discovery errors.
-        // --sandbox read-only prevents any writes.
+        // --sandbox read-only prevents any writes (placed AFTER extra_args
+        // so user config cannot override the sandbox restriction).
         // When stdout is piped, codex writes the response to stdout and
         // status/thinking to stderr, so no -o flag needed.
         let mut cmd = Command::new(Self::command());
-        cmd.args([
-            "exec",
-            "--cd",
-            "/tmp",
-            "--skip-git-repo-check",
-            "--sandbox",
-            "read-only",
-        ]);
+        cmd.args(["exec", "--cd", "/tmp", "--skip-git-repo-check"]);
 
         // Optionally add schema enforcement (slower but more reliable)
         if use_schema {
@@ -78,10 +72,13 @@ impl AgentBackend for CodexBackend {
             cmd.arg(&schema_path);
         }
 
-        // Append extra args from per-agent config
+        // Append extra args from per-agent config BEFORE safety flags
         for arg in &self.extra_args {
             cmd.arg(arg);
         }
+
+        // Safety-critical: sandbox must come last to prevent override by extra_args
+        cmd.args(["--sandbox", "read-only"]);
 
         // Pass prompt via stdin to avoid ARG_MAX limits
         cmd.stdin(Stdio::piped());

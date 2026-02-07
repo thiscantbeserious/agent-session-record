@@ -89,6 +89,15 @@ pub fn migrate_config(existing_content: &str) -> Result<MigrateResult> {
     doc.insert("config_version", value(i64::from(CURRENT_VERSION)));
     result.new_version = CURRENT_VERSION;
 
+    // Validate that migrated values pass config validation (e.g. agent names).
+    // This catches invalid values carried forward from old configs before writing.
+    let migrated_config: Config = toml::from_str(&doc.to_string())
+        .context("Migrated config is not valid TOML")?;
+    migrated_config
+        .analysis
+        .validate()
+        .map_err(|e| anyhow::anyhow!("Migrated config has invalid values: {}", e))?;
+
     // Sort sections first, then insert commented-out templates for optional
     // fields (Option<None> defaults). Templates must be inserted AFTER sorting
     // so they land in the correct (already-sorted) section positions. Running
@@ -127,8 +136,9 @@ fn sort_sections(doc: &mut DocumentMut) {
     let text = doc.to_string();
     let sorted = sort_toml_text(&text);
     if sorted != text {
-        if let Ok(new_doc) = sorted.parse::<DocumentMut>() {
-            *doc = new_doc;
+        match sorted.parse::<DocumentMut>() {
+            Ok(new_doc) => *doc = new_doc,
+            Err(e) => eprintln!("Warning: could not reorder config sections: {}", e),
         }
     }
 }

@@ -62,16 +62,18 @@ impl AgentBackend for GeminiBackend {
         // use_schema parameter is ignored
 
         // Use --approval-mode plan for read-only operation (no tool execution)
+        // Safety flags placed AFTER extra_args to prevent override.
         // Pass prompt via stdin to avoid ARG_MAX limits
         let mut cmd = Command::new(Self::command());
-        cmd.args(["--output-format", "json", "--approval-mode", "plan"]);
+        cmd.args(["--output-format", "json"]);
 
-        // Append extra args from per-agent config
+        // Append extra args from per-agent config BEFORE safety flags
         for arg in &self.extra_args {
             cmd.arg(arg);
         }
 
-        cmd.args(["--prompt", "-"]);
+        // Safety-critical: approval-mode and prompt source must come last
+        cmd.args(["--approval-mode", "plan", "--prompt", "-"]);
 
         let mut child = cmd
             .stdin(Stdio::piped())

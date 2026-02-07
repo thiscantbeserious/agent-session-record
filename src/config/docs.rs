@@ -178,9 +178,9 @@ pub fn insert_optional_field_templates(toml_str: &str) -> String {
                 .unwrap_or("")
                 .trim();
             current_section = name.to_string();
-        } else if let Some(eq_pos) = trimmed.find('=') {
+        } else if let Some((before_eq, _)) = trimmed.split_once('=') {
             // Detect both `key = value` and `# key = value` (commented-out template)
-            let before_eq = trimmed[..eq_pos].trim();
+            let before_eq = before_eq.trim();
             let key = before_eq.strip_prefix('#').unwrap_or(before_eq).trim();
             if !key.is_empty() {
                 present
@@ -295,8 +295,10 @@ pub fn annotate_config(toml_str: &str) -> String {
         }
 
         // Check for field with a known description
-        if let Some(eq_pos) = trimmed.find('=') {
-            let key = trimmed[..eq_pos].trim();
+        // Also match commented-out template lines like `# key = value`
+        if let Some((before_eq, _)) = trimmed.split_once('=') {
+            let raw_key = before_eq.trim();
+            let key = raw_key.strip_prefix('#').unwrap_or(raw_key).trim();
             if let Some(desc) = lookup.get(&(current_section.as_str(), key)) {
                 result.push_str(&format!("# {}\n", desc));
             }

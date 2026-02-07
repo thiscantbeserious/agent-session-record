@@ -15,7 +15,10 @@ use agr::Config;
 pub fn handle_show() -> Result<()> {
     let config = Config::load()?;
     let toml_str = toml::to_string_pretty(&config)?;
-    let annotated = agr::config::docs::annotate_config(&toml_str);
+    // Insert commented-out templates for optional fields (e.g. # workers = auto)
+    // before annotation so they also get documentation comments
+    let with_templates = agr::config::docs::insert_optional_field_templates(&toml_str);
+    let annotated = agr::config::docs::annotate_config(&with_templates);
     let theme = current_theme();
     println!("{}", theme.primary_text(&annotated));
     Ok(())
@@ -185,7 +188,9 @@ pub fn handle_reset(auto_confirm: bool) -> Result<()> {
     let theme = current_theme();
     let config_path = Config::config_path()?;
 
-    // Generate fresh default config through the migration pipeline
+    // Generate fresh default config through the migration pipeline.
+    // Using migrate_config("") ensures the reset config has the same structure,
+    // section ordering, and commented-out templates as a freshly migrated config.
     let result = migrate_config("")?;
 
     if !config_path.exists() {
@@ -205,9 +210,14 @@ pub fn handle_reset(auto_confirm: bool) -> Result<()> {
         return Ok(());
     }
 
-    // Back up existing config
+    // Back up existing config (use numbered suffix to avoid overwriting previous backups)
     if config_path.exists() {
-        let backup_path = config_path.with_extension("toml.bak");
+        let mut backup_path = config_path.with_extension("toml.bak");
+        let mut counter = 1u32;
+        while backup_path.exists() {
+            backup_path = config_path.with_extension(format!("toml.bak.{}", counter));
+            counter += 1;
+        }
         fs::copy(&config_path, &backup_path)
             .with_context(|| format!("Failed to back up config to {}", backup_path.display()))?;
         println!(
