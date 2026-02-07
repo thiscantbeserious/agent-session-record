@@ -30,17 +30,17 @@ Infrastructure rename. No logic changes. Updates all import paths directly (no s
 
 Replace the preview-specific `PreviewCache` with a generic `AsyncLruCache<K, V>`. Keep a `PreviewCache` type alias in the new module so all existing call sites compile unchanged.
 
-- [ ] Create `src/tui/lru_cache/` directory
-- [ ] Create `src/tui/lru_cache/mod.rs` (~30 lines): `pub mod cache; pub mod worker;` plus re-exports of `AsyncLruCache` and `PreviewCache` type alias
-- [ ] Create `src/tui/lru_cache/worker.rs` (~60 lines): `LoadResult<K, V>` struct, `worker_loop` function taking `Receiver<K>`, `Sender<LoadResult<K,V>>`, and a loader closure
-- [ ] Create `src/tui/lru_cache/cache.rs` (~100 lines): `AsyncLruCache<K, V>` struct with `new(max_size, loader)`, `poll()`, `get()`, `request()`, `prefetch()`, `invalidate()`, `is_pending()`; internal `insert()` and `touch()` methods
-- [ ] Add `PreviewCache` type alias in `src/tui/lru_cache/mod.rs`: `pub type PreviewCache = AsyncLruCache<String, SessionPreview>;` with a constructor helper or `Default` impl
-- [ ] Update `src/tui/mod.rs`: replace `pub mod preview_cache;` with `pub mod lru_cache;`
-- [ ] Update `src/tui/list_app.rs`: change `use super::preview_cache::PreviewCache;` to `use super::lru_cache::PreviewCache;`
-- [ ] Update `src/tui/cleanup_app.rs`: change `use super::preview_cache::PreviewCache;` to `use super::lru_cache::PreviewCache;`
-- [ ] Migrate tests from old `preview_cache.rs` into `src/tui/lru_cache/cache.rs` (adapted for generic API)
-- [ ] Delete `src/tui/preview_cache.rs`
-- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+- [x] Create `src/tui/lru_cache/` directory
+- [x] Create `src/tui/lru_cache/mod.rs` (~30 lines): `pub mod cache; pub mod worker;` plus re-exports of `AsyncLruCache` and `PreviewCache` type alias
+- [x] Create `src/tui/lru_cache/worker.rs` (~60 lines): `LoadResult<K, V>` struct, `worker_loop` function taking `Receiver<K>`, `Sender<LoadResult<K,V>>`, and a loader closure
+- [x] Create `src/tui/lru_cache/cache.rs` (~100 lines): `AsyncLruCache<K, V>` struct with `new(max_size, loader)`, `poll()`, `get()`, `request()`, `prefetch()`, `invalidate()`, `is_pending()`; internal `insert()` and `touch()` methods
+- [x] Add `PreviewCache` type alias in `src/tui/lru_cache/mod.rs`: `pub type PreviewCache = AsyncLruCache<String, SessionPreview>;` with a constructor helper or `Default` impl
+- [x] Update `src/tui/mod.rs`: replace `pub mod preview_cache;` with `pub mod lru_cache;`
+- [x] Update `src/tui/list_app.rs`: change `use super::preview_cache::PreviewCache;` to `use super::lru_cache::PreviewCache;`
+- [x] Update `src/tui/cleanup_app.rs`: change `use super::preview_cache::PreviewCache;` to `use super::lru_cache::PreviewCache;`
+- [x] Migrate tests from old `preview_cache.rs` into `src/tui/lru_cache/cache.rs` (adapted for generic API)
+- [x] Delete `src/tui/preview_cache.rs`
+- [x] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
 
 **Files created:** `src/tui/lru_cache/mod.rs`, `src/tui/lru_cache/cache.rs`, `src/tui/lru_cache/worker.rs`
 **Files deleted:** `src/tui/preview_cache.rs`

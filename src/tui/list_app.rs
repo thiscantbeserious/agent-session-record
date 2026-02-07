@@ -18,7 +18,7 @@ use ratatui::{
 
 use super::app::App;
 use super::event_bus::Event;
-use super::preview_cache::PreviewCache;
+use super::lru_cache::{new_preview_cache, PreviewCache};
 use super::widgets::{FileExplorer, FileExplorerWidget, FileItem};
 use crate::asciicast::{apply_transforms, TransformResult};
 use crate::files::backup::{backup_path_for, create_backup, has_backup, restore_from_backup};
@@ -150,7 +150,7 @@ impl ListApp {
             agent_filter_idx: 0,
             available_agents,
             status_message: None,
-            preview_cache: PreviewCache::default(),
+            preview_cache: new_preview_cache(),
             context_menu_idx: 0,
             optimize_result: None,
         })
@@ -699,7 +699,7 @@ impl ListApp {
             match restore_from_backup(path) {
                 Ok(()) => {
                     // Invalidate the preview cache for this file
-                    self.preview_cache.invalidate(path);
+                    self.preview_cache.invalidate(&path_str);
                     // Refresh file metadata in explorer
                     self.explorer.update_item_metadata(&path_str);
                     self.status_message = Some(format!("Restored from backup: {}", name));
@@ -723,7 +723,7 @@ impl ListApp {
             let result = match apply_transforms(path) {
                 Ok(result) => {
                     // Invalidate the preview cache for this file
-                    self.preview_cache.invalidate(path);
+                    self.preview_cache.invalidate(&path_str);
                     // Refresh file metadata in explorer
                     self.explorer.update_item_metadata(&path_str);
                     Ok(result)
@@ -789,7 +789,7 @@ impl ListApp {
 
                         if let Some(new_path) = new_file {
                             let new_path_str = new_path.to_string_lossy().to_string();
-                            self.preview_cache.invalidate(&new_path);
+                            self.preview_cache.invalidate(&new_path_str);
                             self.explorer.update_item_path(&path, &new_path_str);
                             self.status_message = Some(format!(
                                 "Analysis complete (renamed to {})",
@@ -806,7 +806,7 @@ impl ListApp {
                         }
                     } else {
                         // File still exists at original path — just invalidate cache
-                        self.preview_cache.invalidate(std::path::Path::new(&path));
+                        self.preview_cache.invalidate(&path);
                         self.explorer.update_item_metadata(&path);
                         self.status_message = Some("Analysis complete".to_string());
                     }

@@ -17,7 +17,7 @@ use ratatui::{
 
 use super::app::App;
 use super::event_bus::Event;
-use super::preview_cache::PreviewCache;
+use super::lru_cache::{new_preview_cache, PreviewCache};
 use super::widgets::{FileExplorer, FileExplorerWidget, FileItem};
 use crate::theme::current_theme;
 use crate::StorageManager;
@@ -91,7 +91,7 @@ impl CleanupApp {
             status_message: None,
             storage,
             files_deleted: false,
-            preview_cache: PreviewCache::default(),
+            preview_cache: new_preview_cache(),
         })
     }
 
