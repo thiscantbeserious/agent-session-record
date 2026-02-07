@@ -6,7 +6,7 @@ use anyhow::Result;
 
 use agr::theme::current_theme;
 use agr::tui::widgets::FileItem;
-use agr::tui::ListApp;
+use agr::tui::{ListApp, TuiApp};
 use agr::{Config, StorageManager};
 
 use super::truncate_string;

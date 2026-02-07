@@ -14,6 +14,7 @@ pub mod lru_cache;
 pub mod ui;
 pub mod widgets;
 
-// Re-export apps for commands
+// Re-export apps and trait for commands
+pub use app::TuiApp;
 pub use cleanup_app::CleanupApp;
 pub use list_app::ListApp;
