@@ -149,19 +149,19 @@ This is the primary extraction stage. Pull duplicated handler functions from `li
 
 Same pattern as Stage 5c but for `CleanupApp`. The shared handlers are already extracted, so this stage is primarily about wiring.
 
-- [ ] Add `shared_state: SharedState` field to `CleanupApp`, replacing individual `explorer`, `search_input`, `agent_filter_idx`, `available_agents`, `status_message`, `preview_cache` fields
-- [ ] Implement `TuiApp` trait for `CleanupApp`: `app()`, `shared_state()`, `is_normal_mode()`, `set_normal_mode()`, `handle_key()`, `draw()`
-- [ ] Replace `CleanupApp::run()` with the trait default `run()`
-- [ ] Update `CleanupApp::handle_key()` to call `handle_shared_key()` first, then handle app-specific modes (GlobSelect, ConfirmDelete with bulk-delete logic)
-- [ ] Update `CleanupApp::draw()` to use `build_explorer_layout()`, `render_explorer_list()`, `render_status_line()`, `render_footer()` from framework
-- [ ] Keep `CleanupApp`-specific help modal, glob-select modal, and bulk-delete confirm modal in `cleanup_app.rs`
-- [ ] Keep `cleanup_app.rs`'s own `format_size()` (uses `humansize` crate, different from `widgets/file_item.rs` version)
-- [ ] Update `CleanupApp::new()` to construct `SharedState` internally
-- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
-- [ ] Verify line count: `cleanup_app.rs` should be ~350 lines
+- [x] Add `shared_state: SharedState` field to `CleanupApp`, replacing individual `explorer`, `search_input`, `agent_filter_idx`, `available_agents`, `status_message`, `preview_cache` fields
+- [x] Implement `TuiApp` trait for `CleanupApp`: `app()`, `shared_state()`, `is_normal_mode()`, `set_normal_mode()`, `handle_key()`, `draw()`
+- [x] Replace `CleanupApp::run()` with the trait default `run()`
+- [x] Update `CleanupApp::handle_key()` to call `handle_shared_key()` first, then handle app-specific modes (GlobSelect, ConfirmDelete with bulk-delete logic)
+- [x] Update `CleanupApp::draw()` to use `build_explorer_layout()`, `render_explorer_list()`, `render_status_line()`, `render_footer()` from framework
+- [x] Keep `CleanupApp`-specific help modal, glob-select modal, and bulk-delete confirm modal in `cleanup_app.rs`
+- [x] Keep `cleanup_app.rs`'s own `format_size()` (uses `humansize` crate, different from `widgets/file_item.rs` version)
+- [x] Update `CleanupApp::new()` to construct `SharedState` internally
+- [x] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+- [x] Verify line count: `cleanup_app.rs` is ~768 lines (688 production + 80 tests) -- higher than the ~350 estimate because the help modal content builder accounts for ~75 lines, glob matching functions account for ~45 lines, select_by_glob accounts for ~50 lines, and the bulk-delete confirm modal + status/footer helpers account for ~110 lines, all app-specific code that cannot be shared
 
-**Files modified:** `src/tui/cleanup_app.rs`
-**What to verify:** `CleanupApp` public API unchanged (`new()`, `run()`, `files_were_deleted()`). Import paths unchanged. `cleanup_app.rs` is ~350 lines. Both apps behave identically to before.
+**Files modified:** `src/tui/cleanup_app.rs`, `src/commands/cleanup.rs`
+**What to verify:** `CleanupApp` public API unchanged (`new()`, `run()`, `files_were_deleted()`). `TuiApp` re-exported from `tui/mod.rs` and imported in `commands/cleanup.rs` for trait method access. Both apps behave identically to before.
 
 ---
 
