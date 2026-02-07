@@ -270,7 +270,7 @@ impl SessionPreview {
 /// Extracted from `list_app.rs` and `cleanup_app.rs` which had identical logic.
 pub fn prefetch_adjacent_previews(
     explorer: &super::FileExplorer,
-    cache: &mut crate::tui::preview_cache::PreviewCache,
+    cache: &mut crate::tui::lru_cache::PreviewCache,
 ) {
     let selected = explorer.selected();
     let len = explorer.len();

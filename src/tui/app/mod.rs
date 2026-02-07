@@ -30,7 +30,7 @@ use crossterm::{
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
 
-use crate::tui::event::{Event, EventHandler};
+use crate::tui::event_bus::{Event, EventHandler};
 
 /// TUI Application wrapper
 ///
