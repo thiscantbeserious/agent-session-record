@@ -7,9 +7,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::Hash;
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::thread;
+use std::sync::Arc;
 
-use super::worker::{worker_loop, LoadResult};
+use super::worker::{spawn_worker_pool, LoadResult, DEFAULT_POOL_SIZE};
 
 /// Async LRU cache that loads values on a background thread.
 ///
@@ -37,15 +37,14 @@ where
 {
     /// Create a new cache with the given max size and loader function.
     ///
-    /// The `loader` runs on a background thread for each requested key.
+    /// The `loader` runs on a pool of background threads for each requested key.
     /// It should return `Some(value)` on success or `None` on failure.
-    pub fn new(max_size: usize, loader: impl Fn(&K) -> Option<V> + Send + 'static) -> Self {
+    pub fn new(max_size: usize, loader: impl Fn(&K) -> Option<V> + Send + Sync + 'static) -> Self {
         let (request_tx, request_rx) = channel::<K>();
         let (result_tx, result_rx) = channel::<LoadResult<K, V>>();
 
-        thread::spawn(move || {
-            worker_loop(request_rx, result_tx, loader);
-        });
+        let loader = Arc::new(loader);
+        spawn_worker_pool(DEFAULT_POOL_SIZE, request_rx, result_tx, loader);
 
         Self {
             cache: HashMap::new(),
