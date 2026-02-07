@@ -1,6 +1,6 @@
 #!/bin/bash
 # Auto-analyze configuration tests for AGR
-# Tests: analysis_agent config, auto_analyze toggle, conditional agent detection
+# Tests: analysis agent config, auto_analyze toggle, conditional agent detection
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
@@ -31,24 +31,23 @@ else
     fail "Config missing no_wrap: $CONFIG"
 fi
 
-# Test: Config shows analysis_agent setting
-test_header "Config shows analysis_agent setting"
+# Test: Config shows analysis agent setting
+test_header "Config shows analysis agent setting"
 CONFIG=$($AGR config show)
-if echo "$CONFIG" | /usr/bin/grep -q "analysis_agent"; then
-    pass "Config shows analysis_agent option"
+if echo "$CONFIG" | /usr/bin/grep -q "agent"; then
+    pass "Config shows agent option"
 else
-    fail "Config missing analysis_agent: $CONFIG"
+    fail "Config missing agent: $CONFIG"
 fi
 
-# Test: Default analysis_agent is claude
-test_header "Default analysis_agent is claude"
-# Create fresh config by removing old one
+# Test: Default analysis agent is auto-detect (commented out template)
+test_header "Default analysis agent is auto-detect"
 reset_config
 CONFIG=$($AGR config show)
-if echo "$CONFIG" | /usr/bin/grep -q 'analysis_agent = "claude"'; then
-    pass "Default analysis_agent is claude"
+if echo "$CONFIG" | /usr/bin/grep -q 'agent = "claude"\|# agent = auto-detect'; then
+    pass "Default analysis agent is auto-detect or claude"
 else
-    fail "Default analysis_agent not claude: $CONFIG"
+    fail "Default analysis agent unexpected: $CONFIG"
 fi
 
 # ============================================
@@ -64,7 +63,9 @@ reset_config
 create_config << 'TOMLEOF'
 [recording]
 auto_analyze = true
-analysis_agent = "definitely-not-a-real-agent-12345"
+
+[analysis]
+agent = "definitely-not-a-real-agent-12345"
 TOMLEOF
 # Record a simple command - should complete without crashing even with missing analyzer
 RECORD_OUTPUT=$($AGR record echo -- "test auto-analyze hint" </dev/null 2>&1)
@@ -80,34 +81,38 @@ else
     fi
 fi
 
-# Test: Config with custom analysis_agent persists
-test_header "Custom analysis_agent persists in config"
+# Test: Config with custom analysis agent persists
+test_header "Custom analysis agent persists in config"
 reset_config
 create_config << 'TOMLEOF'
 [recording]
 auto_analyze = false
-analysis_agent = "codex"
+
+[analysis]
+agent = "codex"
 TOMLEOF
 CONFIG=$($AGR config show)
-if echo "$CONFIG" | /usr/bin/grep -q 'analysis_agent = "codex"'; then
-    pass "Custom analysis_agent (codex) persists"
+if echo "$CONFIG" | /usr/bin/grep -q 'agent = "codex"'; then
+    pass "Custom analysis agent (codex) persists"
 else
-    fail "Custom analysis_agent not persisted: $CONFIG"
+    fail "Custom analysis agent not persisted: $CONFIG"
 fi
 
-# Test: Config with gemini-cli as analysis_agent
-test_header "Config with gemini-cli analysis_agent"
+# Test: Config with gemini-cli as analysis agent
+test_header "Config with gemini-cli analysis agent"
 reset_config
 create_config << 'TOMLEOF'
 [recording]
 auto_analyze = true
-analysis_agent = "gemini-cli"
+
+[analysis]
+agent = "gemini-cli"
 TOMLEOF
 CONFIG=$($AGR config show)
-if echo "$CONFIG" | /usr/bin/grep -q 'analysis_agent = "gemini-cli"'; then
-    pass "gemini-cli as analysis_agent accepted"
+if echo "$CONFIG" | /usr/bin/grep -q 'agent = "gemini-cli"'; then
+    pass "gemini-cli as analysis agent accepted"
 else
-    fail "gemini-cli analysis_agent not accepted: $CONFIG"
+    fail "gemini-cli analysis agent not accepted: $CONFIG"
 fi
 
 # Test: Conditional agent detection tests (skip if not installed)
@@ -138,14 +143,16 @@ if [ -n "$AVAILABLE_AGENT" ]; then
     create_config << TOMLEOF
 [recording]
 auto_analyze = true
-analysis_agent = "$AVAILABLE_AGENT"
+
+[analysis]
+agent = "$AVAILABLE_AGENT"
 TOMLEOF
     # Note: We don't actually want the agent to analyze in E2E tests
     # as that would be slow and require API keys. We just verify the
     # config is read correctly.
     CONFIG=$($AGR config show)
     if echo "$CONFIG" | /usr/bin/grep -q "auto_analyze = true" && \
-       echo "$CONFIG" | /usr/bin/grep -q "analysis_agent = \"$AVAILABLE_AGENT\""; then
+       echo "$CONFIG" | /usr/bin/grep -q "agent = \"$AVAILABLE_AGENT\""; then
         pass "Auto-analyze config set correctly for $AVAILABLE_AGENT"
     else
         fail "Auto-analyze config not set correctly: $CONFIG"
@@ -160,7 +167,9 @@ reset_config
 create_config << 'TOMLEOF'
 [recording]
 auto_analyze = false
-analysis_agent = "claude"
+
+[analysis]
+agent = "claude"
 TOMLEOF
 # Record should complete quickly without any analysis attempt
 START_TIME=$(date +%s)
@@ -225,7 +234,7 @@ create_config << 'TOMLEOF'
 auto_analyze = false
 
 [analysis]
-default_agent = "claude"
+agent = "claude"
 TOMLEOF
 # Create a valid cast file if not already present
 $AGR record echo -- "test default agent" </dev/null 2>&1
@@ -234,9 +243,9 @@ if [ -f "$CAST_FILE" ]; then
     # Fake claude is in PATH, so this should succeed with the configured agent
     OUTPUT=$($AGR analyze "$CAST_FILE" 2>&1) && EXIT_CODE=0 || EXIT_CODE=$?
     if [ "$EXIT_CODE" -eq 0 ] && echo "$OUTPUT" | /usr/bin/grep -qi "marker"; then
-        pass "agr analyze uses config's default_agent (claude)"
+        pass "agr analyze uses config's analysis agent (claude)"
     else
-        fail "agr analyze should use config's default_agent (exit=$EXIT_CODE): $OUTPUT"
+        fail "agr analyze should use config's analysis agent (exit=$EXIT_CODE): $OUTPUT"
     fi
 else
     skip "Could not create test cast file for default agent test"
@@ -248,7 +257,9 @@ reset_config
 create_config << 'TOMLEOF'
 [recording]
 auto_analyze = false
-analysis_agent = "claude"
+
+[analysis]
+agent = "claude"
 TOMLEOF
 CAST_FILE=$(ls "$HOME/recorded_agent_sessions/echo/"*.cast 2>/dev/null | /usr/bin/tail -1)
 if [ -f "$CAST_FILE" ]; then
