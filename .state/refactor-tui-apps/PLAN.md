@@ -1,0 +1,251 @@
+# Implementation Plan: Modularize TUI Apps into Shared Framework
+
+Based on ADR at `.state/refactor-tui-apps/ADR.md` (Revision 7, Option C).
+
+**Verification command (must pass after every stage):**
+```
+cargo test && cargo clippy -- -D warnings && cargo insta test --check
+```
+
+---
+
+## Stage 1: Rename `event.rs` to `event_bus.rs`
+
+Infrastructure rename. No logic changes. Updates all import paths directly (no shim).
+
+- [ ] Rename `src/tui/event.rs` to `src/tui/event_bus.rs`
+- [ ] Update `src/tui/mod.rs`: change `pub mod event;` to `pub mod event_bus;`
+- [ ] Update `src/tui/app.rs`: change `use super::event::{Event, EventHandler};` to `use super::event_bus::{Event, EventHandler};`
+- [ ] Update `src/tui/list_app.rs`: change `use super::event::Event;` to `use super::event_bus::Event;`
+- [ ] Update `src/tui/cleanup_app.rs`: change `use super::event::Event;` to `use super::event_bus::Event;`
+- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+
+**Files created:** none
+**Files modified:** `src/tui/event_bus.rs` (renamed from `event.rs`), `src/tui/mod.rs`, `src/tui/app.rs`, `src/tui/list_app.rs`, `src/tui/cleanup_app.rs`
+**What to verify:** All imports resolve. All tests pass. No dead code warnings from old `event` module.
+
+---
+
+## Stage 2: Extract generic `lru_cache/` module from `preview_cache.rs`
+
+Replace the preview-specific `PreviewCache` with a generic `AsyncLruCache<K, V>`. Keep a `PreviewCache` type alias in the new module so all existing call sites compile unchanged.
+
+- [ ] Create `src/tui/lru_cache/` directory
+- [ ] Create `src/tui/lru_cache/mod.rs` (~30 lines): `pub mod cache; pub mod worker;` plus re-exports of `AsyncLruCache` and `PreviewCache` type alias
+- [ ] Create `src/tui/lru_cache/worker.rs` (~60 lines): `LoadResult<K, V>` struct, `worker_loop` function taking `Receiver<K>`, `Sender<LoadResult<K,V>>`, and a loader closure
+- [ ] Create `src/tui/lru_cache/cache.rs` (~100 lines): `AsyncLruCache<K, V>` struct with `new(max_size, loader)`, `poll()`, `get()`, `request()`, `prefetch()`, `invalidate()`, `is_pending()`; internal `insert()` and `touch()` methods
+- [ ] Add `PreviewCache` type alias in `src/tui/lru_cache/mod.rs`: `pub type PreviewCache = AsyncLruCache<String, SessionPreview>;` with a constructor helper or `Default` impl
+- [ ] Update `src/tui/mod.rs`: replace `pub mod preview_cache;` with `pub mod lru_cache;`
+- [ ] Update `src/tui/list_app.rs`: change `use super::preview_cache::PreviewCache;` to `use super::lru_cache::PreviewCache;`
+- [ ] Update `src/tui/cleanup_app.rs`: change `use super::preview_cache::PreviewCache;` to `use super::lru_cache::PreviewCache;`
+- [ ] Migrate tests from old `preview_cache.rs` into `src/tui/lru_cache/cache.rs` (adapted for generic API)
+- [ ] Delete `src/tui/preview_cache.rs`
+- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+
+**Files created:** `src/tui/lru_cache/mod.rs`, `src/tui/lru_cache/cache.rs`, `src/tui/lru_cache/worker.rs`
+**Files deleted:** `src/tui/preview_cache.rs`
+**Files modified:** `src/tui/mod.rs`, `src/tui/list_app.rs`, `src/tui/cleanup_app.rs`
+**What to verify:** `PreviewCache` type alias works as drop-in replacement. All preview loading still works. Generic `AsyncLruCache` has unit tests. No changes to behavior.
+
+---
+
+## Stage 3: Split `widgets/file_explorer.rs` into `file_item.rs` and `preview.rs`
+
+Extract `FileItem` and `SessionPreview` into their own files under `widgets/`. The remaining `file_explorer.rs` keeps the state machine, renderer, sort enums, and inline tests.
+
+### Stage 3a: Extract `widgets/file_item.rs`
+
+- [ ] Create `src/tui/widgets/file_item.rs` (~90 lines): move `FileItem` struct, `FileItem::new()`, `impl From<SessionInfo>`, and `format_size()` (the one from `file_explorer.rs`, lines 1038-1052)
+- [ ] Update `src/tui/widgets/file_explorer.rs`: remove `FileItem`, `From<SessionInfo>`, `format_size()`; add `use super::file_item::{FileItem, format_size};`
+- [ ] Update `src/tui/widgets/mod.rs`: add `pub mod file_item;` and `pub use file_item::{FileItem, format_size};`
+- [ ] Ensure `format_size` tests from `file_explorer.rs` move to `file_item.rs` inline tests
+- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+
+**Files created:** `src/tui/widgets/file_item.rs`
+**Files modified:** `src/tui/widgets/file_explorer.rs`, `src/tui/widgets/mod.rs`
+**What to verify:** All imports of `FileItem` via `agr::tui::widgets::FileItem` still resolve. `format_size` tests pass. Snapshot tests unchanged.
+
+### Stage 3b: Extract `widgets/preview.rs`
+
+- [ ] Create `src/tui/widgets/preview.rs` (~280 lines): move `SessionPreview` struct and full impl (`load`, `load_streaming`, `parse_event_minimal`, `styled_line_to_ratatui`, `to_ratatui_color`, `format_duration`) from `file_explorer.rs`
+- [ ] Move the `use crate::terminal::{Color, StyledLine};` and `use crate::asciicast::EventType;` imports to `preview.rs` (only if no longer needed in `file_explorer.rs`)
+- [ ] Update `src/tui/widgets/file_explorer.rs`: remove `SessionPreview` and all its impl methods; add `use super::preview::SessionPreview;` if needed internally
+- [ ] Update `src/tui/widgets/mod.rs`: add `pub mod preview;` and `pub use preview::SessionPreview;`
+- [ ] Add stub functions `prefetch_adjacent_previews()` and `extract_preview()` to `preview.rs` (bodies will be filled in Stage 5 when extracting from `list_app.rs`; for now, just create the function signatures as dead code or leave as TODO comments)
+- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+
+**Files created:** `src/tui/widgets/preview.rs`
+**Files modified:** `src/tui/widgets/file_explorer.rs`, `src/tui/widgets/mod.rs`
+**What to verify:** All imports of `SessionPreview` via `agr::tui::widgets::SessionPreview` still resolve. Preview loading in integration tests still passes. `file_explorer.rs` is now ~650 lines production code (plus ~400 lines inline tests).
+
+---
+
+## Stage 4: Convert `app.rs` to `app/` directory module with `TuiApp` trait
+
+Move `app.rs` into `app/mod.rs`. Define the `TuiApp` trait. No consumers yet -- both apps still use their own `run()`. This stage only creates the framework skeleton.
+
+- [ ] Create `src/tui/app/` directory
+- [ ] Move `src/tui/app.rs` content into `src/tui/app/mod.rs`
+- [ ] Delete `src/tui/app.rs`
+- [ ] Add `TuiApp` trait definition in `app/mod.rs` with required methods: `app()`, `shared_state()`, `is_normal_mode()`, `set_normal_mode()`, `handle_key()`, `draw()`; and default `run()` method
+- [ ] Create `src/tui/app/shared_state.rs` (~60 lines): `SharedState` struct with fields `explorer`, `search_input`, `agent_filter_idx`, `available_agents`, `status_message`, `preview_cache`; `SharedState::new(items)` constructor with agent collection logic; `apply_agent_filter()` method
+- [ ] Create `src/tui/app/keybindings.rs` (~120 lines): `SharedMode` enum (Normal, Search, AgentFilter, Help, ConfirmDelete); `KeyResult` enum (Consumed, NotConsumed); `handle_shared_key()` function stub (will be populated in Stage 5)
+- [ ] Create `src/tui/app/layout.rs` (~50 lines): `build_explorer_layout()` function returning 3-chunk vertical layout (Min(1) / Length(1) / Length(1))
+- [ ] Create `src/tui/app/list_view.rs` (~60 lines): `render_explorer_list()` function that configures and renders `FileExplorerWidget` into the explorer chunk
+- [ ] Create `src/tui/app/modals.rs` (~70 lines): `center_modal()` utility, `render_confirm_delete_modal()` shared between both apps
+- [ ] Create `src/tui/app/status_footer.rs` (~80 lines): `render_status_line()` and `render_footer()` functions (initially stubs or extracted from common patterns)
+- [ ] Add sub-module declarations and re-exports in `app/mod.rs`
+- [ ] Ensure `src/tui/mod.rs` still has `pub mod app;` (Rust resolves this to `app/mod.rs` automatically)
+- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+
+**Files created:** `src/tui/app/mod.rs`, `src/tui/app/shared_state.rs`, `src/tui/app/keybindings.rs`, `src/tui/app/layout.rs`, `src/tui/app/list_view.rs`, `src/tui/app/modals.rs`, `src/tui/app/status_footer.rs`
+**Files deleted:** `src/tui/app.rs`
+**Files modified:** `src/tui/mod.rs` (if needed for re-exports)
+**What to verify:** `App` struct still works exactly as before. New trait and modules compile but are not yet used by `list_app` or `cleanup_app`. All existing tests pass unchanged.
+
+---
+
+## Stage 5: Extract shared logic from `list_app.rs` into `app/` framework
+
+This is the primary extraction stage. Pull duplicated handler functions from `list_app.rs` into the `app/` framework files. `list_app.rs` implements `TuiApp` trait.
+
+### Stage 5a: Populate `keybindings.rs` with shared key handlers
+
+- [ ] Extract `handle_search_key()` logic from `list_app.rs` into `app/keybindings.rs` as part of `handle_shared_key()` dispatch
+- [ ] Extract `handle_agent_filter_key()` logic from `list_app.rs` into `app/keybindings.rs`
+- [ ] Extract `handle_help_key()` logic from `list_app.rs` into `app/keybindings.rs`
+- [ ] Extract navigation key handling (up/down/pgup/pgdn/home/end) from `list_app.rs` into `app/keybindings.rs`
+- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+
+### Stage 5b: Populate view helpers and move `prefetch`/`extract` to `widgets/preview.rs`
+
+- [ ] Populate `app/layout.rs`: extract the 3-chunk vertical layout from `list_app.rs` `draw()` into `build_explorer_layout()`
+- [ ] Populate `app/list_view.rs`: extract `FileExplorerWidget` configuration + rendering from `list_app.rs` `draw()` into `render_explorer_list()`
+- [ ] Populate `app/status_footer.rs`: extract status line and footer rendering from `list_app.rs` `draw()`
+- [ ] Populate `app/modals.rs`: extract `center_modal()` pattern and shared confirm-delete modal rendering from `list_app.rs`
+- [ ] Move `prefetch_adjacent_previews()` from `list_app.rs` to `src/tui/widgets/preview.rs` (free function taking `&FileExplorer` and `&mut PreviewCache`)
+- [ ] Move preview extraction pattern from `list_app.rs` `draw()` into `extract_preview()` in `src/tui/widgets/preview.rs`
+- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+
+### Stage 5c: Make `ListApp` implement `TuiApp`
+
+- [ ] Add `shared_state: SharedState` field to `ListApp`, replacing individual `explorer`, `search_input`, `agent_filter_idx`, `available_agents`, `status_message`, `preview_cache` fields
+- [ ] Implement `TuiApp` trait for `ListApp`: `app()`, `shared_state()`, `is_normal_mode()`, `set_normal_mode()`, `handle_key()`, `draw()`
+- [ ] Replace `ListApp::run()` with the trait default `run()` (remove the custom `run` method; if the trait default is not sufficient, keep a thin override that calls the default)
+- [ ] Update `ListApp::handle_key()` to call `handle_shared_key()` first, then handle app-specific modes (ContextMenu, OptimizeResult, ConfirmDelete with app-specific delete logic)
+- [ ] Update `ListApp::draw()` to use `build_explorer_layout()`, `render_explorer_list()`, `render_status_line()`, `render_footer()` from framework
+- [ ] Keep `ListApp::render_help_modal()`, `render_context_menu_modal()`, `render_optimize_result_modal()` as public static methods on `ListApp` (snapshot test compatibility)
+- [ ] Keep `ContextMenuItem`, `ContextMenuitem::ALL`, `OptimizeResultState` in `list_app.rs`
+- [ ] Update `ListApp::new()` to construct `SharedState` internally
+- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+- [ ] Verify line count: `list_app.rs` should be ~400 lines
+
+**Files modified:** `src/tui/app/keybindings.rs`, `src/tui/app/layout.rs`, `src/tui/app/list_view.rs`, `src/tui/app/status_footer.rs`, `src/tui/app/modals.rs`, `src/tui/widgets/preview.rs`, `src/tui/list_app.rs`
+**What to verify:** All snapshot tests pass byte-for-byte. `ListApp` public API unchanged (`new()`, `run()`, `set_agent_filter()`, static modal methods). Import paths unchanged. `list_app.rs` is ~400 lines.
+
+---
+
+## Stage 6: Migrate `cleanup_app.rs` to `TuiApp` trait
+
+Same pattern as Stage 5c but for `CleanupApp`. The shared handlers are already extracted, so this stage is primarily about wiring.
+
+- [ ] Add `shared_state: SharedState` field to `CleanupApp`, replacing individual `explorer`, `search_input`, `agent_filter_idx`, `available_agents`, `status_message`, `preview_cache` fields
+- [ ] Implement `TuiApp` trait for `CleanupApp`: `app()`, `shared_state()`, `is_normal_mode()`, `set_normal_mode()`, `handle_key()`, `draw()`
+- [ ] Replace `CleanupApp::run()` with the trait default `run()`
+- [ ] Update `CleanupApp::handle_key()` to call `handle_shared_key()` first, then handle app-specific modes (GlobSelect, ConfirmDelete with bulk-delete logic)
+- [ ] Update `CleanupApp::draw()` to use `build_explorer_layout()`, `render_explorer_list()`, `render_status_line()`, `render_footer()` from framework
+- [ ] Keep `CleanupApp`-specific help modal, glob-select modal, and bulk-delete confirm modal in `cleanup_app.rs`
+- [ ] Keep `cleanup_app.rs`'s own `format_size()` (uses `humansize` crate, different from `widgets/file_item.rs` version)
+- [ ] Update `CleanupApp::new()` to construct `SharedState` internally
+- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+- [ ] Verify line count: `cleanup_app.rs` should be ~350 lines
+
+**Files modified:** `src/tui/cleanup_app.rs`
+**What to verify:** `CleanupApp` public API unchanged (`new()`, `run()`, `files_were_deleted()`). Import paths unchanged. `cleanup_app.rs` is ~350 lines. Both apps behave identically to before.
+
+---
+
+## Stage 7: Update `mod.rs` re-exports and verify all external imports
+
+Ensure all public re-exports are correct and all external import paths work.
+
+- [ ] Update `src/tui/mod.rs`: add re-exports for new modules (`app::TuiApp`, `app::SharedState`, `lru_cache::PreviewCache`, `lru_cache::AsyncLruCache` if needed)
+- [ ] Update `src/tui/widgets/mod.rs`: verify re-exports include `file_item::FileItem`, `file_item::format_size`, `preview::SessionPreview`, `file_explorer::{FileExplorer, FileExplorerWidget, SortDirection, SortField}`, `logo::Logo`
+- [ ] Verify all external import paths work:
+  - `agr::tui::ListApp`
+  - `agr::tui::CleanupApp`
+  - `agr::tui::list_app::ListApp`
+  - `agr::tui::list_app::OptimizeResultState`
+  - `agr::tui::widgets::FileItem`
+  - `agr::tui::widgets::FileExplorer`
+  - `agr::tui::widgets::FileExplorerWidget`
+  - `agr::tui::widgets::SessionPreview`
+  - `agr::tui::widgets::SortField`
+  - `agr::tui::widgets::SortDirection`
+  - `agr::tui::widgets::Logo`
+- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+
+**Files modified:** `src/tui/mod.rs`, `src/tui/widgets/mod.rs`
+**What to verify:** All test files compile. All command files compile. No unused import warnings. No broken re-export paths.
+
+---
+
+## Stage 8: Final cleanup and verification
+
+Remove any temporary scaffolding. Verify all acceptance criteria.
+
+- [ ] Remove any temporary type aliases that were used as intermediate compilation aids
+- [ ] Remove any `#[allow(dead_code)]` annotations added during refactoring (keep the existing one in `mod.rs` only if still needed)
+- [ ] Remove any TODO comments left during staged implementation
+- [ ] Run `cargo clippy -- -D warnings` and fix any warnings
+- [ ] Run `cargo test` -- all unit tests pass
+- [ ] Run `cargo insta test --check` -- all snapshot tests pass byte-for-byte
+- [ ] Verify line counts:
+  - `src/tui/list_app.rs` ~400 lines
+  - `src/tui/cleanup_app.rs` ~350 lines
+  - `src/tui/app/mod.rs` ~290 lines
+  - `src/tui/app/keybindings.rs` ~120 lines
+  - `src/tui/app/shared_state.rs` ~60 lines
+  - `src/tui/app/layout.rs` ~50 lines
+  - `src/tui/app/list_view.rs` ~60 lines
+  - `src/tui/app/modals.rs` ~70 lines
+  - `src/tui/app/status_footer.rs` ~80 lines
+  - `src/tui/lru_cache/mod.rs` ~30 lines
+  - `src/tui/lru_cache/cache.rs` ~100 lines
+  - `src/tui/lru_cache/worker.rs` ~60 lines
+  - `src/tui/event_bus.rs` ~150 lines
+  - `src/tui/widgets/file_item.rs` ~90 lines
+  - `src/tui/widgets/preview.rs` ~280 lines
+  - `src/tui/widgets/file_explorer.rs` ~650 lines production (~1050 with inline tests, accepted exception)
+  - All other files under 400 lines
+- [ ] Verify zero code duplication between `list_app.rs` and `cleanup_app.rs` for shared patterns (search, agent filter, help, navigation, modal centering, preview prefetch)
+- [ ] Verify no shim files exist
+- [ ] Verify no backward-compatibility type aliases remain in final state
+- [ ] Verify no dead code warnings
+
+**Files modified:** potentially any file with temporary scaffolding
+**What to verify:** Full acceptance criteria from REQUIREMENTS.md. Clean `cargo clippy`. Clean `cargo test`. Clean `cargo insta test --check`. All files within size limits.
+
+---
+
+## Stage Dependency Graph
+
+```
+Stage 1 (event_bus rename)
+    |
+Stage 2 (lru_cache extraction)
+    |
+Stage 3a (file_item.rs) --> Stage 3b (preview.rs)
+    |
+Stage 4 (app/ directory + TuiApp trait skeleton)
+    |
+Stage 5a (keybindings) --> Stage 5b (view helpers + preview functions) --> Stage 5c (ListApp implements TuiApp)
+    |
+Stage 6 (CleanupApp implements TuiApp)
+    |
+Stage 7 (re-exports verification)
+    |
+Stage 8 (final cleanup)
+```
+
+Stages 1, 2, and 3 are independent of each other and could theoretically be done in parallel, but sequential execution is recommended to keep diffs reviewable. Stage 4 depends on Stages 1-3 being complete (the `app/mod.rs` needs to import from `event_bus` and `lru_cache`). Stages 5 and 6 are strictly sequential. Stages 7 and 8 are final verification.
