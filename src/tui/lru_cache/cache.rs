@@ -110,8 +110,11 @@ where
         self.pending.remove(key);
     }
 
-    /// Insert a value into the cache, evicting the oldest entry if at capacity
-    fn insert(&mut self, key: K, value: V) {
+    /// Insert a pre-loaded value directly into the cache.
+    ///
+    /// Useful for synchronously seeding the cache (e.g. the first preview)
+    /// so it's available immediately without waiting for a worker round-trip.
+    pub fn insert(&mut self, key: K, value: V) {
         if self.cache.contains_key(&key) {
             self.touch(&key);
             return;

@@ -4,7 +4,7 @@
 //! (search input, agent filter, explorer, status message, preview cache).
 
 use crate::tui::lru_cache::{new_preview_cache, PreviewCache};
-use crate::tui::widgets::{FileExplorer, FileItem};
+use crate::tui::widgets::{FileExplorer, FileItem, SessionPreview};
 
 /// Shared state fields used by all TUI explorer applications.
 ///
@@ -37,6 +37,15 @@ impl SharedState {
         available_agents.extend(agents);
 
         let explorer = FileExplorer::new(items);
+        let mut preview_cache = new_preview_cache();
+
+        // Synchronously load the first preview so it's available on
+        // the very first draw() — no async round-trip needed.
+        if let Some(item) = explorer.selected_item() {
+            if let Some(preview) = SessionPreview::load(&item.path) {
+                preview_cache.insert(item.path.clone(), preview);
+            }
+        }
 
         Self {
             explorer,
@@ -44,7 +53,7 @@ impl SharedState {
             agent_filter_idx: 0,
             available_agents,
             status_message: None,
-            preview_cache: new_preview_cache(),
+            preview_cache,
         }
     }
 
