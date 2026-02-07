@@ -1,5 +1,6 @@
 //! Configuration management for ASR
 
+pub mod docs;
 mod io;
 mod migrate;
 mod types;
@@ -93,29 +94,16 @@ impl Config {
     }
 
     /// Resolve the analysis agent with cascade:
-    /// 1. `[analysis].default_agent` (new config)
-    /// 2. `[recording].analysis_agent` (deprecated, warns if non-default)
-    /// 3. Auto-detect first available agent binary on PATH
-    /// 4. Fall back to "claude"
+    /// 1. `[analysis].agent` (explicit config)
+    /// 2. Auto-detect first available agent binary on PATH
+    /// 3. Fall back to "claude"
     pub fn resolve_analysis_agent(&self) -> String {
-        // 1. Prefer new [analysis].default_agent
-        if let Some(ref agent) = self.analysis.default_agent {
+        // 1. Prefer explicit [analysis].agent
+        if let Some(ref agent) = self.analysis.agent {
             return agent.clone();
         }
 
-        // 2. Fall back to deprecated [recording].analysis_agent
-        let old_value = &self.recording.analysis_agent;
-        let default_value = default_analysis_agent();
-
-        if *old_value != default_value {
-            eprintln!(
-                "Warning: [recording].analysis_agent is deprecated. \
-                 Use [analysis].default_agent instead."
-            );
-            return old_value.clone();
-        }
-
-        // 3. Auto-detect first available agent binary
+        // 2. Auto-detect first available agent binary
         for (cmd, name) in &[
             ("claude", "claude"),
             ("codex", "codex"),
@@ -126,14 +114,14 @@ impl Config {
             }
         }
 
-        // 4. Ultimate fallback
+        // 3. Ultimate fallback
         "claude".to_string()
     }
 
     /// Look up per-agent analysis configuration.
     ///
-    /// Returns `None` if no agent-specific config exists.
+    /// Returns `None` if the agent name is not recognized.
     pub fn analysis_agent_config(&self, agent_name: &str) -> Option<&AgentAnalysisConfig> {
-        self.analysis.agents.get(agent_name)
+        self.agents.agent_config(agent_name)
     }
 }

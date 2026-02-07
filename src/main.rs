@@ -302,6 +302,7 @@ fn main() -> Result<()> {
             debug,
             output,
             fast,
+            wait,
         } => commands::analyze::handle(
             &file,
             agent.as_deref(),
@@ -312,6 +313,7 @@ fn main() -> Result<()> {
             debug,
             output,
             fast,
+            wait,
         ),
         Commands::Play { file } => commands::play::handle(&file),
         Commands::Copy { file } => commands::copy::handle(&file),
@@ -472,6 +474,7 @@ mod tests {
                 debug: _,
                 output: _,
                 fast,
+                wait,
             } => {
                 assert_eq!(file, "session.cast");
                 assert!(agent.is_none());
@@ -480,6 +483,7 @@ mod tests {
                 assert!(!no_parallel);
                 assert!(!curate);
                 assert!(!fast);
+                assert!(!wait);
             }
             _ => panic!("Expected Analyze command"),
         }
@@ -591,6 +595,7 @@ mod tests {
                 debug,
                 output,
                 fast,
+                wait,
             } => {
                 assert_eq!(file, "session.cast");
                 assert_eq!(agent, Some("codex".to_string()));
@@ -601,6 +606,7 @@ mod tests {
                 assert!(debug);
                 assert_eq!(output, Some("debug.txt".to_string()));
                 assert!(!fast);
+                assert!(!wait);
             }
             _ => panic!("Expected Analyze command"),
         }
