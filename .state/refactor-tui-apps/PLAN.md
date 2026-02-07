@@ -119,13 +119,13 @@ This is the primary extraction stage. Pull duplicated handler functions from `li
 
 ### Stage 5b: Populate view helpers and move `prefetch`/`extract` to `widgets/preview.rs`
 
-- [ ] Populate `app/layout.rs`: extract the 3-chunk vertical layout from `list_app.rs` `draw()` into `build_explorer_layout()`
-- [ ] Populate `app/list_view.rs`: extract `FileExplorerWidget` configuration + rendering from `list_app.rs` `draw()` into `render_explorer_list()`
-- [ ] Populate `app/status_footer.rs`: extract status line and footer rendering from `list_app.rs` `draw()`
-- [ ] Populate `app/modals.rs`: extract `center_modal()` pattern and shared confirm-delete modal rendering from `list_app.rs`
-- [ ] Move `prefetch_adjacent_previews()` from `list_app.rs` to `src/tui/widgets/preview.rs` (free function taking `&FileExplorer` and `&mut PreviewCache`)
-- [ ] Move preview extraction pattern from `list_app.rs` `draw()` into `extract_preview()` in `src/tui/widgets/preview.rs`
-- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+- [x] Populate `app/layout.rs`: extract the 3-chunk vertical layout from `list_app.rs` `draw()` into `build_explorer_layout()`
+- [x] Populate `app/list_view.rs`: extract `FileExplorerWidget` configuration + rendering from `list_app.rs` `draw()` into `render_explorer_list()`
+- [x] Populate `app/status_footer.rs`: extract status line and footer rendering from `list_app.rs` `draw()`
+- [x] Populate `app/modals.rs`: extract `center_modal()` pattern and shared confirm-delete modal rendering from `list_app.rs`
+- [x] Move `prefetch_adjacent_previews()` from `list_app.rs` to `src/tui/widgets/preview.rs` (free function taking `&FileExplorer` and `&mut PreviewCache`)
+- [x] Move preview extraction pattern from `list_app.rs` `draw()` into `extract_preview()` in `src/tui/widgets/preview.rs`
+- [x] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
 
 ### Stage 5c: Make `ListApp` implement `TuiApp`
 

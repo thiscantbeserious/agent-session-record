@@ -12,9 +12,6 @@ use ratatui::layout::{Constraint, Layout, Rect};
 /// - `[1]` status line (`Length(1)`)
 /// - `[2]` footer (`Length(1)`)
 ///
-/// Stub for now -- will be populated in Stage 5 with the actual
-/// layout logic extracted from list_app and cleanup_app draw methods.
-#[allow(dead_code)]
 pub fn build_explorer_layout(area: Rect) -> Vec<Rect> {
     Layout::vertical([
         Constraint::Min(1),

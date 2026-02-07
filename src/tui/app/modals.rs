@@ -1,16 +1,24 @@
 //! Shared modal utilities for TUI explorer applications
 //!
-//! Provides `center_modal()` for creating centered modal areas and
+//! Provides `center_modal()` for creating centered modal areas,
+//! `clear_area()` for clearing a rect before drawing, and
 //! shared modal rendering functions used by both apps.
 
-use ratatui::layout::Rect;
+use ratatui::{
+    layout::{Alignment, Rect},
+    style::{Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Clear, Paragraph},
+    Frame,
+};
+
+use crate::theme::current_theme;
 
 /// Calculate a centered modal area within the given parent area.
 ///
 /// Constrains the modal to the given `width` and `height`, centered
 /// both horizontally and vertically. Clamps to fit within the parent
 /// area with at least 2 cells of margin on each side.
-#[allow(dead_code)]
 pub fn center_modal(area: Rect, width: u16, height: u16) -> Rect {
     let modal_width = width.min(area.width.saturating_sub(4));
     let modal_height = height.min(area.height.saturating_sub(4));
@@ -19,13 +27,55 @@ pub fn center_modal(area: Rect, width: u16, height: u16) -> Rect {
     Rect::new(x, y, modal_width, modal_height)
 }
 
-/// Render a confirm-delete modal overlay.
+/// Clear a rectangular area before drawing a modal overlay.
 ///
-/// Stub for now -- will be populated in Stage 5 with the shared
-/// confirm-delete modal rendering extracted from list_app and cleanup_app.
+/// Renders a `Clear` widget to erase whatever is behind the modal.
 #[allow(dead_code)]
-pub fn render_confirm_delete_modal(_frame: &mut ratatui::Frame, _area: Rect, _message: &str) {
-    // Stub -- will be populated in Stage 5
+pub fn clear_area(frame: &mut Frame, area: Rect) {
+    frame.render_widget(Clear, area);
+}
+
+/// Render a confirm-delete modal for a single file.
+///
+/// Shows the filename and y/n confirmation prompt. Extracted from
+/// `list_app.rs` `render_confirm_delete_modal`. The cleanup app uses
+/// a different bulk-delete modal, so it keeps its own version.
+#[allow(dead_code)]
+pub fn render_confirm_delete_modal(frame: &mut Frame, area: Rect, filename: &str) {
+    let theme = current_theme();
+    let modal_area = center_modal(area, 50, 7);
+
+    // Clear the area behind the modal
+    frame.render_widget(Clear, modal_area);
+
+    let text = vec![
+        Line::from(Span::styled(
+            "Delete Session?",
+            Style::default()
+                .fg(theme.error)
+                .add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from(format!("File: {}", filename)),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("y", Style::default().fg(theme.error)),
+            Span::raw(": Yes, delete  |  "),
+            Span::styled("n", Style::default().fg(theme.accent)),
+            Span::raw(": No, cancel"),
+        ]),
+    ];
+
+    let confirm = Paragraph::new(text)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(theme.error))
+                .title(" Confirm Delete "),
+        )
+        .alignment(Alignment::Center);
+
+    frame.render_widget(confirm, modal_area);
 }
 
 #[cfg(test)]

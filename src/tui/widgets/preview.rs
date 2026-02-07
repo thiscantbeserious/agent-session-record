@@ -2,6 +2,7 @@
 //!
 //! Handles loading session data from asciicast files and converting
 //! terminal output into ratatui rendering primitives for display.
+//! Also provides preview prefetching and cache extraction helpers.
 
 use std::path::Path;
 
@@ -260,6 +261,59 @@ impl SessionPreview {
             format!("{}s", seconds)
         }
     }
+}
+
+/// Prefetch previews for the current, previous, and next items.
+///
+/// Collects up to 3 paths (current selection, previous with wrap,
+/// next with wrap) and submits them to the cache for background loading.
+/// Extracted from `list_app.rs` and `cleanup_app.rs` which had identical logic.
+#[allow(dead_code)]
+pub fn prefetch_adjacent_previews(
+    explorer: &super::FileExplorer,
+    cache: &mut crate::tui::lru_cache::PreviewCache,
+) {
+    let selected = explorer.selected();
+    let len = explorer.len();
+    if len == 0 {
+        return;
+    }
+
+    // Collect paths to prefetch (current, prev, next)
+    let mut paths_to_prefetch = Vec::with_capacity(3);
+
+    // Current selection
+    if let Some(item) = explorer.selected_item() {
+        paths_to_prefetch.push(item.path.clone());
+    }
+
+    // Previous item (with wrap)
+    let prev_idx = if selected > 0 { selected - 1 } else { len - 1 };
+    if let Some((_, item, _)) = explorer.visible_items().nth(prev_idx) {
+        paths_to_prefetch.push(item.path.clone());
+    }
+
+    // Next item (with wrap)
+    let next_idx = if selected < len - 1 { selected + 1 } else { 0 };
+    if let Some((_, item, _)) = explorer.visible_items().nth(next_idx) {
+        paths_to_prefetch.push(item.path.clone());
+    }
+
+    // Request prefetch for all
+    cache.prefetch(&paths_to_prefetch);
+}
+
+/// Extract the current preview from cache for the selected item.
+///
+/// Returns `None` if no item is selected or preview is not yet cached.
+/// Extracted from the draw methods of `list_app.rs` and `cleanup_app.rs`.
+#[allow(dead_code)]
+pub fn extract_preview<'a>(
+    explorer: &super::FileExplorer,
+    cache: &'a mut crate::tui::lru_cache::PreviewCache,
+) -> Option<&'a SessionPreview> {
+    let path = explorer.selected_item().map(|i| i.path.clone())?;
+    cache.get(&path)
 }
 
 #[cfg(test)]
