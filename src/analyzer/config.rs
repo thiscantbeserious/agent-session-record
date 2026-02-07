@@ -78,9 +78,9 @@ impl Default for ExtractionConfig {
 /// to override. CLI flags take priority over config, which overrides defaults.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalysisConfig {
-    /// Default agent for analysis ("claude", "codex", "gemini")
-    #[serde(default = "default_analysis_default_agent")]
-    pub default_agent: Option<String>,
+    /// Preferred agent for analysis ("claude", "codex", "gemini")
+    #[serde(default = "default_analysis_agent")]
+    pub agent: Option<String>,
     /// Number of parallel workers (None = auto-scale)
     #[serde(default)]
     pub workers: Option<usize>,
@@ -93,12 +93,9 @@ pub struct AnalysisConfig {
     /// Auto-curate markers when count exceeds threshold
     #[serde(default = "default_analysis_curate")]
     pub curate: Option<bool>,
-    /// Per-agent configuration overrides
-    #[serde(default = "default_analysis_agents")]
-    pub agents: HashMap<String, AgentAnalysisConfig>,
 }
 
-pub fn default_analysis_default_agent() -> Option<String> {
+pub fn default_analysis_agent() -> Option<String> {
     None
 }
 
@@ -114,23 +111,14 @@ pub fn default_analysis_curate() -> Option<bool> {
     Some(true)
 }
 
-pub fn default_analysis_agents() -> HashMap<String, AgentAnalysisConfig> {
-    let mut agents = HashMap::new();
-    agents.insert("claude".to_string(), AgentAnalysisConfig::default());
-    agents.insert("codex".to_string(), AgentAnalysisConfig::default());
-    agents.insert("gemini".to_string(), AgentAnalysisConfig::default());
-    agents
-}
-
 impl Default for AnalysisConfig {
     fn default() -> Self {
         Self {
-            default_agent: default_analysis_default_agent(),
+            agent: default_analysis_agent(),
             workers: None,
             timeout: default_analysis_timeout(),
             fast: default_analysis_fast(),
             curate: default_analysis_curate(),
-            agents: default_analysis_agents(),
         }
     }
 }
@@ -141,11 +129,11 @@ impl AnalysisConfig {
     /// Returns `Ok(())` if all values are within acceptable bounds,
     /// or an error describing the first invalid value found.
     pub fn validate(&self) -> Result<(), String> {
-        if let Some(ref agent) = self.default_agent {
+        if let Some(ref agent) = self.agent {
             let valid = ["claude", "codex", "gemini"];
             if !valid.contains(&agent.as_str()) {
                 return Err(format!(
-                    "Unknown default_agent '{}'. Valid: {}",
+                    "Unknown agent '{}'. Valid: {}",
                     agent,
                     valid.join(", ")
                 ));
@@ -167,7 +155,15 @@ impl AnalysisConfig {
                 return Err(format!("analysis.workers {} exceeds maximum (32)", w));
             }
         }
-        for (name, agent_config) in &self.agents {
+        Ok(())
+    }
+
+    /// Validate per-agent configs (called from Config level where agents are accessible).
+    pub fn validate_agent_configs(
+        &self,
+        agent_configs: &HashMap<String, AgentAnalysisConfig>,
+    ) -> Result<(), String> {
+        for (name, agent_config) in agent_configs {
             if let Some(budget) = agent_config.token_budget {
                 if budget < 1000 {
                     return Err(format!(
@@ -184,12 +180,59 @@ impl AnalysisConfig {
 /// Per-agent analysis configuration.
 ///
 /// Allows customizing extra CLI arguments and token budgets for individual agents.
+/// Each task type (analyze, curate, rename) can override the global `extra_args`.
+///
+/// ```toml
+/// [agents.codex]
+/// extra_args = ["--model", "gpt-5.2-codex"]                # default for all tasks
+/// analyze_extra_args = ["--model", "gpt-5.2-codex"]        # override for analysis
+/// curate_extra_args = ["--model", "gpt-5.1-codex-mini"]    # override for curation
+/// rename_extra_args = ["--model", "gpt-5.1-codex-mini"]    # override for rename
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AgentAnalysisConfig {
-    /// Extra CLI arguments to pass to the agent
+    /// Default extra CLI arguments for all tasks
     #[serde(default)]
     pub extra_args: Vec<String>,
+    /// Extra CLI arguments for analysis (overrides extra_args)
+    #[serde(default)]
+    pub analyze_extra_args: Vec<String>,
+    /// Extra CLI arguments for curation (overrides extra_args)
+    #[serde(default)]
+    pub curate_extra_args: Vec<String>,
+    /// Extra CLI arguments for rename (overrides extra_args)
+    #[serde(default)]
+    pub rename_extra_args: Vec<String>,
     /// Override the token budget for this agent
     #[serde(default)]
     pub token_budget: Option<usize>,
+}
+
+impl AgentAnalysisConfig {
+    /// Get effective extra_args for analysis (analyze-specific or global fallback).
+    pub fn effective_analyze_args(&self) -> &[String] {
+        if self.analyze_extra_args.is_empty() {
+            &self.extra_args
+        } else {
+            &self.analyze_extra_args
+        }
+    }
+
+    /// Get effective extra_args for curation (curate-specific or global fallback).
+    pub fn effective_curate_args(&self) -> &[String] {
+        if self.curate_extra_args.is_empty() {
+            &self.extra_args
+        } else {
+            &self.curate_extra_args
+        }
+    }
+
+    /// Get effective extra_args for rename (rename-specific or global fallback).
+    pub fn effective_rename_args(&self) -> &[String] {
+        if self.rename_extra_args.is_empty() {
+            &self.extra_args
+        } else {
+            &self.rename_extra_args
+        }
+    }
 }

@@ -756,9 +756,9 @@ impl ListApp {
             // Suspend TUI - restores normal terminal mode
             self.app.suspend()?;
 
-            // Run the analyze subcommand
+            // Run the analyze subcommand (--wait pauses before returning to TUI)
             let status = std::process::Command::new(std::env::current_exe()?)
-                .args(["analyze", &path])
+                .args(["analyze", &path, "--wait"])
                 .status();
 
             // Resume TUI - re-enters alternate screen and raw mode

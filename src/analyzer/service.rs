@@ -25,6 +25,9 @@ use super::config::ExtractionConfig;
 use super::error::AnalysisError;
 use super::extractor::ContentExtractor;
 use super::progress::DefaultProgressReporter;
+use super::prompt::{
+    build_analyze_prompt, build_curation_prompt, build_rename_prompt, extract_rename_response,
+};
 use super::result::{MarkerWriter, ResultAggregator, ValidatedMarker, WriteReport};
 use super::tracker::UsageSummary;
 use super::worker::{ProgressReporter, RetryExecutor, WorkerConfig, WorkerScaler};
@@ -51,8 +54,12 @@ pub struct AnalyzeOptions {
     pub output_path: Option<String>,
     /// Fast mode (skip JSON schema enforcement)
     pub fast: bool,
-    /// Extra CLI arguments to pass to the agent backend
+    /// Extra CLI arguments to pass to the agent backend (for analysis)
     pub extra_args: Vec<String>,
+    /// Extra CLI arguments for curation (falls back to `extra_args` if empty)
+    pub curate_extra_args: Vec<String>,
+    /// Extra CLI arguments for rename (falls back to `extra_args` if empty)
+    pub rename_extra_args: Vec<String>,
     /// Override the token budget for chunk calculation
     pub token_budget_override: Option<usize>,
 }
@@ -69,6 +76,8 @@ impl Default for AnalyzeOptions {
             output_path: None,
             fast: false,
             extra_args: Vec::new(),
+            curate_extra_args: Vec::new(),
+            rename_extra_args: Vec::new(),
             token_budget_override: None,
         }
     }
@@ -131,6 +140,18 @@ impl AnalyzeOptions {
         self
     }
 
+    /// Set extra CLI arguments for curation tasks.
+    pub fn curate_extra_args(mut self, args: Vec<String>) -> Self {
+        self.curate_extra_args = args;
+        self
+    }
+
+    /// Set extra CLI arguments for rename tasks.
+    pub fn rename_extra_args(mut self, args: Vec<String>) -> Self {
+        self.rename_extra_args = args;
+        self
+    }
+
     /// Set token budget override for chunk calculation.
     pub fn token_budget_override(mut self, budget: usize) -> Self {
         self.token_budget_override = Some(budget);
@@ -190,6 +211,18 @@ impl AnalyzerService {
     /// Create with a custom backend (for testing).
     pub fn with_backend(options: AnalyzeOptions, backend: Box<dyn AgentBackend>) -> Self {
         Self { options, backend }
+    }
+
+    /// Create a backend with task-specific extra args.
+    ///
+    /// Falls back to the main `extra_args` if the task-specific args are empty.
+    fn backend_for_args(&self, task_args: &[String]) -> Box<dyn AgentBackend> {
+        let args = if task_args.is_empty() {
+            self.options.extra_args.clone()
+        } else {
+            task_args.to_vec()
+        };
+        self.options.agent.create_backend(args)
     }
 
     /// Check if the configured agent is available.
@@ -377,7 +410,7 @@ impl AnalyzerService {
         let total_duration = content.total_duration;
         let total_chunks = chunks.len();
         let prompt_builder = |chunk: &super::chunk::AnalysisChunk| -> String {
-            build_prompt(chunk, total_duration, total_chunks)
+            build_analyze_prompt(chunk, total_duration, total_chunks)
         };
 
         // Execute with retry
@@ -470,23 +503,24 @@ impl AnalyzerService {
         timeout: Duration,
     ) -> Result<Vec<ValidatedMarker>, AnalysisError> {
         let prompt = build_curation_prompt(markers, total_duration);
+        let backend = self.backend_for_args(&self.options.curate_extra_args);
 
-        let use_schema = !self.options.fast;
-        let response = self
-            .backend
-            .invoke(&prompt, timeout, use_schema)
-            .map_err(|e| AnalysisError::IoError {
-                operation: "curation".to_string(),
-                message: format!("{}", e),
-            })?;
-
-        let parsed =
-            self.backend
-                .parse_response(&response)
+        // Never use schema for curation — it's a small prompt where
+        // schema enforcement adds overhead without reliability benefit.
+        let response =
+            backend
+                .invoke(&prompt, timeout, false)
                 .map_err(|e| AnalysisError::IoError {
-                    operation: "parsing curation response".to_string(),
+                    operation: "curation".to_string(),
                     message: format!("{}", e),
                 })?;
+
+        let parsed = backend
+            .parse_response(&response)
+            .map_err(|e| AnalysisError::IoError {
+                operation: "parsing curation response".to_string(),
+                message: format!("{}", e),
+            })?;
 
         // Convert RawMarkers back to ValidatedMarkers
         let curated: Vec<ValidatedMarker> = parsed
@@ -510,9 +544,9 @@ impl AnalyzerService {
         current_filename: &str,
     ) -> Option<String> {
         let prompt = build_rename_prompt(markers, total_duration, current_filename);
+        let backend = self.backend_for_args(&self.options.rename_extra_args);
 
-        let response = self
-            .backend
+        let response = backend
             .invoke(&prompt, timeout, false) // Never use schema for rename (plain text response)
             .ok()?;
 
@@ -561,190 +595,11 @@ impl AnalyzerService {
     }
 }
 
-/// Maximum tokens for prompt content (safety net for edge cases).
-/// This should be higher than the chunk calculator's available_for_content()
-/// (161,500 for Claude) so truncation only triggers if chunking fails.
-/// Setting to 170K gives a small buffer above Claude's limit while still
-/// catching bugs where chunks are not properly sized.
-const MAX_PROMPT_CONTENT_TOKENS: usize = 170_000;
-
-/// Estimated characters per token for truncation calculation.
-const CHARS_PER_TOKEN: usize = 4;
-
-/// Target total markers for an entire session (regardless of size).
-const TARGET_TOTAL_MARKERS_MIN: usize = 10;
-const TARGET_TOTAL_MARKERS_MAX: usize = 20;
-
-/// Build the analysis prompt for a chunk.
-///
-/// Uses the template from `src/analyzer/prompts/analyze.txt`.
-/// If the resulting prompt exceeds token limits, the content is truncated
-/// with a warning logged.
-///
-/// # Arguments
-///
-/// * `chunk` - The chunk to analyze
-/// * `total_duration` - Total duration of the recording
-/// * `total_chunks` - Total number of chunks (for calculating markers per chunk)
-pub fn build_prompt(
-    chunk: &super::chunk::AnalysisChunk,
-    total_duration: f64,
-    total_chunks: usize,
-) -> String {
-    // Include the template at compile time
-    const TEMPLATE: &str = include_str!("prompts/analyze.txt");
-
-    // Calculate markers per chunk to achieve target total
-    let (min_markers, max_markers) = calculate_markers_per_chunk(total_chunks);
-
-    // Validate and potentially truncate content if too large
-    let content = truncate_content_if_needed(&chunk.text, chunk.estimated_tokens);
-
-    TEMPLATE
-        .replace(
-            "{chunk_start_time}",
-            &format!("{:.1}", chunk.time_range.start),
-        )
-        .replace("{chunk_end_time}", &format!("{:.1}", chunk.time_range.end))
-        .replace("{total_duration}", &format!("{:.1}", total_duration))
-        .replace("{min_markers}", &min_markers.to_string())
-        .replace("{max_markers}", &max_markers.to_string())
-        .replace("{cleaned_content}", &content)
-}
-
-/// Calculate how many markers to request per chunk.
-///
-/// Distributes the target total markers across chunks, ensuring
-/// each chunk requests at least 1 marker.
-fn calculate_markers_per_chunk(total_chunks: usize) -> (usize, usize) {
-    if total_chunks == 0 {
-        return (1, 3);
-    }
-
-    // Distribute target markers across chunks
-    let min_per_chunk = (TARGET_TOTAL_MARKERS_MIN / total_chunks).max(1);
-    let max_per_chunk = (TARGET_TOTAL_MARKERS_MAX / total_chunks).max(min_per_chunk + 1);
-
-    // Cap at reasonable per-chunk limits
-    (min_per_chunk.min(5), max_per_chunk.min(8))
-}
-
-/// Truncate content if it exceeds the maximum prompt token limit.
-///
-/// Returns the content as-is if within limits, otherwise truncates
-/// and appends a truncation notice.
-fn truncate_content_if_needed(content: &str, estimated_tokens: usize) -> String {
-    if estimated_tokens <= MAX_PROMPT_CONTENT_TOKENS {
-        return content.to_string();
-    }
-
-    eprintln!(
-        "Warning: Content size ({} tokens) exceeds limit ({}). Truncating.",
-        estimated_tokens, MAX_PROMPT_CONTENT_TOKENS
-    );
-
-    // Calculate safe character limit
-    let max_chars = MAX_PROMPT_CONTENT_TOKENS * CHARS_PER_TOKEN;
-    let truncated: String = content.chars().take(max_chars).collect();
-
-    format!("{}\n\n[Content truncated due to size limits]", truncated)
-}
-
-/// Build the rename prompt for filename suggestion.
-fn build_rename_prompt(
-    markers: &[ValidatedMarker],
-    total_duration: f64,
-    current_filename: &str,
-) -> String {
-    const TEMPLATE: &str = include_str!("prompts/rename.txt");
-
-    let markers_json: Vec<serde_json::Value> = markers
-        .iter()
-        .map(|m| {
-            serde_json::json!({
-                "timestamp": m.timestamp,
-                "label": m.label,
-                "category": format!("{:?}", m.category).to_lowercase()
-            })
-        })
-        .collect();
-
-    let markers_json_str =
-        serde_json::to_string_pretty(&markers_json).unwrap_or_else(|_| "[]".to_string());
-
-    TEMPLATE
-        .replace("{total_duration}", &format!("{:.1}", total_duration))
-        .replace(
-            "{duration_minutes}",
-            &format!("{:.1}", total_duration / 60.0),
-        )
-        .replace("{marker_count}", &markers.len().to_string())
-        .replace("{current_filename}", current_filename)
-        .replace("{markers_json}", &markers_json_str)
-}
-
-/// Extract the filename from an LLM rename response.
-///
-/// Handles Claude wrapper format and plain text.
-fn extract_rename_response(response: &str) -> Option<String> {
-    let trimmed = response.trim();
-
-    // Try Claude wrapper format
-    if let Ok(wrapper) = serde_json::from_str::<serde_json::Value>(trimmed) {
-        // Claude wrapper: {"type":"result","result":"the-filename",...}
-        if wrapper.get("type").and_then(|t| t.as_str()) == Some("result") {
-            if let Some(result) = wrapper.get("result").and_then(|r| r.as_str()) {
-                let name = result.trim();
-                if !name.is_empty() {
-                    return Some(name.to_string());
-                }
-            }
-        }
-    }
-
-    // Plain text response - take first line
-    let first_line = trimmed.lines().next()?.trim();
-    if !first_line.is_empty() {
-        Some(first_line.to_string())
-    } else {
-        None
-    }
-}
-
-/// Build the curation prompt for marker selection.
-fn build_curation_prompt(markers: &[ValidatedMarker], total_duration: f64) -> String {
-    const TEMPLATE: &str = include_str!("prompts/curate.txt");
-
-    // Convert markers to JSON for the prompt
-    let markers_json: Vec<serde_json::Value> = markers
-        .iter()
-        .map(|m| {
-            serde_json::json!({
-                "timestamp": m.timestamp,
-                "label": m.label,
-                "category": format!("{:?}", m.category).to_lowercase()
-            })
-        })
-        .collect();
-
-    let markers_json_str =
-        serde_json::to_string_pretty(&markers_json).unwrap_or_else(|_| "[]".to_string());
-
-    TEMPLATE
-        .replace("{total_duration}", &format!("{:.1}", total_duration))
-        .replace(
-            "{duration_minutes}",
-            &format!("{:.1}", total_duration / 60.0),
-        )
-        .replace("{marker_count}", &markers.len().to_string())
-        .replace("{markers_json}", &markers_json_str)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::analyzer::backend::{BackendError, RawMarker};
-    use crate::analyzer::chunk::{TimeRange, TokenBudget};
+    use crate::analyzer::chunk::TokenBudget;
     use crate::asciicast::{Event, Header};
     use std::io::Write;
     use std::sync::Mutex;
@@ -942,38 +797,6 @@ mod tests {
         assert_eq!(opts.timeout_secs, 60);
         assert!(opts.no_parallel);
         assert!(opts.quiet);
-    }
-
-    // ============================================
-    // build_prompt Tests
-    // ============================================
-
-    #[test]
-    fn build_prompt_substitutes_values() {
-        let chunk = super::super::chunk::AnalysisChunk::new(
-            0,
-            TimeRange::new(10.0, 50.0),
-            vec![super::super::types::AnalysisSegment {
-                start_time: 10.0,
-                end_time: 50.0,
-                content: "Test content here".to_string(),
-                estimated_tokens: 100,
-                event_range: (0, 10),
-            }],
-        );
-
-        let prompt = build_prompt(&chunk, 120.0, 3); // 3 chunks total
-
-        assert!(prompt.contains("10.0s - 50.0s"));
-        assert!(prompt.contains("120.0s"));
-        assert!(prompt.contains("Test content here"));
-        assert!(prompt.contains("planning"));
-        assert!(prompt.contains("design"));
-        assert!(prompt.contains("implementation"));
-        assert!(prompt.contains("success"));
-        assert!(prompt.contains("failure"));
-        // With 3 chunks, target 10-20 markers total = 3-6 per chunk
-        assert!(prompt.contains("3-6"));
     }
 
     // ============================================

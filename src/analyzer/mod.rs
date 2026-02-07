@@ -32,6 +32,7 @@ mod config;
 pub mod error;
 mod extractor;
 pub mod progress;
+mod prompt;
 pub mod result;
 mod service;
 pub mod tracker;
@@ -73,4 +74,5 @@ pub use error::AnalysisError;
 pub use tracker::{ChunkUsage, RetryCoordinator, RetryPolicy, TokenTracker, UsageSummary};
 
 // Re-export service types (main entry point)
-pub use service::{build_prompt, AnalysisResult, AnalyzeOptions, AnalyzerService};
+pub use prompt::build_analyze_prompt;
+pub use service::{AnalysisResult, AnalyzeOptions, AnalyzerService};

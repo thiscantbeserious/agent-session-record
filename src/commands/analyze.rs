@@ -41,6 +41,7 @@ pub fn handle(
     debug: bool,
     output: Option<String>,
     fast: bool,
+    wait: bool,
 ) -> Result<()> {
     let config = Config::load()?;
 
@@ -103,10 +104,19 @@ pub fn handle(
         options = options.fast(true);
     }
 
-    // Pass extra_args and token_budget_override from per-agent config
+    // Pass per-task extra_args and token_budget_override from per-agent config
     if let Some(ac) = agent_config {
-        if !ac.extra_args.is_empty() {
-            options = options.extra_args(ac.extra_args.clone());
+        let analyze_args = ac.effective_analyze_args();
+        if !analyze_args.is_empty() {
+            options = options.extra_args(analyze_args.to_vec());
+        }
+        let curate_args = ac.effective_curate_args();
+        if !curate_args.is_empty() {
+            options = options.curate_extra_args(curate_args.to_vec());
+        }
+        let rename_args = ac.effective_rename_args();
+        if !rename_args.is_empty() {
+            options = options.rename_extra_args(rename_args.to_vec());
         }
         if let Some(budget) = ac.token_budget {
             options = options.token_budget_override(budget);
@@ -256,6 +266,13 @@ pub fn handle(
                 // Silently skip if rename suggestion fails
             }
         }
+    }
+
+    if wait {
+        print!("\nPress Enter to continue...");
+        io::stdout().flush()?;
+        let mut input = String::new();
+        io::stdin().lock().read_line(&mut input)?;
     }
 
     Ok(())
