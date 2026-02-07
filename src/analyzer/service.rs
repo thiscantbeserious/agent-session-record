@@ -241,22 +241,53 @@ impl AnalyzerService {
             };
 
             eprintln!("\nExtraction Summary:");
-            eprintln!("──────────────────────────────────────────────────────────────────────────────");
-            eprintln!("  Size Reduction:    {:>8}KB → {:>8}KB ({:.1}%)", 
-                stats.original_bytes / 1024, 
-                stats.extracted_bytes / 1024, 
+            eprintln!(
+                "──────────────────────────────────────────────────────────────────────────────"
+            );
+            eprintln!(
+                "  Size Reduction:    {:>8}KB → {:>8}KB ({:.1}%)",
+                stats.original_bytes / 1024,
+                stats.extracted_bytes / 1024,
                 compression
             );
-            eprintln!("──────────────────────────────────────────────────────────────────────────────");
-            eprintln!("  Redraw Cleanup:    {:>8} redraw frames coalesced", stats.events_coalesced);
-            eprintln!("                     {:>8} status lines deduped", stats.windowed_lines_deduped);
-            eprintln!("  Content Pruning:   {:>8} redundant lines removed", stats.global_lines_deduped);
-            eprintln!("                     {:>8} similar blocks collapsed", stats.lines_collapsed);
-            eprintln!("                     {:>8} large output bursts truncated", stats.bursts_collapsed);
-            eprintln!("                     {:>8} massive events truncated", stats.blocks_truncated);
-            eprintln!("  Sanitization:      {:>8} ANSI sequences stripped", stats.ansi_sequences_stripped);
-            eprintln!("                     {:>8} control characters removed", stats.control_chars_stripped);
-            eprintln!("──────────────────────────────────────────────────────────────────────────────\n");
+            eprintln!(
+                "──────────────────────────────────────────────────────────────────────────────"
+            );
+            eprintln!(
+                "  Redraw Cleanup:    {:>8} redraw frames coalesced",
+                stats.events_coalesced
+            );
+            eprintln!(
+                "                     {:>8} status lines deduped",
+                stats.windowed_lines_deduped
+            );
+            eprintln!(
+                "  Content Pruning:   {:>8} redundant lines removed",
+                stats.global_lines_deduped
+            );
+            eprintln!(
+                "                     {:>8} similar blocks collapsed",
+                stats.lines_collapsed
+            );
+            eprintln!(
+                "                     {:>8} large output bursts truncated",
+                stats.bursts_collapsed
+            );
+            eprintln!(
+                "                     {:>8} massive events truncated",
+                stats.blocks_truncated
+            );
+            eprintln!(
+                "  Sanitization:      {:>8} ANSI sequences stripped",
+                stats.ansi_sequences_stripped
+            );
+            eprintln!(
+                "                     {:>8} control characters removed",
+                stats.control_chars_stripped
+            );
+            eprintln!(
+                "──────────────────────────────────────────────────────────────────────────────\n"
+            );
         }
 
         // Handle debug output if requested (--debug AND --output flags)
@@ -267,13 +298,12 @@ impl AnalyzerService {
             let output_path = match &self.options.output_path {
                 Some(p) if !p.is_empty() => p.clone(),
                 _ => {
-                    let stem = path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .ok_or_else(|| AnalysisError::IoError {
+                    let stem = path.file_stem().and_then(|s| s.to_str()).ok_or_else(|| {
+                        AnalysisError::IoError {
                             operation: "deriving debug output path".to_string(),
                             message: "Path does not have a valid filename".to_string(),
-                        })?;
+                        }
+                    })?;
                     format!("/tmp/{}.txt", stem)
                 }
             };
@@ -804,42 +834,57 @@ mod tests {
         // to survive the full extraction pipeline (coalescing, dedup, burst filter).
         let phases: &[(&[&str], f64)] = &[
             // Phase 1: Build (t=0)
-            (&[
-                "$ cargo build --release\n",
-                "   Compiling serde v1.0.200\n",
-                "   Compiling agr v0.1.0 (/home/user/project)\n",
-                "    Finished release [optimized] target(s) in 14.32s\n",
-            ], 0.0),
+            (
+                &[
+                    "$ cargo build --release\n",
+                    "   Compiling serde v1.0.200\n",
+                    "   Compiling agr v0.1.0 (/home/user/project)\n",
+                    "    Finished release [optimized] target(s) in 14.32s\n",
+                ],
+                0.0,
+            ),
             // Phase 2: Tests (t=5)
-            (&[
-                "$ cargo test --lib\n",
-                "running 42 tests\n",
-                "test config::tests::load_default_config ... ok\n",
-                "test parser::tests::parse_asciicast_header ... ok\n",
-                "test result: ok. 42 passed; 0 failed; 0 ignored\n",
-            ], 5.0),
+            (
+                &[
+                    "$ cargo test --lib\n",
+                    "running 42 tests\n",
+                    "test config::tests::load_default_config ... ok\n",
+                    "test parser::tests::parse_asciicast_header ... ok\n",
+                    "test result: ok. 42 passed; 0 failed; 0 ignored\n",
+                ],
+                5.0,
+            ),
             // Phase 3: Git operations (t=12)
-            (&[
-                "$ git add -A && git commit -m 'feat: add clipboard support'\n",
-                "[main abc1234] feat: add clipboard support\n",
-                " 3 files changed, 150 insertions(+), 12 deletions(-)\n",
-            ], 12.0),
+            (
+                &[
+                    "$ git add -A && git commit -m 'feat: add clipboard support'\n",
+                    "[main abc1234] feat: add clipboard support\n",
+                    " 3 files changed, 150 insertions(+), 12 deletions(-)\n",
+                ],
+                12.0,
+            ),
             // Phase 4: Deploy (t=20)
-            (&[
-                "$ git push origin main\n",
-                "Enumerating objects: 8, done.\n",
-                "To github.com:user/project.git\n",
-                "   def5678..abc1234  main -> main\n",
-            ], 20.0),
+            (
+                &[
+                    "$ git push origin main\n",
+                    "Enumerating objects: 8, done.\n",
+                    "To github.com:user/project.git\n",
+                    "   def5678..abc1234  main -> main\n",
+                ],
+                20.0,
+            ),
             // Phase 5: Verification (t=30)
-            (&[
-                "$ curl -s https://api.example.com/health | jq .\n",
-                "{\n",
-                "  \"status\": \"healthy\",\n",
-                "  \"version\": \"1.2.3\",\n",
-                "  \"uptime\": \"2h 15m\"\n",
-                "}\n",
-            ], 30.0),
+            (
+                &[
+                    "$ curl -s https://api.example.com/health | jq .\n",
+                    "{\n",
+                    "  \"status\": \"healthy\",\n",
+                    "  \"version\": \"1.2.3\",\n",
+                    "  \"uptime\": \"2h 15m\"\n",
+                    "}\n",
+                ],
+                30.0,
+            ),
         ];
 
         for (lines, phase_start) in phases {
@@ -957,18 +1002,19 @@ mod tests {
     fn analyzer_service_analyze_small_file() {
         let file = create_test_cast_file();
         let opts = AnalyzeOptions::default().quiet();
-        let backend = Box::new(MockBackend::new(vec![
-            Ok(mock_response_with_markers()),
-        ]));
+        let backend = Box::new(MockBackend::new(vec![Ok(mock_response_with_markers())]));
         let service = AnalyzerService::with_backend(opts, backend);
 
         let result = service.analyze(file.path());
 
         // The test fixture has enough diverse content to survive the full
         // extraction pipeline. Verify the mock backend's markers are returned.
-        let analysis = result.unwrap_or_else(|e| panic!(
-            "Analysis should succeed with realistic test content, got: {:?}", e
-        ));
+        let analysis = result.unwrap_or_else(|e| {
+            panic!(
+                "Analysis should succeed with realistic test content, got: {:?}",
+                e
+            )
+        });
         assert!(
             !analysis.markers.is_empty(),
             "Expected markers from mock backend, got none"

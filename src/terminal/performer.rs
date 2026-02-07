@@ -58,7 +58,7 @@ impl<'a> TerminalPerformer<'a> {
             if self.scroll_top < self.height && self.scroll_bottom < self.height {
                 // Remove the line at scroll_top
                 let line = self.buffer.remove(self.scroll_top);
-                
+
                 // If a callback is registered, pass the scrolled-off line to it
                 if let Some(ref mut cb) = self.scroll_callback {
                     cb(line);

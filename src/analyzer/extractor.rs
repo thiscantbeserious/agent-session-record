@@ -305,7 +305,11 @@ mod tests {
         // with the content. The exact segment count depends on how the virtual
         // terminal renders and accumulates time.
         assert!(!content.segments.is_empty());
-        let all_content: String = content.segments.iter().map(|s| s.content.as_str()).collect();
+        let all_content: String = content
+            .segments
+            .iter()
+            .map(|s| s.content.as_str())
+            .collect();
         assert!(all_content.contains("hello"));
         assert!(all_content.contains("after gap"));
     }
@@ -322,7 +326,11 @@ mod tests {
 
         // After TerminalTransform, ANSI is stripped during rendering
         // and the content cleaner strips remaining sequences
-        let all_content: String = content.segments.iter().map(|s| s.content.as_str()).collect();
+        let all_content: String = content
+            .segments
+            .iter()
+            .map(|s| s.content.as_str())
+            .collect();
         assert!(all_content.contains("hello"));
     }
 

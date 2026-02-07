@@ -749,8 +749,7 @@ impl ListApp {
             // Create backup before analysis
             let file_path = std::path::Path::new(&path);
             if let Err(e) = create_backup(file_path) {
-                self.status_message =
-                    Some(format!("ERROR: Backup failed for {}: {}", path, e));
+                self.status_message = Some(format!("ERROR: Backup failed for {}: {}", path, e));
                 return Ok(());
             }
 
@@ -776,9 +775,7 @@ impl ListApp {
                                 entries
                                     .flatten()
                                     .filter(|e| {
-                                        e.path()
-                                            .extension()
-                                            .and_then(|ext| ext.to_str())
+                                        e.path().extension().and_then(|ext| ext.to_str())
                                             == Some("cast")
                                     })
                                     .max_by_key(|e| {

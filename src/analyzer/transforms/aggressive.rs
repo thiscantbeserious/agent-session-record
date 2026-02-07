@@ -380,8 +380,12 @@ impl Transform for GlobalDeduplicator {
             // Line frequency capping (Global)
             // We keep only the last few instances of any given non-empty line
             let mut new_data = String::with_capacity(event.data.len());
-            let lines: Vec<String> = event.data.split_inclusive('\n').map(|s| s.to_string()).collect();
-            
+            let lines: Vec<String> = event
+                .data
+                .split_inclusive('\n')
+                .map(|s| s.to_string())
+                .collect();
+
             for line in lines {
                 let trimmed = line.trim();
                 if trimmed.is_empty() {
@@ -453,18 +457,18 @@ impl FileDumpFilter {
             // Collapse the burst
             let head_count = 50; // Keep first 50 lines
             let tail_count = 10; // Keep last 10 lines
-            
+
             let all_content: String = self.burst_events.iter().map(|e| e.data.as_str()).collect();
             let all_lines: Vec<&str> = all_content.split_inclusive('\n').collect();
-            
+
             if all_lines.len() > (head_count + tail_count) {
                 let head: String = all_lines[..head_count].concat();
                 let tail: String = all_lines[all_lines.len() - tail_count..].concat();
                 let collapsed = all_lines.len() - (head_count + tail_count);
-                
+
                 self.total_collapsed += collapsed;
                 let total_time: f64 = self.burst_events.iter().map(|e| e.time).sum();
-                
+
                 output.push(Event::output(
                     total_time,
                     format!(
@@ -495,7 +499,7 @@ impl Default for FileDumpFilter {
 impl Transform for FileDumpFilter {
     fn transform(&mut self, events: &mut Vec<Event>) {
         let mut output = Vec::with_capacity(events.len());
-        
+
         for event in events.drain(..) {
             if !event.is_output() || event.time > 0.5 {
                 // Non-output or significant time gap ends a burst
@@ -624,7 +628,11 @@ impl Transform for WindowedLineDeduplicator {
                 continue;
             }
 
-            let lines: Vec<String> = event.data.split_inclusive('\n').map(|s| s.to_string()).collect();
+            let lines: Vec<String> = event
+                .data
+                .split_inclusive('\n')
+                .map(|s| s.to_string())
+                .collect();
             let line_count = lines.len();
             let time_per_line = if line_count == 0 {
                 event.time

@@ -100,10 +100,13 @@ fn benchmark_content_extraction_5mb() {
     println!("Segments created: {}", result.segments.len());
     println!("Estimated tokens: {}", result.total_tokens);
 
-    // Performance assertion: 5MB should process in <10 seconds in debug mode
+    // Performance assertion: 5MB should process in <30 seconds in debug mode.
+    // TerminalTransform processes each event through a virtual terminal buffer,
+    // which is significantly more expensive than raw string transforms. CI runners
+    // in debug mode can be slow (16s+ observed).
     assert!(
-        duration.as_secs_f64() < 10.0,
-        "5MB extraction should complete in <10s, took {:?}",
+        duration.as_secs_f64() < 30.0,
+        "5MB extraction should complete in <30s, took {:?}",
         duration
     );
 

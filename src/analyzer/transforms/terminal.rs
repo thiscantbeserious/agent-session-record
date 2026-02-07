@@ -62,19 +62,14 @@ impl TerminalTransform {
     /// Returns `true` if the given row has been rewritten enough times to be
     /// considered noise (behavioral detection).
     fn is_noisy_row(&self, row: usize) -> bool {
-        self.row_write_counts
-            .get(row)
-            .copied()
-            .unwrap_or(0)
-            >= NOISE_REWRITE_THRESHOLD
+        self.row_write_counts.get(row).copied().unwrap_or(0) >= NOISE_REWRITE_THRESHOLD
     }
 
     /// Shift row_write_counts after `n` lines scrolled off the top.
     fn shift_row_counts(&mut self, n: usize) {
         let drain = n.min(self.row_write_counts.len());
         self.row_write_counts.drain(0..drain);
-        self.row_write_counts
-            .resize(self.buffer.height(), 0);
+        self.row_write_counts.resize(self.buffer.height(), 0);
     }
 
     fn hash_line(line: &str) -> u64 {
@@ -137,10 +132,7 @@ impl Transform for TerminalTransform {
                     let mut scrolled_lines = Vec::new();
                     {
                         let mut scroll_cb = |cells: Vec<crate::terminal::Cell>| {
-                            let line: String = cells
-                                .iter()
-                                .map(|c| c.char)
-                                .collect::<String>();
+                            let line: String = cells.iter().map(|c| c.char).collect::<String>();
                             scrolled_lines.push(line.trim_end().to_string());
                         };
                         self.buffer.process(&event.data, Some(&mut scroll_cb));
@@ -174,16 +166,13 @@ impl Transform for TerminalTransform {
 
                         let new_lines = self.filter_new_lines(tagged);
                         if !new_lines.is_empty() {
-                            output_events.push(Event::output(
-                                accumulated_time,
-                                new_lines.join("\n"),
-                            ));
+                            output_events
+                                .push(Event::output(accumulated_time, new_lines.join("\n")));
                             accumulated_time = 0.0;
                         }
                     }
 
-                    let current_cursor =
-                        (self.buffer.cursor_row(), self.buffer.cursor_col());
+                    let current_cursor = (self.buffer.cursor_row(), self.buffer.cursor_col());
 
                     // Optimization: only snapshot the buffer when something
                     // interesting happened (cursor moved, scroll, newline, or
@@ -207,8 +196,7 @@ impl Transform for TerminalTransform {
                         {
                             let row = self.stable_lines_count;
                             let noisy = self.is_noisy_row(row);
-                            lines_to_emit
-                                .push((current_lines[row].clone(), noisy));
+                            lines_to_emit.push((current_lines[row].clone(), noisy));
                             self.stable_lines_count += 1;
                         }
 
@@ -222,8 +210,7 @@ impl Transform for TerminalTransform {
                         {
                             let row = current_cursor.0;
                             let noisy = self.is_noisy_row(row);
-                            lines_to_emit
-                                .push((current_lines[row].clone(), noisy));
+                            lines_to_emit.push((current_lines[row].clone(), noisy));
                             if has_newline {
                                 self.stable_lines_count = current_cursor.0 + 1;
                             }
@@ -232,10 +219,8 @@ impl Transform for TerminalTransform {
                         if !lines_to_emit.is_empty() {
                             let new_lines = self.filter_new_lines(lines_to_emit);
                             if !new_lines.is_empty() {
-                                output_events.push(Event::output(
-                                    accumulated_time,
-                                    new_lines.join("\n"),
-                                ));
+                                output_events
+                                    .push(Event::output(accumulated_time, new_lines.join("\n")));
                                 accumulated_time = 0.0;
                             }
                         }

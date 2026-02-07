@@ -156,10 +156,7 @@ impl AnalysisConfig {
         }
         if let Some(t) = self.timeout {
             if t > 3600 {
-                return Err(format!(
-                    "analysis.timeout {} exceeds maximum (3600s)",
-                    t
-                ));
+                return Err(format!("analysis.timeout {} exceeds maximum (3600s)", t));
             }
         }
         if let Some(0) = self.workers {
@@ -167,10 +164,7 @@ impl AnalysisConfig {
         }
         if let Some(w) = self.workers {
             if w > 32 {
-                return Err(format!(
-                    "analysis.workers {} exceeds maximum (32)",
-                    w
-                ));
+                return Err(format!("analysis.workers {} exceeds maximum (32)", w));
             }
         }
         for (name, agent_config) in &self.agents {

@@ -40,8 +40,7 @@ pub struct DiagnoseResult {
 /// every line that cannot be parsed as a valid event.
 pub fn diagnose<P: AsRef<Path>>(path: P) -> Result<DiagnoseResult> {
     let path = path.as_ref();
-    let file =
-        fs::File::open(path).with_context(|| format!("Failed to open file: {:?}", path))?;
+    let file = fs::File::open(path).with_context(|| format!("Failed to open file: {:?}", path))?;
     let reader = BufReader::new(file);
     let mut lines = reader.lines();
 
@@ -51,8 +50,7 @@ pub fn diagnose<P: AsRef<Path>>(path: P) -> Result<DiagnoseResult> {
         .context("File is empty")?
         .context("Failed to read header line")?;
 
-    let header: Header =
-        serde_json::from_str(&header_line).context("Failed to parse header")?;
+    let header: Header = serde_json::from_str(&header_line).context("Failed to parse header")?;
     if header.version != 3 {
         bail!(
             "Only asciicast v3 format is supported (got version {})",
@@ -123,8 +121,7 @@ pub fn repair<P: AsRef<Path>>(path: P) -> Result<usize> {
     let mut lines_iter = content.lines();
 
     let header_line = lines_iter.next().context("File is empty")?;
-    let header: Header =
-        serde_json::from_str(header_line).context("Failed to parse header")?;
+    let header: Header = serde_json::from_str(header_line).context("Failed to parse header")?;
     if header.version != 3 {
         bail!(
             "Only asciicast v3 format is supported (got version {})",

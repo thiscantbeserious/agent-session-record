@@ -81,9 +81,7 @@ impl NoiseClassifier {
         let lower = s.to_ascii_lowercase();
 
         // Modifier+key combos: count every occurrence
-        for pattern in &[
-            "ctrl+", "alt+", "shift+", "cmd+", "meta+", "super+",
-        ] {
+        for pattern in &["ctrl+", "alt+", "shift+", "cmd+", "meta+", "super+"] {
             hits += lower.matches(pattern).count();
         }
 
@@ -206,7 +204,9 @@ mod tests {
         assert!(NoiseClassifier::is_noise(
             "Ctrl+C to cancel  Ctrl+D to exit"
         ));
-        assert!(NoiseClassifier::is_noise("Press Esc to cancel, Tab to next"));
+        assert!(NoiseClassifier::is_noise(
+            "Press Esc to cancel, Tab to next"
+        ));
     }
 
     #[test]
@@ -242,7 +242,9 @@ mod tests {
         assert!(!NoiseClassifier::is_noise("Tips and tricks for Rust"));
         assert!(!NoiseClassifier::is_noise("tooltip.show()"));
         // "Note" in the middle of a sentence
-        assert!(!NoiseClassifier::is_noise("Please note that this is important"));
+        assert!(!NoiseClassifier::is_noise(
+            "Please note that this is important"
+        ));
     }
 
     // ── Status Summary / Thinking ──────────────────────────────────

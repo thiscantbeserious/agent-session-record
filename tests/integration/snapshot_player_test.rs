@@ -743,7 +743,10 @@ fn snapshot_viewport_with_highlight() {
 fn snapshot_viewport_scrolled() {
     let mut buffer = TerminalBuffer::new(100, 30);
     for i in 0..30 {
-        buffer.process(&format!("Line {} - some content here with offset\r\n", i), None);
+        buffer.process(
+            &format!("Line {} - some content here with offset\r\n", i),
+            None,
+        );
     }
 
     let output = render_viewport_snapshot(&buffer, 10, 5, 10, 40, None);

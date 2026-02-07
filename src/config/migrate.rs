@@ -76,16 +76,19 @@ fn migrate_recursive(
         if !user_table.contains_key(key) {
             // Field or section missing - add it entirely
             user_table.insert(key, default_item.clone());
-            
+
             if path.is_empty() {
                 result.sections_added.push(key.to_string());
             }
-            
+
             // Track all leaf fields in the added item
             track_added_fields(&full_path, default_item, result);
         } else {
             // Field exists - if it's a table, recurse
-            if let (Some(u_table), Some(d_table)) = (user_table.get_mut(key).and_then(|i| i.as_table_mut()), default_item.as_table()) {
+            if let (Some(u_table), Some(d_table)) = (
+                user_table.get_mut(key).and_then(|i| i.as_table_mut()),
+                default_item.as_table(),
+            ) {
                 migrate_recursive(&full_path, u_table, d_table, result);
             }
         }

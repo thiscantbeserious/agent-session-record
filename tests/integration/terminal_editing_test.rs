@@ -93,7 +93,10 @@ fn resize_during_playback_sequence() {
     assert_eq!(buf.width(), 100);
 
     buf.process("\r\n", None);
-    buf.process("This is wider content that uses the new 100 column width...............", None);
+    buf.process(
+        "This is wider content that uses the new 100 column width...............",
+        None,
+    );
 
     let output = buf.to_string();
     assert!(output.contains("Initial content"));

@@ -215,7 +215,7 @@ mod tests {
     fn removes_whitespace_only_events() {
         let mut events = vec![
             Event::output(0.1, "hello"),
-            Event::output(0.1, "   "), // preserved (contains spaces)
+            Event::output(0.1, "   "),  // preserved (contains spaces)
             Event::output(0.1, "\t\n"), // removed (no spaces)
             Event::output(0.1, "world"),
         ];
