@@ -111,11 +111,11 @@ This is the primary extraction stage. Pull duplicated handler functions from `li
 
 ### Stage 5a: Populate `keybindings.rs` with shared key handlers
 
-- [ ] Extract `handle_search_key()` logic from `list_app.rs` into `app/keybindings.rs` as part of `handle_shared_key()` dispatch
-- [ ] Extract `handle_agent_filter_key()` logic from `list_app.rs` into `app/keybindings.rs`
-- [ ] Extract `handle_help_key()` logic from `list_app.rs` into `app/keybindings.rs`
-- [ ] Extract navigation key handling (up/down/pgup/pgdn/home/end) from `list_app.rs` into `app/keybindings.rs`
-- [ ] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
+- [x] Extract `handle_search_key()` logic from `list_app.rs` into `app/keybindings.rs` as part of `handle_shared_key()` dispatch
+- [x] Extract `handle_agent_filter_key()` logic from `list_app.rs` into `app/keybindings.rs`
+- [x] Extract `handle_help_key()` logic from `list_app.rs` into `app/keybindings.rs`
+- [x] Extract navigation key handling (up/down/pgup/pgdn/home/end) from `list_app.rs` into `app/keybindings.rs`
+- [x] Verify: `cargo test && cargo clippy -- -D warnings && cargo insta test --check`
 
 ### Stage 5b: Populate view helpers and move `prefetch`/`extract` to `widgets/preview.rs`
 
