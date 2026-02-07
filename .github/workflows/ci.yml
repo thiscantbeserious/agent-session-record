@@ -24,6 +24,8 @@ jobs:
   # 1. Build - ensure it compiles and share artifacts
   build:
     name: Build (${{ matrix.os == 'ubuntu-latest' && 'Linux' || 'macOS' }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -68,7 +70,8 @@ jobs:
   # 2. Unit Tests - verify logic (uses cached build)
   unit-tests:
     name: Unit Tests (${{ matrix.os == 'ubuntu-latest' && 'Linux' || 'macOS' }})
-    needs: build
+    needs: [build, detect-changes]
+    if: needs.detect-changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -95,27 +98,62 @@ jobs:
 
   # 2b. Final checks - run on push to main or PRs with 'ready-to-merge' label
   # These are slower checks that catch memory safety issues
+  # Jobs always run (so required status checks report), but steps are gated
+  # on both the label AND actual source changes to avoid wasting CI time.
 
-  miri:
-    name: "Final Check: Undefined Behavior (Miri)"
-    needs: build
+  detect-changes:
+    name: Detect Changes
     runs-on: ubuntu-latest
-    if: >
-      github.event_name == 'push' ||
-      contains(github.event.pull_request.labels.*.name, 'ready-to-merge')
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+      code: ${{ steps.filter.outputs.code }}
     steps:
       - uses: actions/checkout@v5
 
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'src/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            code:
+              - 'src/**'
+              - 'tests/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+
+  miri:
+    name: "Final Check: Undefined Behavior (Miri)"
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if final checks needed
+        id: gate
+        run: |
+          echo "should_run=${{ (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ready-to-merge')) && needs.detect-changes.outputs.src == 'true' }}" >> $GITHUB_OUTPUT
+
+      - name: Skip
+        if: steps.gate.outputs.should_run != 'true'
+        run: echo "Skipping — no source changes or no 'ready-to-merge' label"
+
+      - uses: actions/checkout@v5
+        if: steps.gate.outputs.should_run == 'true'
+
       - name: Install Rust nightly with Miri
+        if: steps.gate.outputs.should_run == 'true'
         uses: dtolnay/rust-toolchain@nightly
         with:
           components: miri
 
       - name: Get rustc version for cache key
+        if: steps.gate.outputs.should_run == 'true'
         id: rustc
         run: echo "version=$(rustc --version | cut -d' ' -f2)" >> $GITHUB_OUTPUT
 
       - name: Cache cargo registry and Miri sysroot
+        if: steps.gate.outputs.should_run == 'true'
         uses: actions/cache@v5
         with:
           path: |
@@ -129,9 +167,11 @@ jobs:
             miri-
 
       - name: Setup Miri
+        if: steps.gate.outputs.should_run == 'true'
         run: cargo miri setup
 
       - name: Run Miri tests
+        if: steps.gate.outputs.should_run == 'true'
         env:
           MIRIFLAGS: "-Zmiri-disable-isolation"
         run: |
@@ -154,25 +194,35 @@ jobs:
 
   asan:
     name: "Final Check: Memory Leaks (ASan/LSan)"
-    needs: build
+    needs: detect-changes
     runs-on: ubuntu-latest
-    if: >
-      github.event_name == 'push' ||
-      contains(github.event.pull_request.labels.*.name, 'ready-to-merge')
     steps:
+      - name: Check if final checks needed
+        id: gate
+        run: |
+          echo "should_run=${{ (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ready-to-merge')) && needs.detect-changes.outputs.src == 'true' }}" >> $GITHUB_OUTPUT
+
+      - name: Skip
+        if: steps.gate.outputs.should_run != 'true'
+        run: echo "Skipping — no source changes or no 'ready-to-merge' label"
+
       - uses: actions/checkout@v5
+        if: steps.gate.outputs.should_run == 'true'
 
       - name: Install Rust nightly with ASan support
+        if: steps.gate.outputs.should_run == 'true'
         uses: dtolnay/rust-toolchain@nightly
         with:
           targets: x86_64-unknown-linux-gnu
           components: rust-src
 
       - name: Get rustc version for cache key
+        if: steps.gate.outputs.should_run == 'true'
         id: rustc
         run: echo "version=$(rustc --version | cut -d' ' -f2)" >> $GITHUB_OUTPUT
 
       - name: Cache cargo registry
+        if: steps.gate.outputs.should_run == 'true'
         uses: actions/cache@v5
         with:
           path: |
@@ -185,6 +235,7 @@ jobs:
             asan-
 
       - name: Run tests with AddressSanitizer
+        if: steps.gate.outputs.should_run == 'true'
         env:
           # Use target-specific RUSTFLAGS to avoid applying to build scripts
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "-Z sanitizer=address"
@@ -197,7 +248,8 @@ jobs:
   # 3. Coverage - generate test coverage and upload to Codecov
   coverage:
     name: Coverage
-    needs: build
+    needs: [build, detect-changes]
+    if: needs.detect-changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     env:
       TARPAULIN_VERSION: 0.32.7
@@ -265,7 +317,8 @@ jobs:
   # 4. E2E Tests - verify integration (uses build artifacts, runs parallel with unit tests)
   e2e-tests:
     name: E2E Tests (${{ matrix.os == 'ubuntu-latest' && 'Linux' || 'macOS' }})
-    needs: build
+    needs: [build, detect-changes]
+    if: needs.detect-changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -325,7 +378,8 @@ jobs:
   # 5. Snapshot Tests - verify UI snapshots match committed versions
   snapshot-tests:
     name: Snapshot Tests
-    needs: build
+    needs: [build, detect-changes]
+    if: needs.detect-changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
