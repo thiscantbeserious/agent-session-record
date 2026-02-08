@@ -955,7 +955,11 @@ fn snapshot_confirm_unlock_modal() {
 
     terminal
         .draw(|frame| {
-            ListApp::render_confirm_unlock_modal(frame, area);
+            agr::tui::app::modals::render_confirm_unlock_modal(
+                frame,
+                area,
+                "PID 12345 since 2025-01-15T10:30",
+            );
         })
         .unwrap();
 
