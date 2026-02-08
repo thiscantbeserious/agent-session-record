@@ -917,6 +917,59 @@ Fix the HIGH and MEDIUM severity findings from the internal review.
 
 ---
 
+## Stage 6: Live File Discovery in TUI Tick
+
+### Objective
+Detect new `.cast` files that appear while `agr list` is open (e.g., recording started in another terminal). Piggyback on the existing 15s tick alongside lock refresh.
+
+### Files to Modify
+- `src/tui/list_app.rs` — add `maybe_refresh_file_list()` called from `Event::Tick`
+- `src/tui/widgets/file_explorer.rs` — add `add_item()` or `merge_new_items()` method
+
+### Implementation
+
+1. In `ListApp`, add a method `maybe_refresh_file_list()` called from `Event::Tick` (same 15s interval as lock refresh, or reuse the timer):
+   - Call `self.storage` (or `StorageManager`) to list all current sessions
+   - Diff against `self.explorer.items` by path
+   - For new paths not in the explorer, create `FileItem` and add them
+   - For paths in explorer but gone from disk, optionally remove them
+   - Update `available_agents` if a new agent appeared
+
+2. In `FileExplorer`, add a method to insert new items:
+   ```rust
+   pub fn add_items(&mut self, new_items: Vec<FileItem>) {
+       for item in new_items {
+           if !self.items.iter().any(|i| i.path == item.path) {
+               self.items.push(item);
+           }
+       }
+       self.rebuild_visible(); // re-apply filters and sort
+   }
+   ```
+
+3. `ListApp` needs access to `StorageManager` or `Config` to rescan. Currently it only has `FileExplorer`. Options:
+   - Store `config: Config` on `ListApp` (simple)
+   - Store `storage: StorageManager` on `ListApp`
+   - Pass a closure/callback for rescanning
+
+4. The rescan is just `StorageManager::list_sessions()` which does a `read_dir` — cheap.
+
+### Key Concerns
+- Don't disrupt selection state when adding items (preserve selected index)
+- Re-apply current sort order and filters after adding items
+- Only add truly new files, don't duplicate
+- Removed files: show as greyed/gone or silently remove? (simplest: silently remove, user sees count change)
+
+### Progress
+- [x] `FileExplorer::merge_items()` method
+- [x] `ListApp` stores `StorageManager` for rescanning
+- [x] `maybe_refresh_file_list()` with diff logic
+- [x] Called from `Event::Tick` alongside lock refresh (consolidated `maybe_refresh_tick()`)
+- [x] Selection state preserved after refresh
+- [x] Tests pass
+
+---
+
 ## Completion Criteria
 
 All stages complete when:

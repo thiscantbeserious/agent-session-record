@@ -83,3 +83,9 @@ mod analyzer_content_test;
 
 #[path = "integration/lock_test.rs"]
 mod lock_test;
+
+#[path = "integration/file_explorer_test.rs"]
+mod file_explorer_test;
+
+#[path = "integration/process_guard_test.rs"]
+mod process_guard_test;

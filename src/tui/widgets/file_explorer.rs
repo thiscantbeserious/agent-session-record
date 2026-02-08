@@ -782,6 +782,51 @@ impl FileExplorer {
         }
     }
 
+    /// Merge fresh items into the explorer, adding new ones and removing stale ones.
+    ///
+    /// Preserves the current selection by path if possible.
+    /// Re-applies current filters and sort order after merge.
+    pub fn merge_items(&mut self, fresh_items: Vec<FileItem>) {
+        let selected_path = self.selected_item().map(|i| i.path.clone());
+
+        let fresh_paths: HashSet<String> = fresh_items.iter().map(|i| i.path.clone()).collect();
+        let existing_paths: HashSet<String> = self.items.iter().map(|i| i.path.clone()).collect();
+
+        // Remove stale items (in current but not in fresh)
+        self.items.retain(|item| fresh_paths.contains(&item.path));
+
+        // Add new items (in fresh but not in current)
+        for item in fresh_items {
+            if !existing_paths.contains(&item.path) {
+                self.items.push(item);
+            }
+        }
+
+        // Clear multi-select (indices are invalidated)
+        self.multi_selected.clear();
+
+        // Rebuild filters + sort
+        self.apply_filter();
+        self.apply_sort();
+
+        // Restore selection by path
+        self.restore_selection_by_path(selected_path.as_deref());
+        self.sync_list_state();
+    }
+
+    /// Restore the selected index to the item with the given path.
+    fn restore_selection_by_path(&mut self, path: Option<&str>) {
+        let Some(target) = path else {
+            self.selected = 0;
+            return;
+        };
+        let position = self
+            .visible_indices
+            .iter()
+            .position(|&idx| self.items[idx].path == target);
+        self.selected = position.unwrap_or(0);
+    }
+
     // === Rendering helpers ===
 
     /// Get the list state for ratatui

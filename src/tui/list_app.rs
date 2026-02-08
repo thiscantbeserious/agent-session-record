@@ -24,7 +24,9 @@ use super::app::{handle_shared_key, App, KeyResult, SharedMode, SharedState, Tui
 use super::widgets::preview::prefetch_adjacent_previews;
 use super::widgets::FileItem;
 use crate::asciicast::{apply_transforms, TransformResult};
+use crate::config::Config;
 use crate::files::backup::{backup_path_for, create_backup, has_backup, restore_from_backup};
+use crate::storage::StorageManager;
 use crate::theme::current_theme;
 
 /// UI mode for the list application
@@ -146,13 +148,24 @@ pub struct ListApp {
     optimize_result: Option<OptimizeResultState>,
     /// Last time lock states were refreshed for visible items
     last_lock_refresh: std::time::Instant,
+    /// Storage manager for rescanning sessions on tick
+    storage: StorageManager,
 }
 
 impl ListApp {
     /// Create a new list application with the given sessions.
-    pub fn new(items: Vec<FileItem>) -> Result<Self> {
+    pub fn new(items: Vec<FileItem>, config: Config) -> Result<Self> {
         let app = App::new(Duration::from_millis(250))?;
-        let shared = SharedState::new(items);
+
+        // Collect unique agents and add "All" option
+        let mut available_agents: Vec<String> = vec!["All".to_string()];
+        let mut agents: Vec<String> = items.iter().map(|i| i.agent.clone()).collect();
+        agents.sort();
+        agents.dedup();
+        available_agents.extend(agents);
+
+        let explorer = FileExplorer::new(items);
+        let storage = StorageManager::new(config);
 
         Ok(Self {
             app,
@@ -161,6 +174,7 @@ impl ListApp {
             context_menu_idx: 0,
             optimize_result: None,
             last_lock_refresh: std::time::Instant::now(),
+            storage,
         })
     }
 
@@ -186,7 +200,7 @@ impl ListApp {
                     // Resize handled automatically by ratatui
                 }
                 Event::Tick => {
-                    self.maybe_refresh_lock_states();
+                    self.maybe_refresh_tick();
                 }
                 Event::Quit => break,
             }
@@ -541,16 +555,37 @@ impl ListApp {
         Ok(())
     }
 
-    /// Periodically refresh lock states for visible locked items.
+    /// Periodically refresh lock states and file list (~3s interval).
     ///
-    /// Only checks items that currently have a lock, every ~15 seconds.
-    fn maybe_refresh_lock_states(&mut self) {
-        let interval = std::time::Duration::from_secs(15);
+    /// Combines lock refresh and file discovery in a single timer.
+    /// Cost is ~0.5ms per tick (a few dozen stat syscalls), negligible.
+    fn maybe_refresh_tick(&mut self) {
+        let interval = std::time::Duration::from_secs(3);
         if self.last_lock_refresh.elapsed() < interval {
             return;
         }
         self.last_lock_refresh = std::time::Instant::now();
         self.explorer.refresh_visible_locks();
+        self.maybe_refresh_file_list();
+    }
+
+    /// Rescan storage for new/removed sessions and merge into the explorer.
+    fn maybe_refresh_file_list(&mut self) {
+        let Ok(sessions) = self.storage.list_sessions(None) else {
+            return;
+        };
+        let fresh_items: Vec<FileItem> = sessions.into_iter().map(FileItem::from).collect();
+        self.update_available_agents(&fresh_items);
+        self.explorer.merge_items(fresh_items);
+    }
+
+    /// Add any new agents from fresh items to the available agents list.
+    fn update_available_agents(&mut self, fresh_items: &[FileItem]) {
+        for item in fresh_items {
+            if !self.available_agents.contains(&item.agent) {
+                self.available_agents.push(item.agent.clone());
+            }
+        }
     }
 
     /// Execute the currently selected context menu action.

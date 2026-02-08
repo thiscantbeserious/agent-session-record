@@ -10,21 +10,20 @@ use std::env;
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 use crate::analyzer::{AgentType, AnalyzeOptions, AnalyzerService};
 use crate::config::Config;
 use crate::files::{backup, filename, lock};
 use crate::storage::StorageManager;
 use crate::theme;
+use crate::utils::process_guard::ProcessGuard;
 
 /// Session recorder that wraps asciinema
 pub struct Recorder {
     #[allow(dead_code)]
     config: Config,
     storage: StorageManager,
-    interrupted: Arc<AtomicBool>,
+    guard: ProcessGuard,
 }
 
 impl Recorder {
@@ -34,7 +33,7 @@ impl Recorder {
         Self {
             config,
             storage,
-            interrupted: Arc::new(AtomicBool::new(false)),
+            guard: ProcessGuard::new(),
         }
     }
 
@@ -132,24 +131,16 @@ impl Recorder {
             format!("{} {}", agent, args.join(" "))
         };
 
-        // Set up signal handlers for clean shutdown
-        let interrupted = self.interrupted.clone();
-        ctrlc::set_handler(move || {
-            interrupted.store(true, Ordering::SeqCst);
-        })
-        .ok(); // Ignore if handler already set
-
-        // Handle SIGHUP (terminal closed) - prevents orphaned recordings and stale locks
-        #[cfg(unix)]
-        Self::register_sighup_handler(&self.interrupted);
+        // Set up signal handlers for clean shutdown (SIGINT + SIGHUP)
+        self.guard.register_signal_handlers();
 
         theme::print_start_banner();
         theme::print_box_line(&format!("  ⏺ {}/{}", agent, filename));
         theme::print_box_bottom();
         println!();
 
-        // Run asciinema rec
-        let status = match Command::new("asciinema")
+        // Spawn asciinema rec (spawn + poll so we can react to signals)
+        let mut child = match Command::new("asciinema")
             .arg("rec")
             .arg(&filepath)
             .arg("--title")
@@ -159,14 +150,16 @@ impl Recorder {
             .stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
-            .status()
+            .spawn()
         {
-            Ok(s) => s,
+            Ok(c) => c,
             Err(e) => {
                 lock::remove_lock(&filepath);
                 return Err(anyhow::Error::new(e).context("Failed to start asciinema"));
             }
         };
+
+        let status = self.guard.wait_or_kill(&mut child)?;
 
         println!();
         theme::print_done_banner();
@@ -179,7 +172,7 @@ impl Recorder {
         lock::remove_lock(&filepath);
 
         // Handle exit and get final filepath (may have been renamed)
-        let final_filepath = if self.interrupted.load(Ordering::SeqCst) {
+        let final_filepath = if self.guard.is_interrupted() {
             theme::print_box_line(&format!("  ⏹ {}", filename));
             theme::print_box_bottom();
             filepath.clone()
@@ -265,16 +258,6 @@ impl Recorder {
                 Ok(new_filepath)
             }
         }
-    }
-
-    /// Register a SIGHUP handler to prevent orphaned recordings when the terminal closes.
-    ///
-    /// Without this, force-closing a terminal leaves `agr record` running as an orphan
-    /// with a stale lock file that blocks other commands.
-    #[cfg(unix)]
-    fn register_sighup_handler(interrupted: &Arc<AtomicBool>) {
-        use signal_hook::flag::register;
-        let _ = register(libc::SIGHUP, interrupted.clone());
     }
 
     /// Capture the inode of a file for later recovery if it gets renamed.
