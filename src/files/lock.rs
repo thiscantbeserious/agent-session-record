@@ -122,10 +122,16 @@ pub fn find_by_header(dir: &Path, target_header: &str) -> Option<PathBuf> {
 /// Check whether a process with the given PID is still running.
 ///
 /// Uses `kill(pid, 0)` which checks for process existence without sending a signal.
+/// Returns `true` if the process exists (even if owned by another user — EPERM).
 #[cfg(unix)]
 pub(crate) fn is_pid_alive(pid: u32) -> bool {
     // SAFETY: kill with signal 0 only checks process existence, no signal is sent.
-    unsafe { libc::kill(pid as libc::pid_t, 0) == 0 }
+    let ret = unsafe { libc::kill(pid as libc::pid_t, 0) };
+    if ret == 0 {
+        return true;
+    }
+    // EPERM means the process exists but belongs to another user
+    std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
 }
 
 #[cfg(not(unix))]

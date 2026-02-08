@@ -159,7 +159,13 @@ impl Recorder {
             }
         };
 
-        let status = self.guard.wait_or_kill(&mut child)?;
+        let status = match self.guard.wait_or_kill(&mut child) {
+            Ok(s) => s,
+            Err(e) => {
+                lock::remove_lock(&filepath);
+                return Err(e);
+            }
+        };
 
         println!();
         theme::print_done_banner();
